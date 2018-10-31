@@ -30,8 +30,23 @@ impl Vec4d {
         assert!(self.w == 0. && rhs.w == 0.);
         return self.x * rhs.x + self.y * rhs.y + self.z * rhs.z;
     }
+    pub fn normalize(&self) -> Vec4d {
+        let scale = self.dot(*self);
+        return *self * scale;
+    }
 }
 
+impl ops::Mul<f64> for Vec4d {
+    type Output = Vec4d;
+    fn mul(self, rhs: f64) -> Vec4d {
+        Vec4d{
+            x: self.x * rhs,
+            y: self.y * rhs,
+            z: self.z * rhs,
+            w: self.w
+        }
+    }
+}
 impl ops::Add<Vec4d> for Vec4d {
     type Output = Vec4d;
 
