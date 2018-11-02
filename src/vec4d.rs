@@ -1,8 +1,6 @@
 use std::ops;
 
-#[derive(Debug)]
-#[derive(Clone)]
-#[derive(Copy)]
+#[derive(Debug,Clone,Copy,PartialEq)]
 pub struct Vec4d {
     pub x: f64,
     pub y: f64,
@@ -31,7 +29,7 @@ impl Vec4d {
         return self.x * rhs.x + self.y * rhs.y + self.z * rhs.z;
     }
     pub fn normalize(&self) -> Vec4d {
-        let scale = self.dot(*self);
+        let scale = 1.0 / self.dot(*self).sqrt();
         return *self * scale;
     }
 }
@@ -73,4 +71,19 @@ impl ops::Sub<Vec4d> for Vec4d {
             w: self.w - _rhs.w,
         }
     }
+}
+
+#[test]
+fn test_dot() {
+    assert_eq!(Vec4d::vector(0., 1., 0.).dot(Vec4d::vector(1.,0.,0.)), 0.);
+}
+#[test]
+fn test_cross() {
+    assert_eq!(Vec4d::vector(2., 1., -1.).cross(Vec4d::vector(-3.,4.,1.)), Vec4d::vector(5., 1., 11.));
+    assert_eq!(Vec4d::vector(-3.,4.,1.).cross(Vec4d::vector(2., 1., -1.)), Vec4d::vector(-5., -1., -11.));
+}
+
+#[test]
+fn test_normalize() {
+    assert_eq!(Vec4d::vector(2., 0., 0.).normalize(), Vec4d::vector(1., 0., 0.));
 }

@@ -5,3 +5,6 @@ authors = ["Oliver Hunt <oliver@apple.com>"]
 
 [dependencies]
 image = "*"
+genmesh = "*"
+obj = { version = "*", features = ["genmesh"]}
+

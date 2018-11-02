@@ -12,11 +12,11 @@ impl Scene {
     pub fn new() -> Scene {
         Scene { elements: Vec::new() }
     }
-    pub fn addTriangle(&mut self, triangle: &Triangle) {
+    pub fn add_triangle(&mut self, triangle: &Triangle) {
         self.elements.push(*triangle)
     }
 
-    pub fn intersect(&self, ray: Ray) -> Option<(&Triangle, f64, f64, f64)> {
+    pub fn intersect(&self, ray: Ray) -> Option<(&Triangle, f64, (f64, f64))> {
         let mut hit: Option<&Triangle> = None;
         let mut nearest = std::f64::INFINITY;
         let mut uv : (f64, f64) = (0., 0.);
@@ -31,7 +31,7 @@ impl Scene {
         }
         match hit {
             None => return None,
-            Some(target) => return Some((target, nearest, uv.0, uv.1))
+            Some(target) => return Some((target, nearest, uv))
         }
     }
 }
