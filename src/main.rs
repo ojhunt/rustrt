@@ -5,6 +5,7 @@ mod triangle;
 mod vec4d;
 mod ray;
 mod scene;
+mod objects;
 
 use genmesh::{*};
 use triangle::Triangle;
@@ -15,6 +16,7 @@ use scene::Scene;
 extern crate obj;
 
 use obj::{*};
+use objects::{*};
 
 use std::path::Path;
 fn vecf32_to_point(v: [f32;3]) -> Vec4d {
@@ -26,9 +28,7 @@ fn vecf32_to_vector(v: [f32;3]) -> Vec4d {
 
 fn load_model(path: &str) -> Scene {
     let mut obj = Obj::<Polygon<IndexTuple>>::load(&Path::new(path)).unwrap();
-    // let _ = sponza.load_mtls();
     obj.load_mtls().unwrap();
-    println!("{:?}", obj.position);
 
     let mut scn = Scene::new();
 
@@ -50,24 +50,13 @@ fn load_model(path: &str) -> Scene {
             }
         }
     }
-    let vs = &obj.position;
-    for i in 0..vs.len()/3 {
-        let [vx0, vy0, vz0] = vs[i*3 + 0];
-        let [vx1, vy1, vz1] = vs[i*3 + 1];
-        let [vx2, vy2, vz2] = vs[i*3 + 2];
-        let v0 = Vec4d::point(vx0 as f64, vy0 as f64, vz0 as f64);
-        let v1 = Vec4d::point(vx1 as f64, vy1 as f64, vz1 as f64);
-        let v2 = Vec4d::point(vx2 as f64, vy2 as f64, vz2 as f64);
-        scn.add_triangle(&Triangle::new(v0, v1, v2));
-    }
+
     return scn;
 }
 
 fn main() {
-    let scn = load_model("models/CornellBox-Empty-CO.obj");
-    println!("{:?}", scn);
-
-    let mut output = image::GrayImage::new(200,200);
+    let scn = load_model("models/CornellBox-Sphere.obj");
+    let mut output = image::GrayImage::new(700, 700);
     let width = output.width() as f64;
     let height = output.height() as f64;
     for (x, y, _pixel) in output.enumerate_pixels_mut() {
@@ -75,20 +64,19 @@ fn main() {
         let yp = -(y as f64 - height / 2.) / (height / 2.);
         let ray : Ray;
         if true {
-            let origin = Vec4d::point(0., 0., 4.);
-            let xdirection = 15. * xp;
-            let ydirection = 15. * yp;
-            let zdirection = -15.;
+            let origin = Vec4d::point(0., 1., 3.);
+            let xdirection = 10. * xp;
+            let ydirection = 10. * yp;
+            let zdirection = -20.;
             let direction = Vec4d::vector(xdirection, ydirection, zdirection).normalize();
             ray = Ray::new(origin, direction);
         } else {
             let origin = Vec4d::point(20. * xp, 20. * yp, -10.);
             ray = Ray::new(origin, Vec4d::vector(0., 0., 1.));
         }
-        // println!("{}, {}. {:?}", xdirection, ydirection, ray);
         match scn.intersect(ray) {
             None => continue,
-            Some((_, d, _)) => *_pixel = image::Luma([255 - (d * 5.) as u8])
+            Some((_, d, _)) => *_pixel = image::Luma([255 - (d * 30.) as u8])
         }
     }
     output.save("image.png").unwrap();
