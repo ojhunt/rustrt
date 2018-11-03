@@ -1,37 +1,23 @@
 use triangle::Triangle as Triangle;
 use ray::Ray as Ray;
-use std::vec::Vec;
-use std::option::Option;
+use collision::Collision;
+use compound_object::CompoundObject;
+use intersectable::Intersectable;
 
 #[derive(Debug)]
 pub struct Scene {
-    elements: Vec<Triangle>
+    _scene: CompoundObject
 }
 
 impl Scene {
     pub fn new() -> Scene {
-        Scene { elements: Vec::new() }
+        Scene { _scene: CompoundObject::new() }
     }
-    pub fn add_triangle(&mut self, triangle: &Triangle) {
-        self.elements.push(*triangle)
+    pub fn add_object(&mut self, object: Box<Intersectable>) {
+        self._scene.add_object(object)
     }
 
-    pub fn intersect(&self, ray: Ray) -> Option<(&Triangle, f64, (f64, f64))> {
-        let mut hit: Option<&Triangle> = None;
-        let mut nearest = std::f64::INFINITY;
-        let mut uv : (f64, f64) = (0., 0.);
-        for element in &self.elements {
-            let (d, u, v) = element.intersects(ray);
-            if d < 0. || d > nearest {
-                continue;
-            }
-            nearest = d;
-            hit = Some(element);
-            uv = (u, v);
-        }
-        match hit {
-            None => return None,
-            Some(target) => return Some((target, nearest, uv))
-        }
+    pub fn intersect(&self, ray: Ray) -> Option<Collision> {
+        return self._scene.intersect(ray, std::f64::INFINITY)
     }
 }

@@ -1,29 +1,32 @@
 
 use intersectable::Intersectable;
+use collision::Collision;
+use ray::Ray;
 
+#[derive(Debug)]
 pub struct CompoundObject {
-    elements: mut Vec<&Intersectable>
+    pub elements: Vec<Box<Intersectable>>
 }
 
-pub impl CompoundObject {
-    fn new() -> CompoundObject {
-        CompoundObject{ elements: [].to_vec() }
+impl CompoundObject {
+    pub fn new() -> CompoundObject {
+        CompoundObject{ elements: Vec::new() }
     }
-    fn add_object(&mut self, object: &Intersectable) {
+    pub fn add_object(&mut self, object: Box<Intersectable>) {
         self.elements.push(object)
     }
 }
 
-pub impl Intersectable for CompoundObject {
-    fn intersects(&self, ray: &Ray, max: f64) -> Option<Collision> {
+impl Intersectable for CompoundObject {
+    fn intersect(&self, ray: Ray, max: f64) -> Option<Collision> {
         let mut closest = max;
-        let mut Option<Collision> result = None;
-        for element in &elements {
-            match element.intersects(ray, closest) {
-                None => continue;
+        let mut result: Option<Collision> = None;
+        for element in &self.elements {
+            match element.intersect(ray, closest) {
+                None => continue,
                 Some(collision) => {
-                    closest = collision.distances;
-                    result = collision;
+                    closest = collision.distance;
+                    result = Some(collision);
                 }
             }
         }

@@ -1,17 +1,23 @@
 extern crate image;
 extern crate genmesh;
 
-mod triangle;
-mod vec4d;
+mod basic_object;
+mod camera;
+mod collision;
+mod compound_object;
+mod intersectable;
+mod objects;
 mod ray;
 mod scene;
-mod objects;
+mod triangle;
+mod vec4d;
 
 use genmesh::{*};
 use triangle::Triangle;
 use vec4d::Vec4d;
 use ray::Ray;
 use scene::Scene;
+use collision::Collision;
 
 extern crate obj;
 
@@ -45,9 +51,8 @@ fn load_model(path: &str) -> Scene {
                 .triangulate()
                 .map(|genmesh::Triangle{x,y,z}| Triangle::new(x.0,y.0,z.0))
                 .collect();
-            for triangle in triangles {
-                scn.add_triangle(&triangle);
-            }
+            let newObject = Box::new(BasicObject::new(triangles));
+            scn.add_object(newObject);
         }
     }
 
@@ -76,7 +81,7 @@ fn main() {
         }
         match scn.intersect(ray) {
             None => continue,
-            Some((_, d, _)) => *_pixel = image::Luma([255 - (d * 30.) as u8])
+            Some(Collision{distance:d, uv:_}) => *_pixel = image::Luma([255 - (d * 30.) as u8])
         }
     }
     output.save("image.png").unwrap();

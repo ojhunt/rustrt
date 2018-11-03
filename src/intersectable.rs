@@ -1,6 +1,7 @@
+use std::fmt::Debug;
 use ray::Ray;
 use collision::Collision;
 
-pub trait Intersectable {
-    fn intersects(&self, ray: &Ray, max: f64) -> Option<Collision>;
+pub trait Intersectable : Debug {
+    fn intersect(&self, ray: Ray, max: f64) -> Option<Collision>;
 }
