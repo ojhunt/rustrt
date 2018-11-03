@@ -2,6 +2,7 @@ extern crate image;
 extern crate genmesh;
 
 mod basic_object;
+mod bounding_box;
 mod camera;
 mod collision;
 mod compound_object;

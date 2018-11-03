@@ -1,6 +1,7 @@
 use vec4d::Vec4d;
 use ray::Ray;
 use collision::Collision;
+use bounding_box::BoundingBox;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Triangle {
@@ -16,6 +17,12 @@ impl Triangle {
             origin: v0,
             edges: [edge0, edge1]
         }
+    }
+
+    pub fn bounding_box(&self) -> BoundingBox {
+        return BoundingBox::new_from_point(self.origin)
+               .merge_with_point(self.origin + self.edges[0])
+               .merge_with_point(self.origin + self.edges[1]);
     }
 
     pub fn intersects(&self, ray: Ray, max: f64) -> Option<Collision> {

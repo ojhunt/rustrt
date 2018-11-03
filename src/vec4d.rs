@@ -9,6 +9,9 @@ pub struct Vec4d {
 }
 
 impl Vec4d {
+    pub fn new() -> Vec4d {
+        Vec4d {x:0., y:0., z:0., w:0.}
+    }
     pub fn vector(x: f64, y: f64, z: f64) -> Vec4d {
         Vec4d {x: x, y: y, z:z, w:0.0}
     }

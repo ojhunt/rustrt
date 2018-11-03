@@ -3,15 +3,32 @@ use ray::Ray;
 use triangle::Triangle;
 use collision::Collision;
 use intersectable::Intersectable;
+use bounding_box::*;
 
 #[derive(Debug)]
 pub struct BasicObject {
-    triangles: Vec<Triangle>
+    triangles: Vec<Triangle>,
+    bbox: BoundingBox
+}
+
+fn compute_bounds(triangles: &Vec<Triangle>) -> BoundingBox {
+   let mut bounds = triangles[0].bounding_box();
+   for triangle in triangles {
+       bounds = bounds.merge_with_bbox(triangle.bounding_box())
+   }
+   return bounds;
 }
 
 impl BasicObject {
     pub fn new(triangles: Vec<Triangle>) -> BasicObject {
-        BasicObject{triangles: triangles}
+        let bounds = compute_bounds(&triangles);
+        BasicObject{triangles: triangles, bbox: bounds}
+    }
+}
+
+impl HasBoundingBox for BasicObject {
+    fn bounds(&self) -> BoundingBox {
+        return self.bbox;
     }
 }
 
