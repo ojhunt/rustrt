@@ -3,36 +3,42 @@ use intersectable::Intersectable;
 use bounding_box::BoundingBox;
 use vec4d::Vec4d;
 
-enum BVHNode<T:Intersectable> {
-    Leaf((BoundingBox, Vec<T>)),
-    Node((BoundingBox, Box<BVHNode<T>>, Box<BVHNode<T>>))
+enum BVHNode {
+    Leaf((BoundingBox, Vec<usize>)),
+    Node((BoundingBox, Box<BVHNode>, Box<BVHNode>))
 }
 
 pub struct BVH <T : Intersectable> {
-    root: Box<BVHNode<T>>
+    root: Box<BVHNode>,
+    elements: Vec<T>
 }
 
 impl<T: Intersectable> BVH<T> {
    pub fn new(elements: Vec<T>) -> BVH<T> {
-       return build_tree(elements)
+       BVH{
+           root: build_tree(&elements),
+           elements: elements
+       }
    }
 }
 
-fn build_tree<T: Intersectable>(elements: Vec<T>) -> BVH<T> {
+fn build_tree<T: Intersectable>(elements: &[T]) -> Box<BVHNode> {
     let mut boxbounds = BoundingBox::new();
-    let theobjects : Vec<(BoundingBox, Vec4d, &T)> = elements.iter().map(
-        |element| { 
-            let bounds = element.bounds();
-            boxbounds = boxbounds.merge_with_bbox(bounds);
-            return (bounds, bounds.centroid(), element);
-        }).collect();
+    let mut theobjects : Vec<(BoundingBox, Vec4d, usize)> = Vec::new();
+    let mut i = 0;
+    for element in elements {
     
-    return BVH{root:recursive_build(&theobjects, boxbounds)}
+        let bounds = element.bounds();
+        boxbounds = boxbounds.merge_with_bbox(bounds);
+        theobjects.push((bounds, bounds.centroid(), i));
+    }
+    
+    return recursive_build(&theobjects, boxbounds)
 }
 
 const max_elements_per_node: usize = 8;
-fn recursive_build<T: Intersectable>(
-            elements: &[(BoundingBox, Vec4d, &T)], bounds: BoundingBox) -> Box<BVHNode<T>> {
+fn recursive_build(
+            elements: &[(BoundingBox, Vec4d, usize)], bounds: BoundingBox) -> Box<BVHNode> {
 
     let get_x : fn (Vec4d) -> f64 = |centroid| centroid.x;
     let get_y : fn (Vec4d) -> f64 = |centroid| centroid.y;
@@ -124,8 +130,8 @@ fn recursive_build<T: Intersectable>(
     }
     let split_value = axis_start + (split_point as f64 * ( (max_axis - axis_start) / number_of_bins as f64));
     if elements.len() > max_elements_per_node || minimum_cost < elements.len() as f64 {
-        let mut left_elements : Vec<(BoundingBox, Vec4d, &T)> = Vec::new();
-        let mut right_elements : Vec<(BoundingBox, Vec4d, &T)> = Vec::new();
+        let mut left_elements : Vec<(BoundingBox, Vec4d, usize)> = Vec::new();
+        let mut right_elements : Vec<(BoundingBox, Vec4d, usize)> = Vec::new();
         let mut left_bounds = BoundingBox::new();
         let mut right_bounds = BoundingBox::new();
         for (bounds, centre, elem) in elements {
@@ -142,7 +148,7 @@ fn recursive_build<T: Intersectable>(
         return Box::new(BVHNode::Node((left_bounds.merge_with_bbox(right_bounds), left_node, right_node)));
     } else {
         let mut final_bounds = BoundingBox::new();
-        let mut leaves : Vec<T> = Vec::new();
+        let mut leaves : Vec<usize> = Vec::new();
         for (bounds, _, element) in elements {
             final_bounds = final_bounds.merge_with_bbox(*bounds);
             leaves.push(*element);
