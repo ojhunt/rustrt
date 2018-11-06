@@ -8,8 +8,20 @@ pub struct BoundingBox {
 }
 
 impl BoundingBox {
+    pub fn centroid(&self) -> Vec4d { 
+        return self.min.add_elements(self.max).scale(0.5);
+    }
+    
+    pub fn surface_area(&self) -> f64 {
+        let size = self.max - self.min;
+        return 2. * (size.x * size.y + size.x * size.z + size.y * size.z);
+    }
+
     pub fn new() -> BoundingBox {
-        BoundingBox{min:Vec4d::new(), max:Vec4d::new()}
+        BoundingBox{
+            min:Vec4d::point(std::f64::INFINITY, std::f64::INFINITY, std::f64::INFINITY),
+            max:Vec4d::point(-std::f64::INFINITY, -std::f64::INFINITY, -std::f64::INFINITY)
+        }
     }
     pub fn new_from_point(v: Vec4d) -> BoundingBox {
         assert!(v.w == 1.);
@@ -20,12 +32,12 @@ impl BoundingBox {
         assert!(v.w == 1.);
         let mut min = self.min;
         let mut max = self.max;
-        if v.x < min.x { min.x = v.x; }
-        if v.y < min.y { min.y = v.y; }
-        if v.z < min.z { min.z = v.z; }
-        if v.x > max.x { max.x = v.x; }
-        if v.y > max.y { max.y = v.y; }
-        if v.z > max.z { max.z = v.z; }
+        min.x = min.x.min(v.x);
+        min.y = min.y.min(v.y);
+        min.z = min.z.min(v.z);
+        max.x = max.x.max(v.x);
+        max.y = max.y.max(v.y);
+        max.z = max.z.max(v.z);
         return BoundingBox{min:min, max:max};
     }
     pub fn merge_with_bbox(&self, other: BoundingBox) -> BoundingBox {

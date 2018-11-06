@@ -9,6 +9,7 @@ pub struct Vec4d {
 }
 
 impl Vec4d {
+
     pub fn new() -> Vec4d {
         Vec4d {x:0., y:0., z:0., w:0.}
     }
@@ -35,17 +36,29 @@ impl Vec4d {
         let scale = 1.0 / self.dot(*self).sqrt();
         return *self * scale;
     }
+
+    pub fn scale(self, scale: f64) -> Vec4d {
+        Vec4d{
+            x: self.x * scale,
+            y: self.y * scale,
+            z: self.z * scale,
+            w: self.w * scale
+        }
+    }
+    pub fn add_elements(self, _rhs: Vec4d) -> Vec4d {
+        Vec4d {
+            x: self.x + _rhs.x,
+            y: self.y + _rhs.y,
+            z: self.z + _rhs.z,
+            w: self.w + _rhs.w,
+        }
+    }
 }
 
 impl ops::Mul<f64> for Vec4d {
     type Output = Vec4d;
     fn mul(self, rhs: f64) -> Vec4d {
-        Vec4d{
-            x: self.x * rhs,
-            y: self.y * rhs,
-            z: self.z * rhs,
-            w: self.w
-        }
+        return self.scale(rhs);
     }
 }
 impl ops::Add<Vec4d> for Vec4d {
@@ -53,12 +66,7 @@ impl ops::Add<Vec4d> for Vec4d {
 
     fn add(self, _rhs: Vec4d) -> Vec4d {
         assert!(self.w == 0. || _rhs.w == 0.);
-        Vec4d {
-            x: self.x + _rhs.x,
-            y: self.y + _rhs.y,
-            z: self.z + _rhs.z,
-            w: self.w + _rhs.w,
-        }
+        return self.add_elements(_rhs);
     }
 }
 

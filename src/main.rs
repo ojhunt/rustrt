@@ -1,8 +1,11 @@
 extern crate image;
 extern crate genmesh;
+extern crate itertools;
+
 
 mod basic_object;
 mod bounding_box;
+mod bvh;
 mod camera;
 mod collision;
 mod compound_object;
@@ -52,8 +55,8 @@ fn load_model(path: &str) -> Scene {
                 .triangulate()
                 .map(|genmesh::Triangle{x,y,z}| Triangle::new(x.0,y.0,z.0))
                 .collect();
-            let newObject = Box::new(BasicObject::new(triangles));
-            scn.add_object(newObject);
+            let new_object = Box::new(BasicObject::new(triangles));
+            scn.add_object(new_object);
         }
     }
 

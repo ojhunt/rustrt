@@ -6,5 +6,6 @@ authors = ["Oliver Hunt <oliver@apple.com>"]
 [dependencies]
 image = "*"
 genmesh = "*"
+itertools = "*"
 obj = { version = "*", features = ["genmesh"]}
 

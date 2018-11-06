@@ -15,11 +15,7 @@ impl CompoundObject {
         CompoundObject{ elements: Vec::new(), bbox: BoundingBox::new() }
     }
     pub fn add_object(&mut self, object: Box<Intersectable>) {
-        if self.elements.len() == 0 {
-            self.bbox = object.bounds();
-        } else {
-            self.bbox = self.bbox.merge_with_bbox(object.bounds());
-        }
+        self.bbox = self.bbox.merge_with_bbox(object.bounds());
         self.elements.push(object);
     }
 }

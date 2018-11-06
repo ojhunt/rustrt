@@ -1,7 +1,7 @@
 use vec4d::Vec4d;
 use ray::Ray;
 use collision::Collision;
-use bounding_box::BoundingBox;
+use bounding_box::{*};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Triangle {
@@ -48,5 +48,11 @@ impl Triangle {
         }
         
         return Some(Collision::new(t, (u, v)));
+    }
+}
+
+impl HasBoundingBox for Triangle {
+    fn bounds(&self) -> BoundingBox {
+        return self.bounding_box()
     }
 }

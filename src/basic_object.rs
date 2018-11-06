@@ -12,7 +12,7 @@ pub struct BasicObject {
 }
 
 fn compute_bounds(triangles: &Vec<Triangle>) -> BoundingBox {
-   let mut bounds = triangles[0].bounding_box();
+   let mut bounds = BoundingBox::new();
    for triangle in triangles {
        bounds = bounds.merge_with_bbox(triangle.bounding_box())
    }
