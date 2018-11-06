@@ -1,44 +1,39 @@
-
-use intersectable::Intersectable;
 use bounding_box::BoundingBox;
 use vec4d::Vec4d;
+use intersectable::Intersectable;
 
+#[derive(Debug)]
 enum BVHNode {
     Leaf((BoundingBox, Vec<usize>)),
     Node((BoundingBox, Box<BVHNode>, Box<BVHNode>))
 }
 
-pub struct BVH <T : Intersectable> {
-    root: Box<BVHNode>,
-    elements: Vec<T>
+#[derive(Debug)]
+pub struct BVH {
+    root: BVHNode
 }
 
-impl<T: Intersectable> BVH<T> {
-   pub fn new(elements: Vec<T>) -> BVH<T> {
+impl BVH {
+   pub fn new<T: Intersectable>(elements: &[T]) -> BVH {
+       let mut info : Vec<(BoundingBox, Vec4d, usize)> = Vec::new();
+       let mut total_bounds = BoundingBox::new();
+       for i in 0..elements.len() {
+           let element = &elements[i];
+           let inner_bounds = element.bounds();
+           let centroid = inner_bounds.centroid();
+           total_bounds = total_bounds.merge_with_bbox(inner_bounds);
+           info.push((inner_bounds, centroid, i));
+       }
        BVH{
-           root: build_tree(&elements),
-           elements: elements
+           root: recursive_build(&info, total_bounds)
        }
    }
 }
 
-fn build_tree<T: Intersectable>(elements: &[T]) -> Box<BVHNode> {
-    let mut boxbounds = BoundingBox::new();
-    let mut theobjects : Vec<(BoundingBox, Vec4d, usize)> = Vec::new();
-    let mut i = 0;
-    for element in elements {
-    
-        let bounds = element.bounds();
-        boxbounds = boxbounds.merge_with_bbox(bounds);
-        theobjects.push((bounds, bounds.centroid(), i));
-    }
-    
-    return recursive_build(&theobjects, boxbounds)
-}
 
 const max_elements_per_node: usize = 8;
 fn recursive_build(
-            elements: &[(BoundingBox, Vec4d, usize)], bounds: BoundingBox) -> Box<BVHNode> {
+            elements: &[(BoundingBox, Vec4d, usize)], bounds: BoundingBox) -> BVHNode {
 
     let get_x : fn (Vec4d) -> f64 = |centroid| centroid.x;
     let get_y : fn (Vec4d) -> f64 = |centroid| centroid.y;
@@ -145,7 +140,7 @@ fn recursive_build(
         }
         let left_node = recursive_build(&left_elements, left_bounds);
         let right_node = recursive_build(&right_elements, right_bounds);
-        return Box::new(BVHNode::Node((left_bounds.merge_with_bbox(right_bounds), left_node, right_node)));
+        return BVHNode::Node((left_bounds.merge_with_bbox(right_bounds), Box::new(left_node), Box::new(right_node)));
     } else {
         let mut final_bounds = BoundingBox::new();
         let mut leaves : Vec<usize> = Vec::new();
@@ -153,7 +148,6 @@ fn recursive_build(
             final_bounds = final_bounds.merge_with_bbox(*bounds);
             leaves.push(*element);
         }
-        
-        return Box::new(BVHNode::Leaf((final_bounds, leaves)));
+        return BVHNode::Leaf((final_bounds, leaves));
     }
 }

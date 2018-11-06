@@ -3,20 +3,25 @@ use intersectable::Intersectable;
 use collision::Collision;
 use ray::Ray;
 use bounding_box::{*};
+use bvh::{*};
 
 #[derive(Debug)]
 pub struct CompoundObject {
-    pub elements: Vec<Box<Intersectable>>,
-    bbox: BoundingBox
+    elements: Vec<Box<Intersectable>>,
+    bbox: BoundingBox,
+    bvh_tree: Option<BVH>
 }
 
 impl CompoundObject {
     pub fn new() -> CompoundObject {
-        CompoundObject{ elements: Vec::new(), bbox: BoundingBox::new() }
+        CompoundObject{ elements: Vec::new(), bbox: BoundingBox::new(), bvh_tree:None }
     }
     pub fn add_object(&mut self, object: Box<Intersectable>) {
         self.bbox = self.bbox.merge_with_bbox(object.bounds());
         self.elements.push(object);
+    }
+    pub fn finalize(&mut self) {
+        self.bvh_tree = Some(BVH::new(&self.elements))
     }
 }
 

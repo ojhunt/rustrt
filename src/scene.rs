@@ -1,4 +1,4 @@
-use triangle::Triangle as Triangle;
+
 use ray::Ray as Ray;
 use collision::Collision;
 use compound_object::CompoundObject;

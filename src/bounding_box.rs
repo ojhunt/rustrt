@@ -11,7 +11,7 @@ impl BoundingBox {
     pub fn centroid(&self) -> Vec4d { 
         return self.min.add_elements(self.max).scale(0.5);
     }
-    
+
     pub fn surface_area(&self) -> f64 {
         let size = self.max - self.min;
         return 2. * (size.x * size.y + size.x * size.z + size.y * size.z);
@@ -47,4 +47,10 @@ impl BoundingBox {
 
 pub trait HasBoundingBox {
     fn bounds(&self) -> BoundingBox;
+}
+
+impl <T : HasBoundingBox + ?Sized> HasBoundingBox for Box<T> {
+    fn bounds(&self) -> BoundingBox {
+        return (*self).bounds();
+    }
 }
