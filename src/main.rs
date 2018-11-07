@@ -55,8 +55,10 @@ fn load_model(path: &str) -> Scene {
                 .triangulate()
                 .map(|genmesh::Triangle{x,y,z}| Triangle::new(x.0,y.0,z.0))
                 .collect();
-            let new_object = Box::new(BasicObject::new(triangles));
-            scn.add_object(new_object);
+                for i in 0..(triangles.len()) {
+                    let new_object = Box::new(BasicObject::new(&triangles[i..(i + 1)]));
+                    scn.add_object(new_object);
+                }
         }
     }
     scn.finalize();

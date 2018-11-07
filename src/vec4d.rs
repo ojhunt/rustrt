@@ -53,6 +53,24 @@ impl Vec4d {
             w: self.w + _rhs.w,
         }
     }
+    pub fn min(self, rhs: Vec4d) -> Vec4d {
+        assert!(self.w == rhs.w);
+        Vec4d {
+            x: self.x.min(rhs.x),
+            y: self.y.min(rhs.x),
+            z: self.z.min(rhs.x),
+            w: self.w
+        }
+    }
+    pub fn max(self, rhs: Vec4d) -> Vec4d {
+        assert!(self.w == rhs.w);
+        Vec4d {
+            x: self.x.max(rhs.x),
+            y: self.y.max(rhs.x),
+            z: self.z.max(rhs.x),
+            w: self.w
+        }
+    }
 }
 
 impl ops::Mul<f64> for Vec4d {
