@@ -59,7 +59,7 @@ fn load_model(path: &str) -> Scene {
             scn.add_object(new_object);
         }
     }
-
+    scn.finalize();
     return scn;
 }
 

@@ -9,6 +9,6 @@ pub trait Intersectable : Debug + HasBoundingBox {
 
 impl <T:Intersectable + ?Sized> Intersectable for Box<T> {
     fn intersect(&self, ray: Ray, max: f64) -> Option<Collision> {
-        return (*self).intersect(ray, max);
+        return (**self).intersect(ray, max);
     }
 }

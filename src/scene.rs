@@ -20,4 +20,8 @@ impl Scene {
     pub fn intersect(&self, ray: Ray) -> Option<Collision> {
         return self._scene.intersect(ray, std::f64::INFINITY)
     }
+
+    pub fn finalize(&mut self) {
+        self._scene.finalize();
+    }
 }

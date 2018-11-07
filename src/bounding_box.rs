@@ -51,6 +51,6 @@ pub trait HasBoundingBox {
 
 impl <T : HasBoundingBox + ?Sized> HasBoundingBox for Box<T> {
     fn bounds(&self) -> BoundingBox {
-        return (*self).bounds();
+        return (**self).bounds();
     }
 }
