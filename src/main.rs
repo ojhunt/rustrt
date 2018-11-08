@@ -125,6 +125,7 @@ fn main() {
     let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;
     println!("Time taken: {}", time);
     let range = maximum - minimum;
+    println!("Minimum intersections: {}, max: {}", minimum, maximum);
     for (x, y, _pixel) in output.enumerate_pixels_mut() {
         let mut d = buffer[x as usize][y as usize];
         d -= minimum;

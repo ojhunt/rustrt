@@ -33,6 +33,13 @@ impl BVHPrimitiveInfo {
     }
 }
 
+fn tree_depth(node: &BVHNode) -> usize {
+    match node {
+        BVHNode::Leaf(_) => 1,
+        BVHNode::Node((_, _, left, right)) => 1 + tree_depth(left).max(tree_depth(right))
+    }
+}
+
 impl BVH {
     pub fn new<T: Intersectable>(elements: &[T]) -> BVH {
         let mut info : Vec<BVHPrimitiveInfo> = Vec::new();
@@ -42,6 +49,7 @@ impl BVH {
             info.push(BVHPrimitiveInfo::new(i, inner_bounds));
         }
         let root = recursive_build(0, &mut info);
+        println!("Tree max depth: {}", tree_depth(&root));
         BVH {
             root: root
         }
@@ -79,9 +87,9 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, _: f64,
     let mut primitive_count = 0;
     while let Some(value) = stack.pop() {
         let dir_is_negative = [ray.direction.x < 0., ray.direction.y < 0., ray.direction.z < 0.];
+        primitive_count += 1;
         match &value {
             BVHNode::Leaf((bounds, children)) => {
-                primitive_count += 1;
                 match bounds.intersect(ray, 0.0, nearest) {
                     None => continue,
                     Some((min, max)) => {
@@ -124,7 +132,7 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, _: f64,
 }
 
 const NUM_BUCKETS : usize = 64;
-const MAX_PRIMS_PER_NODE : usize = 8;
+const MAX_PRIMS_PER_NODE : usize = 4;
 
 #[derive(Copy, Clone, Debug)]
 struct BucketInfo {
