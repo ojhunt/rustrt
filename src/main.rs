@@ -55,6 +55,7 @@ fn load_model(path: &str) -> Scene {
                 .triangulate()
                 .map(|genmesh::Triangle{x,y,z}| Triangle::new(x.0,y.0,z.0))
                 .collect();
+            println!("Triangle count: {}", triangles.len());
             if true {
                 for i in 0..(triangles.len()) {
                     let new_object = Box::new(BasicObject::new(&triangles[i..(i + 1)]));
@@ -71,7 +72,7 @@ fn load_model(path: &str) -> Scene {
 }
 
 fn main() {
-    let scn = load_model("models/CornellBox-Sphere.obj");
+    let scn = load_model("models/sponza.obj");
     let mut output = image::GrayImage::new(700, 700);
     let width = output.width() as f64;
     let height = output.height() as f64;
@@ -80,7 +81,7 @@ fn main() {
         let yp = -(y as f64 - height / 2.) / (height / 2.);
         let ray : Ray;
         if true {
-            let origin = Vec4d::point(0., 1., 3.);
+            let origin = Vec4d::point(0., 2., 0.);
             let xdirection = 10. * xp;
             let ydirection = 10. * yp;
             let zdirection = -20.;
