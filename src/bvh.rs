@@ -70,16 +70,18 @@ fn intersect_primitives<T: Intersectable>(indices:&[usize], primitives: &[T], ra
         return result;
 }
 
-fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f64, max: f64) -> Option<Collision> {
+fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, _: f64, max: f64) -> Option<Collision> {
     
     let mut stack : Vec<&BVHNode> = Vec::new();
     stack.push(node);
     let mut result : Option<Collision> = None;
-    let mut nearest = std::f64::INFINITY;
+    let mut nearest = max;
+    let mut primitive_count = 0;
     while let Some(value) = stack.pop() {
         let dir_is_negative = [ray.direction.x < 0., ray.direction.y < 0., ray.direction.z < 0.];
         match &value {
             BVHNode::Leaf((bounds, children)) => {
+                primitive_count += 1;
                 match bounds.intersect(ray, 0.0, nearest) {
                     None => continue,
                     Some((min, max)) => {
@@ -110,6 +112,13 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f6
                 };
             }
         }
+    };
+    if let Some(c) = result {
+        result = Some(Collision{
+            distance: c.distance,
+            uv: c.uv,
+            intersection_count: primitive_count
+        });
     }
     return result;
 }

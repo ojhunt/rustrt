@@ -102,14 +102,20 @@ fn main() {
             }
             match scn.intersect(ray) {
                 None => continue,
-                Some(Collision{distance:d, uv:_}) => {
-                    if d < minimum {
-                        minimum = d;
+                Some(Collision{distance:d, uv:_, intersection_count:c}) => {
+                    let poi : f64;
+                    if false {
+                        poi = d;
+                    } else {
+                        poi = c as f64;
                     }
-                    if d > maximum {
-                        maximum = d;
+                    if poi < minimum {
+                        minimum = poi;
                     }
-                    buffer[x][y] = d;
+                    if poi > maximum {
+                        maximum = poi;
+                    }
+                    buffer[x][y] = poi;
                 }
             }
         }
@@ -123,7 +129,10 @@ fn main() {
         let mut d = buffer[x as usize][y as usize];
         d -= minimum;
         d /= range;
-        *_pixel = image::Luma([(255. * (1. - d)).max(0.).min(255.) as u8])
+        if false {
+            d = 1. - d;
+        }
+        *_pixel = image::Luma([(255. * d).max(0.).min(255.) as u8])
     }
     output.save("image.png").unwrap();
     println!("Done!");
