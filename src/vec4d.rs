@@ -102,6 +102,21 @@ impl ops::Sub<Vec4d> for Vec4d {
     }
 }
 
+impl ops::Index<usize> for Vec4d {
+    type Output = f64;
+
+    fn index(&self, index: usize) -> &f64 {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            3 => &self.w,
+            _ => panic!("invalid vector index")
+        }
+    }
+
+}
+
 #[test]
 fn test_dot() {
     assert_eq!(Vec4d::vector(0., 1., 0.).dot(Vec4d::vector(1.,0.,0.)), 0.);

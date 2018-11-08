@@ -9,7 +9,7 @@ use bvh::{*};
 pub struct CompoundObject {
     elements: Vec<Box<Intersectable>>,
     bbox: BoundingBox,
-    bvh_tree: Option<BVH>
+    bvh_tree: Option<Box<BVH>>
 }
 
 impl CompoundObject {
@@ -21,7 +21,7 @@ impl CompoundObject {
         self.elements.push(object);
     }
     pub fn finalize(&mut self) {
-        self.bvh_tree = Some(BVH::new(&self.elements))
+        self.bvh_tree = Some(Box::new(BVH::new(&self.elements)))
     }
 }
 
@@ -33,9 +33,11 @@ impl HasBoundingBox for CompoundObject {
 
 impl Intersectable for CompoundObject {
     fn intersect(&self, ray: Ray, max: f64) -> Option<Collision> {
+    
         let mut closest = max;
         let mut result: Option<Collision> = None;
-        for element in &self.elements {
+        let elements = &self.elements;
+        for element in elements.iter() {
             match element.intersect(ray, closest) {
                 None => continue,
                 Some(collision) => {
@@ -44,6 +46,19 @@ impl Intersectable for CompoundObject {
                 }
             }
         }
+
+        match self.bvh_tree {
+            Some(ref tree) =>  { 
+                if tree.intersect(elements, ray, 0.0, max).is_some() != result.is_some() {
+                    println!("ray: {:?}, own bounds: {:?}", ray, self.bounds());
+                    assert!(self.bbox.intersect(ray,0.,max).is_some());
+                    panic!();
+                }
+            },
+            None => panic!()
+        }
+        
         return result;
+
     }
 }

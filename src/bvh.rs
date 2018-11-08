@@ -1,11 +1,14 @@
 use bounding_box::BoundingBox;
 use vec4d::Vec4d;
 use intersectable::Intersectable;
+use std::cmp::Ordering;
+use collision::Collision;
+use ray::Ray;
 
 #[derive(Debug)]
 enum BVHNode {
     Leaf((BoundingBox, Vec<usize>)),
-    Node((BoundingBox, Box<BVHNode>, Box<BVHNode>))
+    Node((BoundingBox, usize, Box<BVHNode>, Box<BVHNode>))
 }
 
 #[derive(Debug)]
@@ -16,178 +19,262 @@ pub struct BVH {
 fn tree_depth(node: &BVHNode) -> usize {
     match node {
         BVHNode::Leaf(_) => 1,
-        BVHNode::Node((_, left, right)) => 1 + tree_depth(left).max(tree_depth(right))
+        BVHNode::Node((_, _, left, right)) => 1 + tree_depth(left).max(tree_depth(right))
+    }
+}
+
+fn print_tree(node: &BVHNode) -> String {
+    match node {
+        BVHNode::Leaf((_, elements)) =>  format!("({:?})", elements),
+        BVHNode::Node((_, _, left, right)) => format!("({}, {})", print_tree(left), print_tree(right))
+    }
+}
+
+fn validate_tree<T:Intersectable>(node: &BVHNode, primitives: &[T]) -> BoundingBox {
+    match node {
+        BVHNode::Leaf((bounds, indices)) => {
+            for index in indices.iter() {
+                let primitive_bounds = primitives[*index].bounds();
+                assert!(bounds.encloses(primitive_bounds))
+            }
+            return *bounds;
+        },
+        BVHNode::Node((bounds, _, left, right)) => {
+            let left_bounds = validate_tree(left, primitives);
+            let right_bounds = validate_tree(right, primitives);
+            assert!(bounds.encloses(left_bounds));
+            assert!(bounds.encloses(right_bounds));
+            return * bounds;
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+struct BVHPrimitiveInfo {
+    pub primitive_number: usize,
+    pub bounds: BoundingBox,
+    pub centroid: Vec4d
+}
+
+impl BVHPrimitiveInfo {
+    pub fn new(primitive_number: usize, bounds: BoundingBox) -> BVHPrimitiveInfo {
+        BVHPrimitiveInfo {
+            primitive_number:primitive_number,
+            bounds:bounds,
+            centroid:bounds.centroid()
+        }
     }
 }
 
 impl BVH {
-   pub fn new<T: Intersectable>(elements: &[T]) -> BVH {
-       let mut info : Vec<(BoundingBox, Vec4d, usize)> = Vec::new();
-       let mut total_bounds = BoundingBox::new();
-       for i in 0..elements.len() {
-           let element = &elements[i];
-           let inner_bounds = element.bounds();
-           let centroid = inner_bounds.centroid();
-           total_bounds = total_bounds.merge_with_point(centroid);
-           info.push((inner_bounds, centroid, i));
-       }
-       let root = recursive_build(0, &info, total_bounds);
-       let max_depth = tree_depth(&root);
-       println!("Done building, max depth: {}", max_depth);
-       BVH {
-           root: root
-       }
-   }
+    pub fn new<T: Intersectable>(elements: &[T]) -> BVH {
+        let mut info : Vec<BVHPrimitiveInfo> = Vec::new();
+        for i in 0..elements.len() {
+            let element = &elements[i];
+            let inner_bounds = element.bounds();
+            info.push(BVHPrimitiveInfo::new(i, inner_bounds));
+        }
+        let root = recursive_build(0, &mut info);
+        let max_depth = tree_depth(&root);
+    
+        println!("Done building, max depth: {}", max_depth);
+        println!("{}", print_tree(&root));
+        validate_tree(&root, elements);
+        BVH {
+            root: root
+        }
+    }
+
+    pub fn intersect<T: Intersectable>(&self, elements: &[T], ray: Ray, min: f64, max: f64) -> Option<Collision> {
+        validate_tree(&self.root, elements);
+        return intersect(&self.root, elements, ray, min, max);
+    }
+}
+const MACHINE_EPSILON : f64 = std::f64::EPSILON * 0.5;
+fn gamma(value: i64) -> f64 {
+    return value as f64 * MACHINE_EPSILON / ((1 - value) as f64 * MACHINE_EPSILON);
 }
 
-const max_elements_per_node: usize = 4;
-fn recursive_build(
-            depth: usize,
-            elements: &[(BoundingBox, Vec4d, usize)], bounds: BoundingBox) -> BVHNode {
-    print!("Depth: {}\n", depth);
-    let get_x : fn (Vec4d) -> f64 = |centroid| centroid.x;
-    let get_y : fn (Vec4d) -> f64 = |centroid| centroid.y;
-    let get_z : fn (Vec4d) -> f64 = |centroid| centroid.z;
+fn intersect_primitives<T: Intersectable>(indices:&[usize], primitives: &[T], ray: Ray, min: f64, max: f64) -> Option<Collision> {
+        let mut closest = max;
+        let mut result: Option<Collision> = None;
+        for index in indices {
+            let element = &primitives[*index];
+            match element.intersect(ray, closest) {
+                None => continue,
+                Some(collision) => {
+                    closest = collision.distance;
+                    result = Some(collision);
+                }
+            }
+        }
+        return result;
+}
+
+fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f64, max: f64) -> Option<Collision> {
+    let dir_is_negative = [ray.direction.x < 0., ray.direction.y < 0., ray.direction.z < 0.];
+    match &node {
+        BVHNode::Leaf((bounds, children)) => {
+            if true {
+                return intersect_primitives(children, elements, ray, min, max);
+            }
+            match bounds.intersect(ray, min, max) {
+                None => None,
+                Some((min, max)) => {
+                    return intersect_primitives(children, elements, ray, min, max);
+                }
+            }
+        },
+        BVHNode::Node((bounds, axis, left, right)) => {
+            match bounds.intersect(ray, min, max) {
+                None => None,
+                // Some((mut min, mut max))
+                _ => {
+                    let first : &BVHNode;
+                    let second : &BVHNode;
+                    if dir_is_negative[*axis] {
+                        first = right;
+                        second = left;
+                    } else {
+                        first = left;
+                        second = right;
+                    }
+                    let mut result : Option<Collision> = None;
+                    let mut inner_max = max;
+                    match intersect(first, elements, ray, min, inner_max) {
+                        None => {  },
+                        Some(collision) => {
+                            inner_max = collision.distance;
+                            result = Some(collision);
+                        }
+                    }
+                    match intersect(second, elements, ray, min, max) {
+                        None => { return result; },
+                        value => {
+                            return value;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+const NUM_BUCKETS : usize = 12;
+const MAX_PRIMS_PER_NODE : usize = 8;
+
+#[derive(Copy, Clone, Debug)]
+struct BucketInfo {
+    pub count: usize,
+    pub bounds: BoundingBox
+}
+
+fn recursive_build(depth: usize,
+            primitives: &mut [BVHPrimitiveInfo]) -> BVHNode {
+    let mut bounds = BoundingBox::new();
+    for primitive in primitives.iter() {
+        bounds = bounds.merge_with_bbox(primitive.bounds);
+    }
+    let length = primitives.len();
+    let make_leaf = |nodes:&[BVHPrimitiveInfo]| {
+        let mut bounds = BoundingBox::new();
+        for primitive in nodes {
+            bounds = bounds.merge_with_bbox(primitive.bounds)
+        }
+        return BVHNode::Leaf((bounds, nodes.iter().map(|primitive|{ primitive.primitive_number }).collect()));
+    };
+
+    if length == 1 {
+        return make_leaf(primitives);
+    }
+
+    let mut centroid_bounds = BoundingBox::new();
+    for primitive in primitives.iter() {
+        centroid_bounds = centroid_bounds.merge_with_point(primitive.centroid);
+    }
+
+    let max_axis = centroid_bounds.max_axis();
+    if centroid_bounds.max[max_axis] == centroid_bounds.min[max_axis] {
+        return make_leaf(primitives);
+    }
+
+    if length <= 4 {
+        primitives.sort_by(|left, right| {
+            let lv = left.centroid[max_axis];
+            let rv = right.centroid[max_axis];
+            if lv < rv { return Ordering::Less; }
+            if rv < lv { return Ordering::Greater; }
+            return Ordering::Equal;
+        });
+        let mut inner_bounds = BoundingBox::new();
+        for primitive in primitives.iter() {
+            inner_bounds = inner_bounds.merge_with_bbox(primitive.bounds);
+        }
+        let left_child = Box::new(make_leaf(&primitives[0..(length/2)]));
+        let right_child = Box::new(make_leaf(&primitives[(length/2)..]));
+        return BVHNode::Node((inner_bounds, max_axis, left_child, right_child));
+    }
+
+    let mut buckets = [BucketInfo{count: 0, bounds: BoundingBox::new()}; NUM_BUCKETS];
+
+    for primitive in primitives.iter() {
+        let b = ((NUM_BUCKETS as f64 * centroid_bounds.offset(primitive.centroid)[max_axis]) as usize).min(NUM_BUCKETS - 1);
+        assert!(b < NUM_BUCKETS);
+        buckets[b].count += 1;
+        buckets[b].bounds = buckets[b].bounds.merge_with_bbox(primitive.bounds);
+        assert!(buckets[b].bounds.is_valid());
+    }
+
+    let mut cost= [0. as f64;NUM_BUCKETS - 1];
+    for i in 0..(NUM_BUCKETS - 1) {
+        let mut b0 = BoundingBox::new();
+        let mut b1 = BoundingBox::new();
+        let mut count0 = 0;
+        let mut count1 = 0;
+        for j in 0..=i {
+            b0 = b0.merge_with_bbox(buckets[j].bounds);
+            count0 += buckets[j].count;
+        }
+        for j in (i+1)..NUM_BUCKETS {
+            b1 = b1.merge_with_bbox(buckets[j].bounds);
+            count1 += buckets[j].count;
+        }
+        let left_cost = count0 as f64 * b0.surface_area();
+        let right_cost = count1 as f64 * b1.surface_area();
+        cost[i] = 0.125 + (left_cost + right_cost) / bounds.surface_area();
+    }
+
+    let mut min_cost = cost[0];
+    let mut split_bucket = 0;
+    for i in 1..(NUM_BUCKETS - 1) {
+        if cost[i] < min_cost {
+            min_cost = cost[i];
+            split_bucket = i;
+        }
+    }
+
+    let leaf_cost = length;
+
+    if length < MAX_PRIMS_PER_NODE && min_cost >= leaf_cost as f64 {
+        return make_leaf(primitives);
+    }
+
+    let mut left_primitives : Vec<BVHPrimitiveInfo> = Vec::new();
+    let mut right_primitives : Vec<BVHPrimitiveInfo> = Vec::new();
+    let centroid_split = centroid_bounds.min[max_axis] + (centroid_bounds.max - centroid_bounds.min)[max_axis] * split_bucket as f64 / NUM_BUCKETS as f64;
+    let mut inner_bounds = BoundingBox::new();
+    for primitive in primitives {
+        inner_bounds = inner_bounds.merge_with_bbox(primitive.bounds);
+        if primitive.centroid[max_axis] <= centroid_split {
+            left_primitives.push(*primitive);
+        } else {
+            right_primitives.push(*primitive);
+        }
+    }
     
-    let mut get_axis = &get_x;
-    let mut max_axis = bounds.max.x - bounds.min.x;
-    let mut axis_start = bounds.min.x;
-    let y_size = bounds.max.y - bounds.min.y;
-    let z_size = bounds.max.z - bounds.min.z;
-    if y_size > max_axis {
-        max_axis = y_size;
-        get_axis = &get_y;
-        axis_start = bounds.min.y;
-    }
-    if z_size > max_axis {
-        max_axis = z_size;
-        get_axis = &get_z;
-        axis_start = bounds.min.z;
-    }
-
-    const NUMBER_OF_BINS : usize = 16;
-    let scale_constant = (NUMBER_OF_BINS as f64 * (1. - 0.0000001)) / (max_axis - axis_start);
-    let mut bins : [(usize, BoundingBox); NUMBER_OF_BINS] = [(0, BoundingBox::new()); NUMBER_OF_BINS];
-    for (bound, centroid, _) in elements {
-        let offset = get_axis(*centroid) - axis_start;
-        assert!(offset >= 0.);
-        assert!(offset <= max_axis);
-        let index = ((scale_constant * offset).max(0.0).floor() as usize).min(NUMBER_OF_BINS - 1);
-
-        let (index_count, index_bounds) = bins[index];
-        bins[index] = (index_count + 1, index_bounds.merge_with_bbox(*bound))
-    }
-
-    let mut left_node_cost = [0.0 as f64; NUMBER_OF_BINS];
-    {
-        let mut last_count = 0;
-        let mut last_bounds = BoundingBox::new();
-        for i in 0..NUMBER_OF_BINS {
-            let (bin_count, bin_bounds) = bins[i];
-            if bin_count == 0 {
-                continue;
-            }
-            left_node_cost[i] = last_count as f64 * last_bounds.surface_area();
-            last_count += bin_count;
-            last_bounds = last_bounds.merge_with_bbox(bin_bounds);
-        }
-        assert!(last_count == elements.len());
-    }
-
-    let mut right_node_cost = [0.0 as f64; NUMBER_OF_BINS];
-    {
-        let mut last_count = 0;
-        let mut last_bounds = BoundingBox::new();
-        println!("{:?}", bins);
-        for i in (0..NUMBER_OF_BINS).rev() {
-            println!("HERE with i = {}", i);
-            let (bin_count, bin_bounds) = bins[i];
-            if bin_count == 0 {
-                continue;
-            }
-            last_count += bin_count;
-            last_bounds = last_bounds.merge_with_bbox(bin_bounds);
-            println!("lastbounds: {:?} SAH: {:?}", last_bounds, last_bounds.surface_area());
-            right_node_cost[i] = last_count as f64 * last_bounds.surface_area();
-            assert!( right_node_cost[i] != 0.0);
-        }
-        assert!(last_count == elements.len());
-    }
-
-    /*
-
-     index | 0 | 1 | 2 | 3 | 4 | 5 |
-     count | 1 | 1 | 0 | 2 | 1 | 1 |
-     left  | 0 | 1 | 2 | 2 | 4 | 5 |
-     right | 6 | 5 | 4 | 4 | 2 | 1 |
-
-    */
-
-    let mut sah_cost = [0.0 as f64; NUMBER_OF_BINS];
-    let node_sa = bounds.surface_area();
-    for i in 0..NUMBER_OF_BINS {
-        let left_cost = left_node_cost[i];
-        let right_cost = right_node_cost[i];
-        println!("left cost: {}, right cost: {}", left_cost, right_cost);
-        // this is the pbrt calculation, but the rest of the
-        // code is weirdly inefficient - maybe just for clarity?
-        sah_cost[i] = 0.125 + (left_cost + right_cost) / node_sa;
-    }
-
-    let mut split_point = 0;
-    for i in 0..NUMBER_OF_BINS {
-        if bins[i].0 != 0 {
-            split_point = i;
-        }
-    }
-    let mut minimum_cost = sah_cost[split_point];
-
-    for i in split_point..NUMBER_OF_BINS {
-        if bins[i].0 == 0 {
-            continue;
-        }
-        if sah_cost[i] < minimum_cost {
-            minimum_cost = sah_cost[i];
-            split_point = i;
-            println!("left count: {}, right count: {}", left_node_cost[i], right_node_cost[i]);
-        }
-    }
-    let split_value = axis_start + (split_point as f64 * ( (max_axis - axis_start) / NUMBER_OF_BINS as f64));
-
-    println!("Split point: {}, split_value: {}, minimum_cost: {}, count: {}", split_point, split_value, minimum_cost, elements.len());
-    if elements.len() > max_elements_per_node || minimum_cost < elements.len() as f64 {
-        
-        let mut left_elements : Vec<(BoundingBox, Vec4d, usize)> = Vec::new();
-        let mut right_elements : Vec<(BoundingBox, Vec4d, usize)> = Vec::new();
-        let mut left_bounds = BoundingBox::new();
-        let mut right_bounds = BoundingBox::new();
-        for (bounds, centre, elem) in elements {
-            if get_axis(*centre) < split_value {
-                left_elements.push((*bounds, *centre, *elem));
-                left_bounds = left_bounds.merge_with_point(*centre);
-            } else {
-                right_elements.push((*bounds, *centre, *elem));
-                right_bounds = right_bounds.merge_with_point(*centre);
-            }
-        }
-        println!("minimum_cost: {:?}", minimum_cost);
-        println!("split: {:?}", split_value);
-        println!("left: {:?}", left_elements.len());
-        println!("right {:?}", right_elements.len());
-
-        assert!(left_elements.len() + right_elements.len() == elements.len());
-        assert!(left_elements.len() != 0);
-        assert!(right_elements.len() != 0);
-        let left_node = recursive_build(depth + 1, &left_elements, left_bounds);
-        let right_node = recursive_build(depth + 1, &right_elements, right_bounds);
-        return BVHNode::Node((left_bounds.merge_with_bbox(right_bounds), Box::new(left_node), Box::new(right_node)));
-    } else {
-        let mut final_bounds = BoundingBox::new();
-        let mut leaves : Vec<usize> = Vec::new();
-        for (bounds, _, element) in elements {
-            final_bounds = final_bounds.merge_with_bbox(*bounds);
-            leaves.push(*element);
-        }
-        return BVHNode::Leaf((final_bounds, leaves));
-    }
+    assert!(left_primitives.len() != 0);
+    assert!(right_primitives.len() != 0);
+    let left_child = Box::new(recursive_build(depth + 1, &mut left_primitives));
+    let right_child = Box::new(recursive_build(depth + 1, &mut right_primitives));
+    return BVHNode::Node((inner_bounds, max_axis, left_child, right_child));
 }

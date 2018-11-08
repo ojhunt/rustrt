@@ -55,10 +55,15 @@ fn load_model(path: &str) -> Scene {
                 .triangulate()
                 .map(|genmesh::Triangle{x,y,z}| Triangle::new(x.0,y.0,z.0))
                 .collect();
+            if false {
                 for i in 0..(triangles.len()) {
                     let new_object = Box::new(BasicObject::new(&triangles[i..(i + 1)]));
                     scn.add_object(new_object);
                 }
+            } else {
+                let new_object = Box::new(BasicObject::new(&triangles));
+                scn.add_object(new_object);
+            }
         }
     }
     scn.finalize();
@@ -66,7 +71,7 @@ fn load_model(path: &str) -> Scene {
 }
 
 fn main() {
-    let scn = load_model("models/CornellBox-Sphere.obj");
+    let scn = load_model("models/CornellBox-Empty-CO.obj");
     let mut output = image::GrayImage::new(700, 700);
     let width = output.width() as f64;
     let height = output.height() as f64;
@@ -91,4 +96,5 @@ fn main() {
         }
     }
     output.save("image.png").unwrap();
+    println!("Done!");
 }
