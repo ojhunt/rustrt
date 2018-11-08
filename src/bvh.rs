@@ -80,10 +80,10 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f6
         let dir_is_negative = [ray.direction.x < 0., ray.direction.y < 0., ray.direction.z < 0.];
         match &value {
             BVHNode::Leaf((bounds, children)) => {
-                match bounds.intersect(ray, min-1., max+1.) {
+                match bounds.intersect(ray, 0.0, nearest) {
                     None => continue,
                     Some((min, max)) => {
-                        match intersect_primitives(children, elements, ray, min, max) {
+                        match intersect_primitives(children, elements, ray, min, nearest.min(max)) {
                             None => continue,
                             Some(inner_collision) => {
                                 if inner_collision.distance < nearest {
@@ -96,7 +96,7 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f6
                 };
             },
             BVHNode::Node((bounds, axis, left, right)) => {
-                match bounds.intersect(ray, min-1., max+1.) {
+                match bounds.intersect(ray, 0.0, nearest) {
                     None => continue,
                     Some(_) => {
                         if dir_is_negative[*axis] {
