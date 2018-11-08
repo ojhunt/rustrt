@@ -37,20 +37,20 @@ impl HasBoundingBox for BasicObject {
 
 impl Intersectable for BasicObject {
     fn intersect(&self, ray: Ray, max: f64) -> Option<Collision> {
-       /*
-        let mut result : Option<Collision> = None;
-        let mut closest = max;
-        for triangle in &self.triangles {
-            match triangle.intersects(ray, closest) {
-                None => continue,
-                Some(collision) => {
-                    closest = collision.distance;
-                    result = Some(collision);
+        if true {
+            let mut result : Option<Collision> = None;
+            let mut closest = max;
+            for triangle in &self.triangles {
+                match triangle.intersects(ray, closest) {
+                    None => continue,
+                    Some(collision) => {
+                        closest = collision.distance;
+                        result = Some(collision);
+                    }
                 }
             }
+            return result;
         }
-        return result;
-        */
         return self.tree.intersect(&self.triangles, ray, 0.0, max);
     }
 }

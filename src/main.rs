@@ -58,8 +58,9 @@ fn load_model(path: &str) -> Scene {
                 .map(|genmesh::Triangle{x,y,z}| Triangle::new(x.0,y.0,z.0))
                 .collect();
             if true {
-                for i in 0..(triangles.len()) {
-                    let new_object = Box::new(BasicObject::new(&triangles[i..(i + 1)]));
+                let step_size = 1;
+                for i in 0..(triangles.len() / step_size) {
+                    let new_object = Box::new(BasicObject::new(&triangles[i*step_size..(i + 1)*step_size]));
                     bounds = bounds.merge_with_bbox((*new_object).bounds());
                     scn.add_object(new_object);
                 }

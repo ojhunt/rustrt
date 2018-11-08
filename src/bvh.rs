@@ -72,53 +72,38 @@ fn intersect_primitives<T: Intersectable>(indices:&[usize], primitives: &[T], ra
 
 fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f64, max: f64) -> Option<Collision> {
     let dir_is_negative = [ray.direction.x < 0., ray.direction.y < 0., ray.direction.z < 0.];
-    match &node {
-        BVHNode::Leaf((bounds, children)) => {
-            match bounds.intersect(ray, min, max) {
-                None => None,
-                Some((min, max)) => {
-                    return intersect_primitives(children, elements, ray, min, max);
-                }
-            }
-        },
-        BVHNode::Node((bounds, axis, left, right)) => {
-            match bounds.intersect(ray, min, max) {
-                None => None,
-                Some(_) => {
-                    let first : &BVHNode;
-                    let second : &BVHNode;
-                    if dir_is_negative[*axis] {
-                        first = right;
-                        second = left;
-                    } else {
-                        first = left;
-                        second = right;
+    let mut stack : Vec<&BVHNode> = Vec::new();
+    stack.push(node);
+    while let Some(value) = stack.pop() {
+        match &value {
+            BVHNode::Leaf((bounds, children)) => {
+                match bounds.intersect(ray, min, max) {
+                    None => continue,
+                    Some((min, max)) => {
+                        return intersect_primitives(children, elements, ray, min, max);
                     }
-                    let mut result : Option<Collision> = None;
-                    let mut inner_max = max;
-                    match intersect(first, elements, ray, min, inner_max) {
-                        None => {  },
-                        Some(collision) => {
-                            inner_max = collision.distance;
-                            result = Some(collision);
+                };
+            },
+            BVHNode::Node((bounds, axis, left, right)) => {
+                match bounds.intersect(ray, min, max) {
+                    None => continue,
+                    Some(_) => {
+                        if dir_is_negative[*axis] {
+                            stack.push(right);
+                            stack.push(left);
+                        } else {
+                            stack.push(left);
+                            stack.push(right);
                         }
                     }
-                    match intersect(second, elements, ray, min, inner_max) {
-                        None => { return result; },
-                        Some(collision) => {
-                            if result.is_none() || collision.distance < inner_max {
-                                return Some(collision);
-                            }
-                            return result;
-                        }
-                    }
-                }
+                };
             }
         }
     }
+    return None;
 }
 
-const NUM_BUCKETS : usize = 12;
+const NUM_BUCKETS : usize = 64;
 const MAX_PRIMS_PER_NODE : usize = 8;
 
 #[derive(Copy, Clone, Debug)]
@@ -156,23 +141,6 @@ fn recursive_build(depth: usize,
         return make_leaf(primitives);
     }
 
-    if length <= 4 {
-        primitives.sort_by(|left, right| {
-            let lv = left.centroid[max_axis];
-            let rv = right.centroid[max_axis];
-            if lv < rv { return Ordering::Less; }
-            if rv < lv { return Ordering::Greater; }
-            return Ordering::Equal;
-        });
-        let mut inner_bounds = BoundingBox::new();
-        for primitive in primitives.iter() {
-            inner_bounds = inner_bounds.merge_with_bbox(primitive.bounds);
-        }
-        let left_child = Box::new(make_leaf(&primitives[0..(length/2)]));
-        let right_child = Box::new(make_leaf(&primitives[(length/2)..]));
-        return BVHNode::Node((inner_bounds, max_axis, left_child, right_child));
-    }
-
     let mut buckets = [BucketInfo{count: 0, bounds: BoundingBox::new()}; NUM_BUCKETS];
 
     for primitive in primitives.iter() {
@@ -199,7 +167,7 @@ fn recursive_build(depth: usize,
         }
         let left_cost = count0 as f64 * b0.surface_area();
         let right_cost = count1 as f64 * b1.surface_area();
-        cost[i] = 0.125 + (left_cost + right_cost) / bounds.surface_area();
+        cost[i] = 0.1 + 0.5 * (left_cost + right_cost) / bounds.surface_area();
     }
 
     let mut min_cost = cost[0];
