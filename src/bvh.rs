@@ -60,8 +60,10 @@ fn intersect_primitives<T: Intersectable>(indices:&[usize], primitives: &[T], ra
             match element.intersect(ray, closest) {
                 None => continue,
                 Some(collision) => {
-                    closest = collision.distance;
-                    result = Some(collision);
+                    if collision.distance < closest {
+                        closest = collision.distance;
+                        result = Some(collision);
+                    }
                 }
             }
         }

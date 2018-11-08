@@ -22,6 +22,7 @@ use vec4d::Vec4d;
 use ray::Ray;
 use scene::Scene;
 use collision::Collision;
+use bounding_box::*;
 
 extern crate obj;
 
@@ -41,7 +42,7 @@ fn load_model(path: &str) -> Scene {
     obj.load_mtls().unwrap();
 
     let mut scn = Scene::new();
-
+    let mut bounds = BoundingBox::new();
     for o in &obj.objects {
         for g in &o.groups {
             let triangles: Vec<Triangle> = g.polys
@@ -59,6 +60,7 @@ fn load_model(path: &str) -> Scene {
             if true {
                 for i in 0..(triangles.len()) {
                     let new_object = Box::new(BasicObject::new(&triangles[i..(i + 1)]));
+                    bounds = bounds.merge_with_bbox((*new_object).bounds());
                     scn.add_object(new_object);
                 }
             } else {
@@ -67,6 +69,7 @@ fn load_model(path: &str) -> Scene {
             }
         }
     }
+    println!("Bounds: {:?}", bounds);
     scn.finalize();
     return scn;
 }
@@ -76,25 +79,46 @@ fn main() {
     let mut output = image::GrayImage::new(700, 700);
     let width = output.width() as f64;
     let height = output.height() as f64;
+    let mut buffer : [[f64; 700]; 700] = [[std::f64::INFINITY; 700]; 700];
+    let mut minimum = std::f64::INFINITY;
+    let mut maximum = -std::f64::INFINITY;
+    for x in 0..700 {
+        for y in 0..700 {
+            let xp = (x as f64 - width / 2.) / (width / 2.);
+            let yp = -(y as f64 - height / 2.) / (height / 2.);
+            let ray : Ray;
+            if true {
+                let origin = Vec4d::point(10., 2., 0.);
+                let zdirection = 10. * xp;
+                let ydirection = 10. * yp;
+                let xdirection = -20.;
+                let direction = Vec4d::vector(xdirection, ydirection, zdirection).normalize();
+                ray = Ray::new(origin, direction);
+            } else {
+                let origin = Vec4d::point(20. * xp, 20. * yp, -10.);
+                ray = Ray::new(origin, Vec4d::vector(0., 0., 1.));
+            }
+            match scn.intersect(ray) {
+                None => continue,
+                Some(Collision{distance:d, uv:_}) => {
+                    if d < minimum {
+                        minimum = d;
+                    }
+                    if d > maximum {
+                        maximum = d;
+                    }
+                    buffer[x][y] = d;
+                }
+            }
+        }
+    }
+
+    let range = maximum - minimum;
     for (x, y, _pixel) in output.enumerate_pixels_mut() {
-        let xp = (x as f64 - width / 2.) / (width / 2.);
-        let yp = -(y as f64 - height / 2.) / (height / 2.);
-        let ray : Ray;
-        if true {
-            let origin = Vec4d::point(0., 2., 0.);
-            let xdirection = 10. * xp;
-            let ydirection = 10. * yp;
-            let zdirection = -20.;
-            let direction = Vec4d::vector(xdirection, ydirection, zdirection).normalize();
-            ray = Ray::new(origin, direction);
-        } else {
-            let origin = Vec4d::point(20. * xp, 20. * yp, -10.);
-            ray = Ray::new(origin, Vec4d::vector(0., 0., 1.));
-        }
-        match scn.intersect(ray) {
-            None => continue,
-            Some(Collision{distance:d, uv:_}) => *_pixel = image::Luma([255 - (d * 30.) as u8])
-        }
+        let mut d = buffer[x as usize][y as usize];
+        d -= minimum;
+        d /= range;
+        *_pixel = image::Luma([(255. * (1. - d)).max(0.).min(255.) as u8])
     }
     output.save("image.png").unwrap();
     println!("Done!");
