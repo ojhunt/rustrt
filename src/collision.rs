@@ -1,5 +1,5 @@
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct Collision {
     pub distance: f64,
     pub uv: (f64, f64)

@@ -33,32 +33,13 @@ impl HasBoundingBox for CompoundObject {
 
 impl Intersectable for CompoundObject {
     fn intersect(&self, ray: Ray, max: f64) -> Option<Collision> {
-    
-        let mut closest = max;
-        let mut result: Option<Collision> = None;
-        let elements = &self.elements;
-        for element in elements.iter() {
-            match element.intersect(ray, closest) {
-                None => continue,
-                Some(collision) => {
-                    closest = collision.distance;
-                    result = Some(collision);
-                }
-            }
-        }
-
         match self.bvh_tree {
             Some(ref tree) =>  { 
-                if tree.intersect(elements, ray, 0.0, max).is_some() != result.is_some() {
-                    println!("ray: {:?}, own bounds: {:?}", ray, self.bounds());
-                    assert!(self.bbox.intersect(ray,0.,max).is_some());
-                    panic!();
-                }
+                return tree.intersect(&self.elements, ray, 0.0, max);
             },
             None => panic!()
         }
         
-        return result;
 
     }
 }

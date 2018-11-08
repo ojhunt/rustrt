@@ -90,10 +90,6 @@ impl BVH {
         return intersect(&self.root, elements, ray, min, max);
     }
 }
-const MACHINE_EPSILON : f64 = std::f64::EPSILON * 0.5;
-fn gamma(value: i64) -> f64 {
-    return value as f64 * MACHINE_EPSILON / ((1 - value) as f64 * MACHINE_EPSILON);
-}
 
 fn intersect_primitives<T: Intersectable>(indices:&[usize], primitives: &[T], ray: Ray, min: f64, max: f64) -> Option<Collision> {
         let mut closest = max;
@@ -115,21 +111,20 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f6
     let dir_is_negative = [ray.direction.x < 0., ray.direction.y < 0., ray.direction.z < 0.];
     match &node {
         BVHNode::Leaf((bounds, children)) => {
-            if true {
+            if false {
                 return intersect_primitives(children, elements, ray, min, max);
             }
             match bounds.intersect(ray, min, max) {
                 None => None,
                 Some((min, max)) => {
-                    return intersect_primitives(children, elements, ray, min, max);
+                    return intersect_primitives(children, elements, ray, min, max+1.);
                 }
             }
         },
         BVHNode::Node((bounds, axis, left, right)) => {
             match bounds.intersect(ray, min, max) {
                 None => None,
-                // Some((mut min, mut max))
-                _ => {
+                Some(_) => {
                     let first : &BVHNode;
                     let second : &BVHNode;
                     if dir_is_negative[*axis] {
@@ -148,7 +143,7 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f6
                             result = Some(collision);
                         }
                     }
-                    match intersect(second, elements, ray, min, max) {
+                    match intersect(second, elements, ray, min, inner_max) {
                         None => { return result; },
                         value => {
                             return value;
@@ -199,6 +194,7 @@ fn recursive_build(depth: usize,
     }
 
     if length <= 4 {
+        // return make_leaf(primitives);
         primitives.sort_by(|left, right| {
             let lv = left.centroid[max_axis];
             let rv = right.centroid[max_axis];
@@ -263,7 +259,7 @@ fn recursive_build(depth: usize,
     let mut right_primitives : Vec<BVHPrimitiveInfo> = Vec::new();
     let centroid_split = centroid_bounds.min[max_axis] + (centroid_bounds.max - centroid_bounds.min)[max_axis] * split_bucket as f64 / NUM_BUCKETS as f64;
     let mut inner_bounds = BoundingBox::new();
-    for primitive in primitives {
+    for primitive in primitives.iter() {
         inner_bounds = inner_bounds.merge_with_bbox(primitive.bounds);
         if primitive.centroid[max_axis] <= centroid_split {
             left_primitives.push(*primitive);
@@ -274,6 +270,7 @@ fn recursive_build(depth: usize,
     
     assert!(left_primitives.len() != 0);
     assert!(right_primitives.len() != 0);
+    assert!(left_primitives.len() + right_primitives.len() == primitives.len());
     let left_child = Box::new(recursive_build(depth + 1, &mut left_primitives));
     let right_child = Box::new(recursive_build(depth + 1, &mut right_primitives));
     return BVHNode::Node((inner_bounds, max_axis, left_child, right_child));

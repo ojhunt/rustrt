@@ -57,8 +57,8 @@ impl Vec4d {
         assert!(self.w == rhs.w);
         Vec4d {
             x: self.x.min(rhs.x),
-            y: self.y.min(rhs.x),
-            z: self.z.min(rhs.x),
+            y: self.y.min(rhs.y),
+            z: self.z.min(rhs.z),
             w: self.w
         }
     }
@@ -66,8 +66,8 @@ impl Vec4d {
         assert!(self.w == rhs.w);
         Vec4d {
             x: self.x.max(rhs.x),
-            y: self.y.max(rhs.x),
-            z: self.z.max(rhs.x),
+            y: self.y.max(rhs.y),
+            z: self.z.max(rhs.z),
             w: self.w
         }
     }

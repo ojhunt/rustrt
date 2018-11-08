@@ -15,14 +15,15 @@ impl Triangle {
         let edge1 = v2 - v0;
         Triangle {
             origin: v0,
-            edges: [edge0, edge1]
+            edges: [edge0, edge1],
         }
     }
 
     pub fn bounding_box(&self) -> BoundingBox {
-        return BoundingBox::new_from_point(self.origin)
-               .merge_with_point(self.origin + self.edges[0])
-               .merge_with_point(self.origin + self.edges[1]);
+        let result = BoundingBox::new_from_point(self.origin)
+                    .merge_with_point(self.origin + self.edges[0])
+                    .merge_with_point(self.origin + self.edges[1]);
+        return result;
     }
 
     pub fn intersects(&self, ray: Ray, max: f64) -> Option<Collision> {

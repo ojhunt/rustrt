@@ -14,7 +14,8 @@ pub struct BasicObject {
 fn compute_bounds(triangles: &[Triangle]) -> BoundingBox {
    let mut bounds = BoundingBox::new();
    for triangle in triangles {
-       bounds = bounds.merge_with_bbox(triangle.bounding_box())
+       let tbounds = triangle.bounding_box();
+       bounds = bounds.merge_with_bbox(tbounds);
    }
    return bounds;
 }

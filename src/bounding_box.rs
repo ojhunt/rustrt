@@ -1,7 +1,7 @@
 use vec4d::Vec4d;
 use ray::Ray;
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Clone,Copy,PartialEq)]
 pub struct BoundingBox {
     pub min: Vec4d,
     pub max: Vec4d
@@ -43,15 +43,8 @@ impl BoundingBox {
 
     pub fn merge_with_point(&self, v: Vec4d) -> BoundingBox {
         assert!(v.w == 1.);
-        let mut min = self.min;
-        let mut max = self.max;
-        min.x = min.x.min(v.x);
-        min.y = min.y.min(v.y);
-        min.z = min.z.min(v.z);
-        max.x = max.x.max(v.x);
-        max.y = max.y.max(v.y);
-        max.z = max.z.max(v.z);
-        return BoundingBox{min:min, max:max};
+        return self.merge_with_bbox(BoundingBox{min:v, max:v});
+        
     }
     pub fn merge_with_bbox(&self, other: BoundingBox) -> BoundingBox {
         return BoundingBox{
@@ -86,24 +79,35 @@ impl BoundingBox {
     }
 
     pub fn intersect(&self, ray: Ray, min: f64, max: f64) -> Option<(f64, f64)> {
-        let mut t0 = min;
-        let mut t1 = max;
+        let mut tmin = min;
+        let mut tmax = max;
+        let direction = ray.direction;
+        let origin = ray.origin;
         for i in 0..3 {
-            let inverse_dir = 1.0 / ray.direction[i];
-            let mut tnear = (self.min[i] - ray.origin[i]) * inverse_dir;
-            let mut tfar = (self.max[i] - ray.origin[i]) * inverse_dir;
-            if tnear > tfar {
-                let temp = tnear;
-                tnear = tfar;
-                tfar = temp;
+            if direction[i].abs() < std::f64::EPSILON {
+                if origin[i] < self.min[i] || origin[i] > self.max[i] {
+                    return None;
+                }
+                continue;
             }
-            t0 = t0.max(tnear);
-            t1 = t1.min(tfar);
-            if t0 > t1 {
+            let inverse_dir = 1.0 / direction[i];
+            
+            let mut t1 = (self.min[i] - origin[i]) * inverse_dir;
+            let mut t2 = (self.max[i] - origin[i]) * inverse_dir;
+
+            if t1 > t2 {
+                let temp = t1;
+                t1 = t2;
+                t2 = temp;
+            }
+            // tmin *= 1. + 2. * gamma(3);
+            tmin = tmin.max(t1);
+            tmax = tmax.min(t2);
+            if tmin > tmax {
                 return None;
             }
         }
-        return Some((t0, t1));
+        return Some((tmin, tmax));
     }
 
     pub fn contains(&self, point: Vec4d) -> bool {
@@ -129,6 +133,11 @@ impl BoundingBox {
     }
 }
 
+const MACHINE_EPSILON : f64 = std::f64::EPSILON * 0.5;
+fn gamma(value: i64) -> f64 {
+    return value as f64 * MACHINE_EPSILON / ((1 - value) as f64 * MACHINE_EPSILON);
+}
+
 pub trait HasBoundingBox {
     fn bounds(&self) -> BoundingBox;
 }
@@ -139,26 +148,3 @@ impl <T : HasBoundingBox + ?Sized> HasBoundingBox for Box<T> {
     }
 }
 
-#[test]
-fn test_known_bad() {
-    let ray = Ray { 
-        origin: Vec4d { x: 0.0, y: 1.0, z: 3.0, w: 1.0 },
-        direction: Vec4d { x: -0.40940965317634315, y: 0.40239120197903444, z: -0.8188193063526863, w: 0.0 } 
-    };
-    let bounds = BoundingBox {
-        min: Vec4d { x: -1.0199999809265137, y: -1.0199999809265137, z: -1.0199999809265137, w: 1.0 },
-        max: Vec4d { x: 1.0, y: 1.0, z: 1.0, w: 1.0 }
-    };
-    let mut origin = ray.origin;
-    let step = ray.direction.scale(0.01);
-    let mut was_interior = false;
-    for i in 0..100 {
-        if bounds.contains(origin) {
-            was_interior = true;
-            break;
-        }
-        origin = origin + step;
-    }
-    assert!(was_interior);
-    assert!(bounds.intersect(ray, 0.0, std::f64::INFINITY).is_some());
-}
