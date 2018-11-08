@@ -39,7 +39,5 @@ impl Intersectable for CompoundObject {
             },
             None => panic!()
         }
-        
-
     }
 }

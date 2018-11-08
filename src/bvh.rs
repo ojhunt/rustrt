@@ -16,39 +16,6 @@ pub struct BVH {
     root: BVHNode
 }
 
-fn tree_depth(node: &BVHNode) -> usize {
-    match node {
-        BVHNode::Leaf(_) => 1,
-        BVHNode::Node((_, _, left, right)) => 1 + tree_depth(left).max(tree_depth(right))
-    }
-}
-
-fn print_tree(node: &BVHNode) -> String {
-    match node {
-        BVHNode::Leaf((_, elements)) =>  format!("({:?})", elements),
-        BVHNode::Node((_, _, left, right)) => format!("({}, {})", print_tree(left), print_tree(right))
-    }
-}
-
-fn validate_tree<T:Intersectable>(node: &BVHNode, primitives: &[T]) -> BoundingBox {
-    match node {
-        BVHNode::Leaf((bounds, indices)) => {
-            for index in indices.iter() {
-                let primitive_bounds = primitives[*index].bounds();
-                assert!(bounds.encloses(primitive_bounds))
-            }
-            return *bounds;
-        },
-        BVHNode::Node((bounds, _, left, right)) => {
-            let left_bounds = validate_tree(left, primitives);
-            let right_bounds = validate_tree(right, primitives);
-            assert!(bounds.encloses(left_bounds));
-            assert!(bounds.encloses(right_bounds));
-            return * bounds;
-        }
-    }
-}
-
 #[derive(Copy, Clone)]
 struct BVHPrimitiveInfo {
     pub primitive_number: usize,
@@ -75,18 +42,12 @@ impl BVH {
             info.push(BVHPrimitiveInfo::new(i, inner_bounds));
         }
         let root = recursive_build(0, &mut info);
-        let max_depth = tree_depth(&root);
-    
-        println!("Done building, max depth: {}", max_depth);
-        println!("{}", print_tree(&root));
-        validate_tree(&root, elements);
         BVH {
             root: root
         }
     }
 
     pub fn intersect<T: Intersectable>(&self, elements: &[T], ray: Ray, min: f64, max: f64) -> Option<Collision> {
-        validate_tree(&self.root, elements);
         return intersect(&self.root, elements, ray, min, max);
     }
 }
@@ -111,13 +72,10 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f6
     let dir_is_negative = [ray.direction.x < 0., ray.direction.y < 0., ray.direction.z < 0.];
     match &node {
         BVHNode::Leaf((bounds, children)) => {
-            if false {
-                return intersect_primitives(children, elements, ray, min, max);
-            }
             match bounds.intersect(ray, min, max) {
                 None => None,
                 Some((min, max)) => {
-                    return intersect_primitives(children, elements, ray, min, max+1.);
+                    return intersect_primitives(children, elements, ray, min, max);
                 }
             }
         },
@@ -145,8 +103,11 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f6
                     }
                     match intersect(second, elements, ray, min, inner_max) {
                         None => { return result; },
-                        value => {
-                            return value;
+                        Some(collision) => {
+                            if result.is_none() || collision.distance < inner_max {
+                                return Some(collision);
+                            }
+                            return result;
                         }
                     }
                 }
@@ -194,7 +155,6 @@ fn recursive_build(depth: usize,
     }
 
     if length <= 4 {
-        // return make_leaf(primitives);
         primitives.sort_by(|left, right| {
             let lv = left.centroid[max_axis];
             let rv = right.centroid[max_axis];

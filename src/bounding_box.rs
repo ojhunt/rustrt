@@ -84,12 +84,6 @@ impl BoundingBox {
         let direction = ray.direction;
         let origin = ray.origin;
         for i in 0..3 {
-            if direction[i].abs() < std::f64::EPSILON {
-                if origin[i] < self.min[i] || origin[i] > self.max[i] {
-                    return None;
-                }
-                continue;
-            }
             let inverse_dir = 1.0 / direction[i];
             
             let mut t1 = (self.min[i] - origin[i]) * inverse_dir;
@@ -100,14 +94,13 @@ impl BoundingBox {
                 t1 = t2;
                 t2 = temp;
             }
-            // tmin *= 1. + 2. * gamma(3);
             tmin = tmin.max(t1);
             tmax = tmax.min(t2);
             if tmin > tmax {
                 return None;
             }
         }
-        return Some((tmin, tmax));
+        return Some((tmin, tmax+0.001));
     }
 
     pub fn contains(&self, point: Vec4d) -> bool {
