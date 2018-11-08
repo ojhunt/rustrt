@@ -71,21 +71,32 @@ fn intersect_primitives<T: Intersectable>(indices:&[usize], primitives: &[T], ra
 }
 
 fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f64, max: f64) -> Option<Collision> {
-    let dir_is_negative = [ray.direction.x < 0., ray.direction.y < 0., ray.direction.z < 0.];
+    
     let mut stack : Vec<&BVHNode> = Vec::new();
     stack.push(node);
+    let mut result : Option<Collision> = None;
+    let mut nearest = std::f64::INFINITY;
     while let Some(value) = stack.pop() {
+        let dir_is_negative = [ray.direction.x < 0., ray.direction.y < 0., ray.direction.z < 0.];
         match &value {
             BVHNode::Leaf((bounds, children)) => {
-                match bounds.intersect(ray, min, max) {
+                match bounds.intersect(ray, min-1., max+1.) {
                     None => continue,
                     Some((min, max)) => {
-                        return intersect_primitives(children, elements, ray, min, max);
+                        match intersect_primitives(children, elements, ray, min, max) {
+                            None => continue,
+                            Some(inner_collision) => {
+                                if inner_collision.distance < nearest {
+                                    nearest = inner_collision.distance;
+                                    result = Some(inner_collision);
+                                }
+                            }
+                        };
                     }
                 };
             },
             BVHNode::Node((bounds, axis, left, right)) => {
-                match bounds.intersect(ray, min, max) {
+                match bounds.intersect(ray, min-1., max+1.) {
                     None => continue,
                     Some(_) => {
                         if dir_is_negative[*axis] {
@@ -100,7 +111,7 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, min: f6
             }
         }
     }
-    return None;
+    return result;
 }
 
 const NUM_BUCKETS : usize = 64;
