@@ -2,6 +2,7 @@ use vec4d::Vec4d;
 use ray::Ray;
 use collision::Collision;
 use bounding_box::{*};
+use intersectable::{*};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Triangle {
@@ -55,5 +56,11 @@ impl Triangle {
 impl HasBoundingBox for Triangle {
     fn bounds(&self) -> BoundingBox {
         return self.bounding_box()
+    }
+}
+
+impl Intersectable for Triangle {
+    fn intersect(&self, ray: Ray, max: f64) -> Option<Collision> {
+        return self.intersects(ray, max);
     }
 }

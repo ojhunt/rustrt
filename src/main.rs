@@ -23,6 +23,7 @@ use ray::Ray;
 use scene::Scene;
 use collision::Collision;
 use bounding_box::*;
+use std::time::{Instant,Duration};
 
 extern crate obj;
 
@@ -56,7 +57,6 @@ fn load_model(path: &str) -> Scene {
                 .triangulate()
                 .map(|genmesh::Triangle{x,y,z}| Triangle::new(x.0,y.0,z.0))
                 .collect();
-            println!("Triangle count: {}", triangles.len());
             if true {
                 for i in 0..(triangles.len()) {
                     let new_object = Box::new(BasicObject::new(&triangles[i..(i + 1)]));
@@ -82,6 +82,7 @@ fn main() {
     let mut buffer : [[f64; 700]; 700] = [[std::f64::INFINITY; 700]; 700];
     let mut minimum = std::f64::INFINITY;
     let mut maximum = -std::f64::INFINITY;
+    let start = std::time::Instant::now();
     for x in 0..700 {
         for y in 0..700 {
             let xp = (x as f64 - width / 2.) / (width / 2.);
@@ -112,7 +113,10 @@ fn main() {
             }
         }
     }
-
+    let end = std::time::Instant::now();
+    let delta = end - start;
+    let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;
+    println!("Time taken: {}", time);
     let range = maximum - minimum;
     for (x, y, _pixel) in output.enumerate_pixels_mut() {
         let mut d = buffer[x as usize][y as usize];

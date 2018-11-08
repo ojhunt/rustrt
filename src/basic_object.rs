@@ -4,10 +4,12 @@ use triangle::Triangle;
 use collision::Collision;
 use intersectable::Intersectable;
 use bounding_box::*;
+use bvh::BVH;
 
 #[derive(Debug)]
 pub struct BasicObject {
     triangles: Vec<Triangle>,
+    tree: Box<BVH>,
     bbox: BoundingBox
 }
 
@@ -23,7 +25,7 @@ fn compute_bounds(triangles: &[Triangle]) -> BoundingBox {
 impl BasicObject {
     pub fn new(triangles: &[Triangle]) -> BasicObject {
         let bounds = compute_bounds(triangles);
-        BasicObject{triangles: triangles.to_vec(), bbox: bounds}
+        BasicObject{triangles: triangles.to_vec(), tree: Box::new(BVH::new(triangles)), bbox: bounds}
     }
 }
 
@@ -35,6 +37,7 @@ impl HasBoundingBox for BasicObject {
 
 impl Intersectable for BasicObject {
     fn intersect(&self, ray: Ray, max: f64) -> Option<Collision> {
+       /*
         let mut result : Option<Collision> = None;
         let mut closest = max;
         for triangle in &self.triangles {
@@ -47,5 +50,7 @@ impl Intersectable for BasicObject {
             }
         }
         return result;
+        */
+        return self.tree.intersect(&self.triangles, ray, 0.0, max);
     }
 }
