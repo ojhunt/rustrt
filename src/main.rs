@@ -70,7 +70,6 @@ fn load_model(path: &str) -> Scene {
             }
         }
     }
-    println!("Bounds: {:?}", bounds);
     scn.finalize();
     return scn;
 }
