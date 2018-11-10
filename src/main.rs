@@ -2,16 +2,15 @@ extern crate image;
 extern crate genmesh;
 extern crate itertools;
 
-#[macro_use]
 extern crate clap;
 
-mod basic_object;
 mod bounding_box;
 mod bvh;
 mod camera;
 mod collision;
 mod compound_object;
 mod intersectable;
+mod mesh;
 mod objects;
 mod ray;
 mod scene;
@@ -63,12 +62,12 @@ fn load_model(path: &str) -> Scene {
             if true {
                 let step_size = 1;
                 for i in 0..(triangles.len() / step_size) {
-                    let new_object = Box::new(BasicObject::new(&triangles[i*step_size..(i + 1)*step_size]));
+                    let new_object = Box::new(Mesh::new(&triangles[i*step_size..(i + 1)*step_size]));
                     bounds = bounds.merge_with_bbox((*new_object).bounds());
                     scn.add_object(new_object);
                 }
             } else {
-                let new_object = Box::new(BasicObject::new(&triangles));
+                let new_object = Box::new(Mesh::new(&triangles));
                 scn.add_object(new_object);
             }
         }
@@ -105,7 +104,6 @@ fn load_settings() -> SceneSettings {
     return settings;
 }
 
-// #[cfg(feature = "yaml")]
 fn main() {
 
     let settings = load_settings();
