@@ -2,6 +2,8 @@ extern crate image;
 extern crate genmesh;
 extern crate itertools;
 
+#[macro_use]
+extern crate clap;
 
 mod basic_object;
 mod bounding_box;
@@ -24,6 +26,7 @@ use scene::Scene;
 use collision::Collision;
 use bounding_box::*;
 use std::time::{Instant,Duration};
+use clap::*;
 
 extern crate obj;
 
@@ -76,7 +79,12 @@ fn load_model(path: &str) -> Scene {
 
 type ResultBufferType = (f64, usize);
 
+// #[cfg(feature = "yaml")]
 fn main() {
+    let commandline_yaml = load_yaml!("command_line.yml");
+    
+    let matches = App::from_yaml(commandline_yaml).get_matches();
+println!("matches: {:?}", matches);
     const SIZE : usize = 700;
     let scn = load_model("models/sponza.obj");
     let mut output = Box::new(image::RgbImage::new(SIZE as u32, SIZE as u32));

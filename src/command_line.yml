@@ -1,0 +1,10 @@
+name: waffles
+version: "0.0.1"
+author: Oliver Hunt
+about: do the things
+args:
+  - OUTPUT:
+    help: the output file
+    required: true
+    index: 1
+    takes_value: true

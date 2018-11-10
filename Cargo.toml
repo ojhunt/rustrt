@@ -9,3 +9,5 @@ genmesh = "*"
 itertools = "*"
 obj = { version = "*", features = ["genmesh"]}
 
+[dependencies.clap]
+features = ["yaml"]
