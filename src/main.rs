@@ -174,12 +174,10 @@ fn main() {
         let scaled_intersection_count =
             (255. * (ic - min_intersectount) as f64 / (max_intersectcount - min_intersectount) as f64).max(0.).min(255.) as u8;
         // let scaled_node_count = ((nc - min_nodecount) as f64 / (max_nodecount - min_nodecount) as f64).min(0.).max(255.) as u8;
-
         // *_pixel = image::Rgb([scaled_depth, scaled_intersection_count, scaled_node_count]);
         *_pixel = image::Rgb([scaled_depth,scaled_intersection_count,scaled_intersection_count]);
     }
     
     output.save(settings.output_file).unwrap();
-
     println!("Done!");
 }
