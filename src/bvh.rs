@@ -220,7 +220,6 @@ fn recursive_build(depth: usize,
     }
 
     let leaf_cost = length;
-
     if length < MAX_PRIMS_PER_NODE && min_cost >= leaf_cost as f64 {
         return make_leaf(primitives);
     }
