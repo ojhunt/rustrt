@@ -1,7 +1,6 @@
 use bounding_box::BoundingBox;
 use vec4d::Vec4d;
 use intersectable::Intersectable;
-use std::cmp::Ordering;
 use collision::Collision;
 use ray::Ray;
 
@@ -78,22 +77,33 @@ fn intersect_primitives<T: Intersectable>(indices:&[usize], primitives: &[T], ra
         return result;
 }
 
-fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, _: f64, max: f64) -> Option<Collision> {
+fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, parent_min: f64, parent_max: f64) -> Option<Collision> {
     
-    let mut stack : Vec<&BVHNode> = Vec::new();
-    stack.push(node);
+    let mut stack : Vec<(&BVHNode, /*min*/f64, /*max*/ f64)> = Vec::new();
+    stack.push((node, parent_min, parent_max));
     let mut result : Option<Collision> = None;
-    let mut nearest = max;
+    let mut nearest = parent_max;
     let mut primitive_count = 0;
-    while let Some(value) = stack.pop() {
+    let mut node_count = 0;
+    while let Some((value, node_min, node_max)) = stack.pop() {
+        node_count += 1;
+
+
         let dir_is_negative = [ray.direction.x < 0., ray.direction.y < 0., ray.direction.z < 0.];
-        primitive_count += 1;
+
+        if node_min > nearest {
+            continue;
+        }
+
+        let far_intersect = nearest.min(node_max);
+
         match &value {
             BVHNode::Leaf((bounds, children)) => {
-                match bounds.intersect(ray, 0.0, nearest) {
+                match bounds.intersect(ray, node_min, nearest) {
                     None => continue,
                     Some((min, max)) => {
-                        match intersect_primitives(children, elements, ray, min, nearest.min(max)) {
+                        primitive_count += children.len();
+                        match intersect_primitives(children, elements, ray, min.max(node_min), nearest.min(max)) {
                             None => continue,
                             Some(inner_collision) => {
                                 if inner_collision.distance < nearest {
@@ -106,26 +116,28 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, _: f64,
                 };
             },
             BVHNode::Node((bounds, axis, left, right)) => {
-                match bounds.intersect(ray, 0.0, nearest) {
+                match bounds.intersect(ray, node_min, far_intersect) {
                     None => continue,
-                    Some(_) => {
+                    Some((child_min, child_max)) => {
                         if dir_is_negative[*axis] {
-                            stack.push(right);
-                            stack.push(left);
+                            stack.push((right, child_min, child_max));
+                            stack.push((left, child_min, child_max));
                         } else {
-                            stack.push(left);
-                            stack.push(right);
+                            stack.push((left, child_min, child_max));
+                            stack.push((right, child_min, child_max));
                         }
                     }
                 };
             }
         }
     };
+
     if let Some(c) = result {
         result = Some(Collision{
             distance: c.distance,
             uv: c.uv,
-            intersection_count: primitive_count
+            intersection_count: primitive_count,
+            node_count: node_count
         });
     }
     return result;
@@ -141,7 +153,7 @@ struct BucketInfo {
 }
 
 fn recursive_build(depth: usize,
-            primitives: &mut [BVHPrimitiveInfo]) -> BVHNode {
+                   primitives: &mut [BVHPrimitiveInfo]) -> BVHNode {
     let mut bounds = BoundingBox::new();
     for primitive in primitives.iter() {
         bounds = bounds.merge_with_bbox(primitive.bounds);
@@ -195,7 +207,7 @@ fn recursive_build(depth: usize,
         }
         let left_cost = count0 as f64 * b0.surface_area();
         let right_cost = count1 as f64 * b1.surface_area();
-        cost[i] = 0.1 + 0.5 * (left_cost + right_cost) / bounds.surface_area();
+        cost[i] = 0.125 + (left_cost + right_cost) / bounds.surface_area();
     }
 
     let mut min_cost = cost[0];

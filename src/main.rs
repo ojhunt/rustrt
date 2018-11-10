@@ -75,17 +75,26 @@ fn load_model(path: &str) -> Scene {
     return scn;
 }
 
+type ResultBufferType = (f64, usize);
+
 fn main() {
+    const SIZE : usize = 700;
     let scn = load_model("models/sponza.obj");
-    let mut output = image::GrayImage::new(700, 700);
+    let mut output = Box::new(image::RgbImage::new(SIZE as u32, SIZE as u32));
     let width = output.width() as f64;
     let height = output.height() as f64;
-    let mut buffer : [[f64; 700]; 700] = [[std::f64::INFINITY; 700]; 700];
-    let mut minimum = std::f64::INFINITY;
-    let mut maximum = -std::f64::INFINITY;
+    
+    let mut buffer : Box<[[ResultBufferType; SIZE]; SIZE]> = Box::new([[(std::f64::INFINITY, 0); SIZE]; SIZE]);
     let start = std::time::Instant::now();
-    for x in 0..700 {
-        for y in 0..700 {
+    let mut min_depth = std::f64::INFINITY;
+    let mut max_depth = -std::f64::INFINITY;
+    let mut min_nodecount = 0;
+    let mut max_nodecount = 0;
+    let mut min_intersectount = 0;
+    let mut max_intersectcount = 0;
+    
+    for x in 0..SIZE {
+        for y in 0..SIZE {
             let xp = (x as f64 - width / 2.) / (width / 2.);
             let yp = -(y as f64 - height / 2.) / (height / 2.);
             let ray : Ray;
@@ -102,20 +111,16 @@ fn main() {
             }
             match scn.intersect(ray) {
                 None => continue,
-                Some(Collision{distance:d, uv:_, intersection_count:c}) => {
-                    let poi : f64;
-                    if false {
-                        poi = d;
-                    } else {
-                        poi = c as f64;
-                    }
-                    if poi < minimum {
-                        minimum = poi;
-                    }
-                    if poi > maximum {
-                        maximum = poi;
-                    }
-                    buffer[x][y] = poi;
+                Some(Collision{distance:d, uv:_ , 
+                               intersection_count:c, node_count:nc
+                     }) => {
+                    max_depth = max_depth.max(d);
+                    min_depth = min_depth.min(d);
+                    max_nodecount = max_nodecount.max(nc);
+                    min_nodecount = min_nodecount.min(nc);
+                    max_intersectcount = max_intersectcount.max(c);
+                    min_intersectount = min_intersectount.min(c);
+                    buffer[x][y] = (d, c);//, nc);
                 }
             }
         }
@@ -124,16 +129,20 @@ fn main() {
     let delta = end - start;
     let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;
     println!("Time taken: {}", time);
-    let range = maximum - minimum;
-    println!("Minimum intersections: {}, max: {}", minimum, maximum);
+    println!("Minimum intersections: {}, max: {}", min_intersectount, max_intersectcount);
     for (x, y, _pixel) in output.enumerate_pixels_mut() {
-        let mut d = buffer[x as usize][y as usize];
-        d -= minimum;
-        d /= range;
-        if false {
-            d = 1. - d;
-        }
-        *_pixel = image::Luma([(255. * d).max(0.).min(255.) as u8])
+        let 
+        // (
+            (d,ic)
+        // , ic, nc) 
+        = buffer[x as usize][y as usize];
+        let scaled_depth = (255. * (1. - (d - min_depth) / (max_depth - min_depth))).max(0.).min(255.) as u8;
+        let scaled_intersection_count =
+            (255. * (ic - min_intersectount) as f64 / (max_intersectcount - min_intersectount) as f64).max(0.).min(255.) as u8;
+        // let scaled_node_count = ((nc - min_nodecount) as f64 / (max_nodecount - min_nodecount) as f64).min(0.).max(255.) as u8;
+
+        // *_pixel = image::Rgb([scaled_depth, scaled_intersection_count, scaled_node_count]);
+        *_pixel = image::Rgb([scaled_depth,scaled_intersection_count,scaled_intersection_count]);
     }
     output.save("image.png").unwrap();
     println!("Done!");
