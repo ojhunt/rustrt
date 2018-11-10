@@ -178,6 +178,8 @@ fn main() {
         // *_pixel = image::Rgb([scaled_depth, scaled_intersection_count, scaled_node_count]);
         *_pixel = image::Rgb([scaled_depth,scaled_intersection_count,scaled_intersection_count]);
     }
+    
     output.save(settings.output_file).unwrap();
+
     println!("Done!");
 }
