@@ -2,9 +2,18 @@ name: waffles
 version: "0.0.1"
 author: Oliver Hunt
 about: do the things
+settings:
+    - ArgRequiredElseHelp
 args:
-  - OUTPUT:
-    help: the output file
-    required: true
-    index: 1
-    takes_value: true
+    - scene:
+        help: the scene to render
+        required: true
+        index: 1
+        takes_value: true
+    - output:
+        help: the output file
+        short: o
+        long: output
+        required: true
+        takes_value: true
+
