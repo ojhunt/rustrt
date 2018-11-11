@@ -1,14 +1,14 @@
-use vec4d::Vec4d;
 use ray::Ray;
+use vec4d::Vec4d;
 
-#[derive(Debug,Clone,Copy,PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BoundingBox {
     pub min: Vec4d,
-    pub max: Vec4d
+    pub max: Vec4d,
 }
 
 impl BoundingBox {
-    pub fn centroid(&self) -> Vec4d { 
+    pub fn centroid(&self) -> Vec4d {
         return self.min.add_elements(self.max).scale(0.5);
     }
 
@@ -18,38 +18,45 @@ impl BoundingBox {
     }
 
     pub fn new() -> BoundingBox {
-        BoundingBox{
-            min:Vec4d::point(std::f64::INFINITY, std::f64::INFINITY, std::f64::INFINITY),
-            max:Vec4d::point(-std::f64::INFINITY, -std::f64::INFINITY, -std::f64::INFINITY)
+        BoundingBox {
+            min: Vec4d::point(std::f64::INFINITY, std::f64::INFINITY, std::f64::INFINITY),
+            max: Vec4d::point(
+                -std::f64::INFINITY,
+                -std::f64::INFINITY,
+                -std::f64::INFINITY,
+            ),
         }
     }
 
     pub fn is_valid(&self) -> bool {
         let min = self.min;
         let max = self.max;
-        
+
         let valid_values = min.x <= max.x && min.y <= max.y && min.z <= max.z;
         if !valid_values {
             return false;
         }
-        return min.x.is_finite() && min.y.is_finite() && min.z.is_finite() &&
-               max.x.is_finite() && max.y.is_finite() && max.z.is_finite();
+        return min.x.is_finite()
+            && min.y.is_finite()
+            && min.z.is_finite()
+            && max.x.is_finite()
+            && max.y.is_finite()
+            && max.z.is_finite();
     }
 
     pub fn new_from_point(v: Vec4d) -> BoundingBox {
         assert!(v.w == 1.);
-        BoundingBox{min: v, max: v}
+        BoundingBox { min: v, max: v }
     }
 
     pub fn merge_with_point(&self, v: Vec4d) -> BoundingBox {
         assert!(v.w == 1.);
-        return self.merge_with_bbox(BoundingBox{min:v, max:v});
-        
+        return self.merge_with_bbox(BoundingBox { min: v, max: v });
     }
     pub fn merge_with_bbox(&self, other: BoundingBox) -> BoundingBox {
-        return BoundingBox{
-            min:self.min.min(other.min),
-            max:self.max.max(other.max),
+        return BoundingBox {
+            min: self.min.min(other.min),
+            max: self.max.max(other.max),
         };
     }
 
@@ -85,7 +92,7 @@ impl BoundingBox {
         let origin = ray.origin;
         for i in 0..3 {
             let inverse_dir = 1.0 / direction[i];
-            
+
             let mut t1 = (self.min[i] - origin[i]) * inverse_dir;
             let mut t2 = (self.max[i] - origin[i]) * inverse_dir;
 
@@ -100,44 +107,16 @@ impl BoundingBox {
                 return None;
             }
         }
-        return Some((tmin, tmax+0.001));
+        return Some((tmin, tmax + 0.001));
     }
-
-    pub fn contains(&self, point: Vec4d) -> bool {
-        if point.x < self.min.x || point.y < self.min.y || point.z < self.min.z  {
-            return false;
-        }
-        if point.x > self.max.x || point.y > self.max.y || point.z > self.max.z  {
-            return false;
-        }
-        return true;
-    }
-
-    pub fn encloses(&self, other: BoundingBox) -> bool {
-        for i in 0..3 {
-            if other.min[i] > self.max[i] || other.min[i] < self.min[i] {
-                return false;
-            }
-            if other.max[i] > self.max[i] || other.max[i] < self.min[i] {
-                return false;
-            }
-        }
-        return true;
-    }
-}
-
-const MACHINE_EPSILON : f64 = std::f64::EPSILON * 0.5;
-fn gamma(value: i64) -> f64 {
-    return value as f64 * MACHINE_EPSILON / ((1 - value) as f64 * MACHINE_EPSILON);
 }
 
 pub trait HasBoundingBox {
     fn bounds(&self) -> BoundingBox;
 }
 
-impl <T : HasBoundingBox + ?Sized> HasBoundingBox for Box<T> {
+impl<T: HasBoundingBox + ?Sized> HasBoundingBox for Box<T> {
     fn bounds(&self) -> BoundingBox {
         return (**self).bounds();
     }
 }
-

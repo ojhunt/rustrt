@@ -1,33 +1,33 @@
 use bounding_box::BoundingBox;
-use vec4d::Vec4d;
-use intersectable::Intersectable;
 use collision::Collision;
+use intersectable::Intersectable;
 use ray::Ray;
+use vec4d::Vec4d;
 
 #[derive(Debug)]
 enum BVHNode {
     Leaf((BoundingBox, Vec<usize>)),
-    Node((BoundingBox, usize, Box<BVHNode>, Box<BVHNode>))
+    Node((BoundingBox, usize, Box<BVHNode>, Box<BVHNode>)),
 }
 
 #[derive(Debug)]
 pub struct BVH {
-    root: BVHNode
+    root: BVHNode,
 }
 
 #[derive(Copy, Clone)]
 struct BVHPrimitiveInfo {
     pub primitive_number: usize,
     pub bounds: BoundingBox,
-    pub centroid: Vec4d
+    pub centroid: Vec4d,
 }
 
 impl BVHPrimitiveInfo {
     pub fn new(primitive_number: usize, bounds: BoundingBox) -> BVHPrimitiveInfo {
         BVHPrimitiveInfo {
-            primitive_number:primitive_number,
-            bounds:bounds,
-            centroid:bounds.centroid()
+            primitive_number: primitive_number,
+            bounds: bounds,
+            centroid: bounds.centroid(),
         }
     }
 }
@@ -35,13 +35,13 @@ impl BVHPrimitiveInfo {
 fn tree_depth(node: &BVHNode) -> usize {
     match node {
         BVHNode::Leaf(_) => 1,
-        BVHNode::Node((_, _, left, right)) => 1 + tree_depth(left).max(tree_depth(right))
+        BVHNode::Node((_, _, left, right)) => 1 + tree_depth(left).max(tree_depth(right)),
     }
 }
 
 impl BVH {
     pub fn new<T: Intersectable>(elements: &[T]) -> BVH {
-        let mut info : Vec<BVHPrimitiveInfo> = Vec::new();
+        let mut info: Vec<BVHPrimitiveInfo> = Vec::new();
         for i in 0..elements.len() {
             let element = &elements[i];
             let inner_bounds = element.bounds();
@@ -49,47 +49,65 @@ impl BVH {
         }
         let root = recursive_build(0, &mut info);
         println!("Tree max depth: {}", tree_depth(&root));
-        BVH {
-            root: root
-        }
+        BVH { root: root }
     }
 
-    pub fn intersect<T: Intersectable>(&self, elements: &[T], ray: Ray, min: f64, max: f64) -> Option<Collision> {
+    pub fn intersect<T: Intersectable>(
+        &self,
+        elements: &[T],
+        ray: Ray,
+        min: f64,
+        max: f64,
+    ) -> Option<Collision> {
         return intersect(&self.root, elements, ray, min, max);
     }
 }
 
-fn intersect_primitives<T: Intersectable>(indices:&[usize], primitives: &[T], ray: Ray, min: f64, max: f64) -> Option<Collision> {
-        let mut closest = max;
-        let mut result: Option<Collision> = None;
-        for index in indices {
-            let element = &primitives[*index];
-            match element.intersect(ray, closest) {
-                None => continue,
-                Some(collision) => {
-                    if collision.distance < closest {
-                        closest = collision.distance;
-                        result = Some(collision);
-                    }
+fn intersect_primitives<T: Intersectable>(
+    indices: &[usize],
+    primitives: &[T],
+    ray: Ray,
+    min: f64,
+    max: f64,
+) -> Option<Collision> {
+    let mut closest = max;
+    let mut result: Option<Collision> = None;
+    for index in indices {
+        let element = &primitives[*index];
+        match element.intersect(ray, closest) {
+            None => continue,
+            Some(collision) => {
+                if collision.distance < closest {
+                    closest = collision.distance;
+                    result = Some(collision);
                 }
             }
         }
-        return result;
+    }
+    return result;
 }
 
-fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, parent_min: f64, parent_max: f64) -> Option<Collision> {
-    
-    let mut stack : Vec<(&BVHNode, /*min*/f64, /*max*/ f64)> = Vec::new();
+fn intersect<T: Intersectable>(
+    node: &BVHNode,
+    elements: &[T],
+    ray: Ray,
+    parent_min: f64,
+    parent_max: f64,
+) -> Option<Collision> {
+    let mut stack: Vec<(&BVHNode, /*min*/ f64, /*max*/ f64)> = Vec::new();
     stack.push((node, parent_min, parent_max));
-    let mut result : Option<Collision> = None;
+    let mut result: Option<Collision> = None;
     let mut nearest = parent_max;
     let mut primitive_count = 0;
     let mut node_count = 0;
     while let Some((value, node_min, node_max)) = stack.pop() {
         node_count += 1;
 
-
-        let dir_is_negative = [ray.direction.x < 0., ray.direction.y < 0., ray.direction.z < 0.];
+        let dir_is_negative = [
+            ray.direction.x < 0.,
+            ray.direction.y < 0.,
+            ray.direction.z < 0.,
+        ];
 
         if node_min > nearest {
             continue;
@@ -103,7 +121,13 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, parent_
                     None => continue,
                     Some((min, max)) => {
                         primitive_count += children.len();
-                        match intersect_primitives(children, elements, ray, min.max(node_min), nearest.min(max)) {
+                        match intersect_primitives(
+                            children,
+                            elements,
+                            ray,
+                            min.max(node_min),
+                            nearest.min(max),
+                        ) {
                             None => continue,
                             Some(inner_collision) => {
                                 if inner_collision.distance < nearest {
@@ -114,7 +138,7 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, parent_
                         };
                     }
                 };
-            },
+            }
             BVHNode::Node((bounds, axis, left, right)) => {
                 match bounds.intersect(ray, node_min, far_intersect) {
                     None => continue,
@@ -130,41 +154,46 @@ fn intersect<T: Intersectable>(node: &BVHNode, elements: &[T], ray: Ray, parent_
                 };
             }
         }
-    };
+    }
 
     if let Some(c) = result {
-        result = Some(Collision{
+        result = Some(Collision {
             distance: c.distance,
             uv: c.uv,
             intersection_count: primitive_count,
-            node_count: node_count
+            node_count: node_count,
         });
     }
     return result;
 }
 
-const NUM_BUCKETS : usize = 64;
-const MAX_PRIMS_PER_NODE : usize = 4;
+const NUM_BUCKETS: usize = 64;
+const MAX_PRIMS_PER_NODE: usize = 4;
 
 #[derive(Copy, Clone, Debug)]
 struct BucketInfo {
     pub count: usize,
-    pub bounds: BoundingBox
+    pub bounds: BoundingBox,
 }
 
-fn recursive_build(depth: usize,
-                   primitives: &mut [BVHPrimitiveInfo]) -> BVHNode {
+fn recursive_build(depth: usize, primitives: &mut [BVHPrimitiveInfo]) -> BVHNode {
     let mut bounds = BoundingBox::new();
     for primitive in primitives.iter() {
         bounds = bounds.merge_with_bbox(primitive.bounds);
     }
     let length = primitives.len();
-    let make_leaf = |nodes:&[BVHPrimitiveInfo]| {
+    let make_leaf = |nodes: &[BVHPrimitiveInfo]| {
         let mut bounds = BoundingBox::new();
         for primitive in nodes {
             bounds = bounds.merge_with_bbox(primitive.bounds)
         }
-        return BVHNode::Leaf((bounds, nodes.iter().map(|primitive|{ primitive.primitive_number }).collect()));
+        return BVHNode::Leaf((
+            bounds,
+            nodes
+                .iter()
+                .map(|primitive| primitive.primitive_number)
+                .collect(),
+        ));
     };
 
     if length == 1 {
@@ -181,17 +210,22 @@ fn recursive_build(depth: usize,
         return make_leaf(primitives);
     }
 
-    let mut buckets = [BucketInfo{count: 0, bounds: BoundingBox::new()}; NUM_BUCKETS];
+    let mut buckets = [BucketInfo {
+        count: 0,
+        bounds: BoundingBox::new(),
+    }; NUM_BUCKETS];
 
     for primitive in primitives.iter() {
-        let b = ((NUM_BUCKETS as f64 * centroid_bounds.offset(primitive.centroid)[max_axis]) as usize).min(NUM_BUCKETS - 1);
+        let b = ((NUM_BUCKETS as f64 * centroid_bounds.offset(primitive.centroid)[max_axis])
+            as usize)
+            .min(NUM_BUCKETS - 1);
         assert!(b < NUM_BUCKETS);
         buckets[b].count += 1;
         buckets[b].bounds = buckets[b].bounds.merge_with_bbox(primitive.bounds);
         assert!(buckets[b].bounds.is_valid());
     }
 
-    let mut cost= [0. as f64;NUM_BUCKETS - 1];
+    let mut cost = [0. as f64; NUM_BUCKETS - 1];
     for i in 0..(NUM_BUCKETS - 1) {
         let mut b0 = BoundingBox::new();
         let mut b1 = BoundingBox::new();
@@ -201,7 +235,7 @@ fn recursive_build(depth: usize,
             b0 = b0.merge_with_bbox(buckets[j].bounds);
             count0 += buckets[j].count;
         }
-        for j in (i+1)..NUM_BUCKETS {
+        for j in (i + 1)..NUM_BUCKETS {
             b1 = b1.merge_with_bbox(buckets[j].bounds);
             count1 += buckets[j].count;
         }
@@ -220,14 +254,16 @@ fn recursive_build(depth: usize,
     }
 
     let leaf_cost = length;
-    
+
     if length < MAX_PRIMS_PER_NODE && min_cost >= leaf_cost as f64 {
         return make_leaf(primitives);
     }
 
-    let mut left_primitives : Vec<BVHPrimitiveInfo> = Vec::new();
-    let mut right_primitives : Vec<BVHPrimitiveInfo> = Vec::new();
-    let centroid_split = centroid_bounds.min[max_axis] + (centroid_bounds.max - centroid_bounds.min)[max_axis] * split_bucket as f64 / NUM_BUCKETS as f64;
+    let mut left_primitives: Vec<BVHPrimitiveInfo> = Vec::new();
+    let mut right_primitives: Vec<BVHPrimitiveInfo> = Vec::new();
+    let centroid_split = centroid_bounds.min[max_axis]
+        + (centroid_bounds.max - centroid_bounds.min)[max_axis] * split_bucket as f64
+            / NUM_BUCKETS as f64;
     let mut inner_bounds = BoundingBox::new();
     for primitive in primitives.iter() {
         inner_bounds = inner_bounds.merge_with_bbox(primitive.bounds);
@@ -237,7 +273,7 @@ fn recursive_build(depth: usize,
             right_primitives.push(*primitive);
         }
     }
-    
+
     assert!(left_primitives.len() != 0);
     assert!(right_primitives.len() != 0);
     assert!(left_primitives.len() + right_primitives.len() == primitives.len());
