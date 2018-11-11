@@ -22,7 +22,7 @@ impl Scene {
     }
 
     pub fn intersect(&self, ray: Ray) -> Option<Collision> {
-        return self._scene.intersect(ray, std::f64::INFINITY);
+        return self._scene.intersect(ray, 0.0, std::f64::INFINITY);
     }
 
     pub fn finalize(&mut self) {
@@ -81,8 +81,8 @@ impl Scene {
                 .min(0.)
                 .max(255.) as u8;
             *_pixel = image::Rgb([
-                scaled_depth * 0,
-                scaled_intersection_count,
+                scaled_depth * 1,
+                scaled_intersection_count * 0,
                 scaled_node_count * 0,
             ]);
         }

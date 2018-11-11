@@ -32,10 +32,10 @@ impl HasBoundingBox for CompoundObject {
 }
 
 impl Intersectable for CompoundObject {
-    fn intersect(&self, ray: Ray, max: f64) -> Option<Collision> {
+    fn intersect(&self, ray: Ray, min: f64, max: f64) -> Option<Collision> {
         match self.bvh_tree {
             Some(ref tree) =>  { 
-                return tree.intersect(&self.elements, ray, 0.0, max);
+                return tree.intersect(&self.elements, ray, min, max);
             },
             None => panic!()
         }

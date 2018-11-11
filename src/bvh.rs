@@ -74,7 +74,7 @@ fn intersect_primitives<T: Intersectable>(
     let mut result: Option<Collision> = None;
     for index in indices {
         let element = &primitives[*index];
-        match element.intersect(ray, closest) {
+        match element.intersect(ray, min, closest) {
             None => continue,
             Some(collision) => {
                 if collision.distance < closest {

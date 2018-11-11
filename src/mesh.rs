@@ -39,7 +39,7 @@ impl HasBoundingBox for Mesh {
 }
 
 impl Intersectable for Mesh {
-    fn intersect(&self, ray: Ray, max: f64) -> Option<Collision> {
-        return self.tree.intersect(&self.triangles, ray, 0.0, max);
+    fn intersect(&self, ray: Ray, min: f64, max: f64) -> Option<Collision> {
+        return self.tree.intersect(&self.triangles, ray, min, max);
     }
 }
