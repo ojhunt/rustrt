@@ -24,6 +24,7 @@ use collision::Collision;
 use genmesh::*;
 use ray::Ray;
 use scene::Scene;
+use std::time::{Duration, Instant};
 use triangle::Triangle;
 use vec4d::Vec4d;
 
@@ -45,10 +46,11 @@ fn load_model(path: &str) -> Scene {
     obj.load_mtls().unwrap();
 
     let mut scn = Scene::new();
-    let mut bounds = BoundingBox::new();
     for o in &obj.objects {
+        let mut object_triangles: Vec<Triangle> = vec![];
+
         for g in &o.groups {
-            let triangles: Vec<Triangle> = g
+            let mut triangles: Vec<Triangle> = g
                 .polys
                 .iter()
                 .map(|x| *x)
@@ -62,19 +64,11 @@ fn load_model(path: &str) -> Scene {
                 .triangulate()
                 .map(|genmesh::Triangle { x, y, z }| Triangle::new(x.0, y.0, z.0))
                 .collect();
-            if true {
-                let step_size = 1;
-                for i in 0..(triangles.len() / step_size) {
-                    let new_object =
-                        Box::new(Mesh::new(&triangles[i * step_size..(i + 1) * step_size]));
-                    bounds = bounds.merge_with_bbox((*new_object).bounds());
-                    scn.add_object(new_object);
-                }
-            } else {
-                let new_object = Box::new(Mesh::new(&triangles));
-                scn.add_object(new_object);
-            }
+            object_triangles.append(&mut triangles);
         }
+
+        let new_object = Box::new(Mesh::new(&object_triangles));
+        scn.add_object(new_object);
     }
     scn.finalize();
     return scn;
@@ -113,7 +107,13 @@ fn main() {
     const SIZE: usize = 700;
     let scn = load_model(&settings.scene_file);
     let camera = Camera::new(Vec4d::point(10., 10., 0.), Vec4d::point(0.0, 2.0, 0.0), 40.);
+
+    let start = std::time::Instant::now();
     let output = scn.render(&camera, SIZE);
+    let end = std::time::Instant::now();
+    let delta = end - start;
+    let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;
+    println!("Time taken: {}", time);
 
     output.save(settings.output_file).unwrap();
     println!("Done!");
