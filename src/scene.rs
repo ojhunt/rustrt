@@ -39,12 +39,10 @@ impl Scene {
         let mut max_nodecount = 0;
         let mut min_intersectount = 0;
         let mut max_intersectcount = 0;
-        let sensor_scale = size as f64 / 2.;
+        let rays = camera.get_rays(size, size);
         for x in 0..size {
             for y in 0..size {
-                let xp = (x as f64 - sensor_scale) / sensor_scale;
-                let yp = -(y as f64 - sensor_scale) / sensor_scale;
-                let ray: Ray = camera.get_ray(xp, yp);
+                let ray = rays[x + size * y];
                 match self.intersect(ray) {
                     None => continue,
                     Some(Collision {
@@ -82,7 +80,11 @@ impl Scene {
                 / (max_nodecount - min_nodecount) as f64)
                 .min(0.)
                 .max(255.) as u8;
-            *_pixel = image::Rgb([scaled_depth, scaled_intersection_count, scaled_node_count]);
+            *_pixel = image::Rgb([
+                scaled_depth * 0,
+                scaled_intersection_count,
+                scaled_node_count * 0,
+            ]);
         }
 
         return ImageRgb8(result);

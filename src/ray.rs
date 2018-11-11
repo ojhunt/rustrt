@@ -1,20 +1,18 @@
 use vec4d::Vec4d;
 
-#[derive(Debug)]
-#[derive(Clone)]
-#[derive(Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Ray {
     pub origin: Vec4d,
-    pub direction: Vec4d
+    pub direction: Vec4d,
 }
 
 impl Ray {
-    pub fn new(_origin: Vec4d, _direction: Vec4d) -> Ray {
-        assert!(_origin.w == 1.0);
-        assert!(_direction.w == 0.0);
+    pub fn new(origin: Vec4d, direction: Vec4d) -> Ray {
+        assert!(origin.w == 1.0);
+        assert!(direction.w == 0.0);
         Ray {
-            origin: _origin,
-            direction: _direction
+            origin: origin,
+            direction: direction,
         }
     }
 }

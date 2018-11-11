@@ -112,11 +112,8 @@ fn main() {
 
     const SIZE: usize = 700;
     let scn = load_model(&settings.scene_file);
-    let mut camera = Camera::new();
-    camera.goto(Vec4d::point(10., 2., 0.));
-    camera.lookAt(Vec4d::point(0.0, 2.0, 0.0));
-
-    let mut output = scn.render(&camera, SIZE);
+    let camera = Camera::new(Vec4d::point(10., 2., 0.), Vec4d::point(0.0, 2.0, 0.0), 40.);
+    let output = scn.render(&camera, SIZE);
 
     output.save(settings.output_file).unwrap();
     println!("Done!");
