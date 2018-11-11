@@ -9,11 +9,13 @@ mod bvh;
 mod camera;
 mod collision;
 mod compound_object;
+mod fragment;
 mod intersectable;
 mod mesh;
 mod objects;
 mod ray;
 mod scene;
+mod shader;
 mod triangle;
 mod vec4d;
 
@@ -33,9 +35,6 @@ use std::path::Path;
 fn vecf32_to_point(v: [f32; 3]) -> Vec4d {
     Vec4d::point(v[0] as f64, v[1] as f64, v[2] as f64)
 }
-fn vecf32_to_vector(v: [f32; 3]) -> Vec4d {
-    Vec4d::vector(v[0] as f64, v[1] as f64, v[2] as f64)
-}
 
 fn load_model(path: &str) -> Scene {
     let mut obj = Obj::<Polygon<IndexTuple>>::load(&Path::new(path)).unwrap();
@@ -50,15 +49,9 @@ fn load_model(path: &str) -> Scene {
                 .polys
                 .iter()
                 .map(|x| *x)
-                .vertex(|IndexTuple(p, t, n)| {
-                    (
-                        vecf32_to_point(obj.position[p]),
-                        t.map_or([0., 0.], |t| obj.texture[t]),
-                        vecf32_to_vector(n.map_or([1., 0., 0.], |n| obj.normal[n])),
-                    )
-                })
+                .vertex(|IndexTuple(p, t, n)| (vecf32_to_point(obj.position[p]), t, n))
                 .triangulate()
-                .map(|genmesh::Triangle { x, y, z }| Triangle::new(x.0, y.0, z.0))
+                .map(|genmesh::Triangle { x, y, z }| Triangle::new(x, y, z))
                 .collect();
             object_triangles.append(&mut triangles);
         }

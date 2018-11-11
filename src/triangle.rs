@@ -8,15 +8,21 @@ use vec4d::Vec4d;
 pub struct Triangle {
     pub origin: Vec4d,
     pub edges: [Vec4d; 2],
+    pub normals: [Option<usize>; 3],
+    pub texture_coords: [Option<usize>; 3],
 }
 
+type Vertex = (Vec4d, Option<usize>, Option<usize>);
+
 impl Triangle {
-    pub fn new(v0: Vec4d, v1: Vec4d, v2: Vec4d) -> Triangle {
+    pub fn new((v0, n0, t0): Vertex, (v1, n1, t1): Vertex, (v2, n2, t2): Vertex) -> Triangle {
         let edge0 = v1 - v0;
         let edge1 = v2 - v0;
         Triangle {
             origin: v0,
             edges: [edge0, edge1],
+            normals: [n0, n1, n2],
+            texture_coords: [t0, t1, t2],
         }
     }
 
@@ -45,7 +51,7 @@ impl Triangle {
             return None;
         }
         let t = f * self.edges[1].dot(q);
-        if t < min - std::f64::EPSILON || t >= max {
+        if t < min - 0.001 || t >= max {
             return None;
         }
 

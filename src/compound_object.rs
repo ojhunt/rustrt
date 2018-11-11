@@ -1,20 +1,23 @@
-
-use intersectable::Intersectable;
+use bounding_box::*;
+use bvh::*;
 use collision::Collision;
+use intersectable::Intersectable;
 use ray::Ray;
-use bounding_box::{*};
-use bvh::{*};
 
 #[derive(Debug)]
 pub struct CompoundObject {
     elements: Vec<Box<Intersectable>>,
     bbox: BoundingBox,
-    bvh_tree: Option<Box<BVH>>
+    bvh_tree: Option<Box<BVH>>,
 }
 
 impl CompoundObject {
     pub fn new() -> CompoundObject {
-        CompoundObject{ elements: Vec::new(), bbox: BoundingBox::new(), bvh_tree:None }
+        CompoundObject {
+            elements: Vec::new(),
+            bbox: BoundingBox::new(),
+            bvh_tree: None,
+        }
     }
     pub fn add_object(&mut self, object: Box<Intersectable>) {
         self.bbox = self.bbox.merge_with_bbox(object.bounds());
@@ -34,10 +37,10 @@ impl HasBoundingBox for CompoundObject {
 impl Intersectable for CompoundObject {
     fn intersect(&self, ray: Ray, min: f64, max: f64) -> Option<Collision> {
         match self.bvh_tree {
-            Some(ref tree) =>  { 
-                return tree.intersect(&self.elements, ray, min, max);
-            },
-            None => panic!()
+            Some(ref tree) => {
+                return tree.intersect(&self.elements, ray, 0.0, max);
+            }
+            None => panic!(),
         }
     }
 }
