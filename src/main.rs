@@ -17,14 +17,10 @@ mod scene;
 mod triangle;
 mod vec4d;
 
-use bounding_box::*;
 use camera::Camera;
 use clap::*;
-use collision::Collision;
 use genmesh::*;
-use ray::Ray;
 use scene::Scene;
-use std::time::{Duration, Instant};
 use triangle::Triangle;
 use vec4d::Vec4d;
 
@@ -74,8 +70,6 @@ fn load_model(path: &str) -> Scene {
     return scn;
 }
 
-type ResultBufferType = (f64, usize);
-
 struct SceneSettings {
     pub output_file: String,
     pub scene_file: String,
@@ -106,7 +100,7 @@ fn main() {
 
     const SIZE: usize = 700;
     let scn = load_model(&settings.scene_file);
-    let camera = Camera::new(Vec4d::point(10., 10., 0.), Vec4d::point(0.0, 2.0, 0.0), 40.);
+    let camera = Camera::new(Vec4d::point(10., 1., 0.), Vec4d::point(0.0, 3.0, 0.0), 40.);
 
     let start = std::time::Instant::now();
     let output = scn.render(&camera, SIZE);

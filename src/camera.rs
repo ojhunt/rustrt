@@ -17,7 +17,7 @@ impl Camera {
     }
     pub fn get_rays(&self, width: usize, height: usize) -> Vec<Ray> {
         let mut result: Vec<Ray> = Vec::new();
-        let right = self.direction.cross(Vec4d::point(0., 1., 0.)).normalize();
+        let right = self.direction.cross(Vec4d::vector(0., 1., 0.)).normalize();
         let up = right.cross(self.direction).normalize();
 
         let half_width = (self.fov.to_radians() / 2.).tan();

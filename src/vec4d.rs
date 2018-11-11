@@ -34,7 +34,7 @@ impl Vec4d {
         }
     }
     pub fn cross(&self, rhs: Vec4d) -> Vec4d {
-        // assert!(self.w == 0. && rhs.w == 0.);
+        assert!(self.w == 0. && rhs.w == 0.);
         Vec4d {
             x: self.y * rhs.z - self.z * rhs.y,
             y: self.z * rhs.x - self.x * rhs.z,

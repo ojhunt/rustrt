@@ -45,7 +45,7 @@ impl Triangle {
             return None;
         }
         let t = f * self.edges[1].dot(q);
-        if t < 0. || t >= max {
+        if t < min - std::f64::EPSILON || t >= max {
             return None;
         }
 

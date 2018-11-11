@@ -4,7 +4,6 @@ use compound_object::CompoundObject;
 use image::*;
 use intersectable::Intersectable;
 use ray::Ray;
-use vec4d::Vec4d;
 
 #[derive(Debug)]
 pub struct Scene {
