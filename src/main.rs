@@ -21,47 +21,10 @@ mod vec4d;
 
 use camera::Camera;
 use clap::*;
-use genmesh::*;
-use scene::Scene;
-use triangle::Triangle;
+use scene::*;
 use vec4d::Vec4d;
 
 extern crate obj;
-
-use obj::*;
-use objects::*;
-
-use std::path::Path;
-fn vecf32_to_point(v: [f32; 3]) -> Vec4d {
-    Vec4d::point(v[0] as f64, v[1] as f64, v[2] as f64)
-}
-
-fn load_model(path: &str) -> Scene {
-    let mut obj = Obj::<Polygon<IndexTuple>>::load(&Path::new(path)).unwrap();
-    obj.load_mtls().unwrap();
-
-    let mut scn = Scene::new();
-    for o in &obj.objects {
-        let mut object_triangles: Vec<Triangle> = vec![];
-
-        for g in &o.groups {
-            let mut triangles: Vec<Triangle> = g
-                .polys
-                .iter()
-                .map(|x| *x)
-                .vertex(|IndexTuple(p, t, n)| (vecf32_to_point(obj.position[p]), t, n))
-                .triangulate()
-                .map(|genmesh::Triangle { x, y, z }| Triangle::new(x, y, z))
-                .collect();
-            object_triangles.append(&mut triangles);
-        }
-
-        let new_object = Box::new(Mesh::new(&object_triangles));
-        scn.add_object(new_object);
-    }
-    scn.finalize();
-    return scn;
-}
 
 struct SceneSettings {
     pub output_file: String,
@@ -92,7 +55,7 @@ fn main() {
     let settings = load_settings();
 
     const SIZE: usize = 700;
-    let scn = load_model(&settings.scene_file);
+    let scn = load_scene(&settings.scene_file);
     let camera = Camera::new(Vec4d::point(10., 1., 0.), Vec4d::point(0.0, 3.0, 0.0), 40.);
 
     let start = std::time::Instant::now();

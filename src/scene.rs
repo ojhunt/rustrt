@@ -4,15 +4,34 @@ use compound_object::CompoundObject;
 use image::*;
 use intersectable::Intersectable;
 use ray::Ray;
+use vec4d::Vec4d;
+
+use genmesh::*;
+use obj::*;
+use objects::*;
+use std::path::Path;
+use triangle::Triangle;
+
+fn vecf32_to_point(v: [f32; 3]) -> Vec4d {
+    Vec4d::point(v[0] as f64, v[1] as f64, v[2] as f64)
+}
 
 #[derive(Debug)]
 pub struct Scene {
+    normals: Vec<Vec4d>,
+    positions: Vec<Vec4d>,
+    texture_coords: Vec<(f64, f64)>,
+    textures: Vec<String>,
     _scene: CompoundObject,
 }
 
 impl Scene {
     pub fn new() -> Scene {
         Scene {
+            normals: Vec::new(),
+            positions: Vec::new(),
+            texture_coords: Vec::new(),
+            textures: Vec::new(),
             _scene: CompoundObject::new(),
         }
     }
@@ -88,4 +107,45 @@ impl Scene {
 
         return ImageRgb8(result);
     }
+}
+
+pub fn load_scene(path: &str) -> Scene {
+    let mut scn = Scene::new();
+
+    let mut obj = Obj::<Polygon<IndexTuple>>::load(&Path::new(path)).unwrap();
+    obj.load_mtls().unwrap();
+
+    scn.textures = obj.material_libs.to_vec();
+    for [x, y, z] in obj.position.iter() {
+        scn.positions
+            .push(Vec4d::point(*x as f64, *y as f64, *z as f64));
+    }
+    for [x, y, z] in obj.normal.iter() {
+        scn.normals
+            .push(Vec4d::vector(*x as f64, *y as f64, *z as f64));
+    }
+    for [u, v] in obj.texture.iter() {
+        scn.texture_coords.push((*u as f64, *v as f64));
+    }
+
+    for o in &obj.objects {
+        let mut object_triangles: Vec<Triangle> = vec![];
+
+        for g in &o.groups {
+            let mut triangles: Vec<Triangle> = g
+                .polys
+                .iter()
+                .map(|x| *x)
+                .vertex(|IndexTuple(p, t, n)| (vecf32_to_point(obj.position[p]), t, n))
+                .triangulate()
+                .map(|genmesh::Triangle { x, y, z }| Triangle::new(x, y, z))
+                .collect();
+            object_triangles.append(&mut triangles);
+        }
+
+        let new_object = Box::new(Mesh::new(&object_triangles));
+        scn.add_object(new_object);
+    }
+    scn.finalize();
+    return scn;
 }
