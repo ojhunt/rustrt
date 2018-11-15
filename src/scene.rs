@@ -39,7 +39,7 @@ impl Scene {
         self._scene.add_object(object)
     }
 
-    pub fn intersect(&self, ray: Ray) -> Option<Collision> {
+    pub fn intersect<'a>(&'a self, ray: Ray) -> Option<(Collision, &'a Intersectable)> {
         return self._scene.intersect(ray, 0.0, std::f64::INFINITY);
     }
 
@@ -63,12 +63,15 @@ impl Scene {
                 let ray = rays[x + size * y];
                 match self.intersect(ray) {
                     None => continue,
-                    Some(Collision {
-                        distance: d,
-                        uv: _,
-                        intersection_count,
-                        node_count,
-                    }) => {
+                    Some((
+                        Collision {
+                            distance: d,
+                            uv: _,
+                            intersection_count,
+                            node_count,
+                        },
+                        _,
+                    )) => {
                         max_depth = max_depth.max(d);
                         min_depth = min_depth.min(d);
                         max_nodecount = max_nodecount.max(node_count);
@@ -128,11 +131,15 @@ pub fn load_scene(path: &str) -> Scene {
         scn.texture_coords.push((*u as f64, *v as f64));
     }
 
-    for o in &obj.objects {
+    let object_count = obj.objects.len();
+    for object_index in 0..object_count {
+        let object = &obj.objects[object_index];
         let mut object_triangles: Vec<Triangle> = vec![];
 
-        for g in &o.groups {
-            let mut triangles: Vec<Triangle> = g
+        let group_count = object.groups.len();
+
+        for group_index in 0..group_count {
+            let mut triangles: Vec<Triangle> = object.groups[group_index]
                 .polys
                 .iter()
                 .map(|x| *x)

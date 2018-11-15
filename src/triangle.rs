@@ -33,7 +33,12 @@ impl Triangle {
         return result;
     }
 
-    pub fn intersects(&self, ray: Ray, min: f64, max: f64) -> Option<Collision> {
+    pub fn intersects<'a>(
+        &'a self,
+        ray: Ray,
+        min: f64,
+        max: f64,
+    ) -> Option<(Collision, &'a Intersectable)> {
         let h = ray.direction.cross(self.edges[1]);
         let a = self.edges[0].dot(h);
         if a.abs() < 0.00001 {
@@ -55,7 +60,7 @@ impl Triangle {
             return None;
         }
 
-        return Some(Collision::new(t, (u, v)));
+        return Some((Collision::new(t, (u, v)), self));
     }
 }
 
@@ -66,7 +71,12 @@ impl HasBoundingBox for Triangle {
 }
 
 impl Intersectable for Triangle {
-    fn intersect(&self, ray: Ray, min: f64, max: f64) -> Option<Collision> {
+    fn intersect<'a>(
+        &'a self,
+        ray: Ray,
+        min: f64,
+        max: f64,
+    ) -> Option<(Collision, &'a Intersectable)> {
         return self.intersects(ray, min, max);
     }
 }

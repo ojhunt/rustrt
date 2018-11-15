@@ -52,34 +52,34 @@ impl BVH {
         BVH { root: root }
     }
 
-    pub fn intersect<T: Intersectable>(
+    pub fn intersect<'a, T: Intersectable>(
         &self,
-        elements: &[T],
+        elements: &'a [T],
         ray: Ray,
         min: f64,
         max: f64,
-    ) -> Option<Collision> {
+    ) -> Option<(Collision, &'a Intersectable)> {
         return intersect(&self.root, elements, ray, min, max);
     }
 }
 
-fn intersect_primitives<T: Intersectable>(
+fn intersect_primitives<'a, T: Intersectable + 'a>(
     indices: &[usize],
-    primitives: &[T],
+    primitives: &'a [T],
     ray: Ray,
     min: f64,
     max: f64,
-) -> Option<Collision> {
+) -> Option<(Collision, &'a Intersectable)> {
     let mut closest = max;
-    let mut result: Option<Collision> = None;
+    let mut result: Option<(Collision, &'a Intersectable)> = None;
     for index in indices {
         let element = &primitives[*index];
         match element.intersect(ray, min, closest) {
             None => continue,
-            Some(collision) => {
+            Some((collision, object)) => {
                 if collision.distance < closest {
                     closest = collision.distance;
-                    result = Some(collision);
+                    result = Some((collision, object));
                 }
             }
         }
@@ -87,16 +87,16 @@ fn intersect_primitives<T: Intersectable>(
     return result;
 }
 
-fn intersect<T: Intersectable>(
+fn intersect<'a, T: Intersectable>(
     node: &BVHNode,
-    elements: &[T],
+    elements: &'a [T],
     ray: Ray,
     parent_min: f64,
     parent_max: f64,
-) -> Option<Collision> {
+) -> Option<(Collision, &'a Intersectable)> {
     let mut stack: Vec<(&BVHNode, /*min*/ f64, /*max*/ f64)> = Vec::new();
     stack.push((node, parent_min, parent_max));
-    let mut result: Option<Collision> = None;
+    let mut result: Option<(Collision, &'a Intersectable)> = None;
     let mut nearest = parent_max;
     let mut primitive_count = 0;
     let mut node_count = 0;
@@ -117,7 +117,7 @@ fn intersect<T: Intersectable>(
 
         match &value {
             BVHNode::Leaf((bounds, children)) => {
-                match bounds.intersect(ray, node_min, nearest) {
+                match bounds.intersect(ray, node_min - 0.01, nearest) {
                     None => continue,
                     Some((min, max)) => {
                         primitive_count += children.len();
@@ -129,10 +129,10 @@ fn intersect<T: Intersectable>(
                             nearest.min(max),
                         ) {
                             None => continue,
-                            Some(inner_collision) => {
+                            Some((inner_collision, object)) => {
                                 if inner_collision.distance < nearest {
                                     nearest = inner_collision.distance;
-                                    result = Some(inner_collision);
+                                    result = Some((inner_collision, object));
                                 }
                             }
                         };
@@ -144,11 +144,11 @@ fn intersect<T: Intersectable>(
                     None => continue,
                     Some((child_min, child_max)) => {
                         if dir_is_negative[*axis] {
-                            stack.push((right, child_min, child_max));
-                            stack.push((left, child_min, child_max));
+                            stack.push((right, child_min - 0.01, child_max));
+                            stack.push((left, child_min - 0.01, child_max));
                         } else {
-                            stack.push((left, child_min, child_max));
-                            stack.push((right, child_min, child_max));
+                            stack.push((left, child_min - 0.01, child_max));
+                            stack.push((right, child_min - 0.01, child_max));
                         }
                     }
                 };
@@ -156,13 +156,16 @@ fn intersect<T: Intersectable>(
         }
     }
 
-    if let Some(c) = result {
-        result = Some(Collision {
-            distance: c.distance,
-            uv: c.uv,
-            intersection_count: primitive_count,
-            node_count: node_count,
-        });
+    if let Some((c, object)) = result {
+        result = Some((
+            (Collision {
+                distance: c.distance,
+                uv: c.uv,
+                intersection_count: primitive_count,
+                node_count: node_count,
+            }),
+            object,
+        ));
     }
     return result;
 }
