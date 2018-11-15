@@ -1,7 +1,10 @@
 use bounding_box::*;
 use collision::Collision;
+use fragment::Fragment;
 use intersectable::*;
 use ray::Ray;
+use scene::Scene;
+use shader::Shadable;
 use vec4d::Vec4d;
 
 #[derive(Debug, Copy, Clone)]
@@ -13,6 +16,22 @@ pub struct Triangle {
 }
 
 type Vertex = (Vec4d, Option<usize>, Option<usize>);
+impl Shadable for Triangle {
+    fn compute_fragment(&self, s: &Scene, r: Ray, collision: Collision) -> Fragment {
+        let mut normal = self.edges[0]
+            .normalize()
+            .cross(self.edges[1].normalize())
+            .normalize();
+        if r.direction.dot(normal) < 0.0 {
+            normal = normal * 1.0;
+        }
+        return Fragment {
+            position: r.origin + r.direction * collision.distance,
+            normal: normal,
+            tex_coord: [0.0, 0.0],
+        };
+    }
+}
 
 impl Triangle {
     pub fn new((v0, n0, t0): Vertex, (v1, n1, t1): Vertex, (v2, n2, t2): Vertex) -> Triangle {
@@ -38,7 +57,7 @@ impl Triangle {
         ray: Ray,
         min: f64,
         max: f64,
-    ) -> Option<(Collision, &'a Intersectable)> {
+    ) -> Option<(Collision, &'a Shadable)> {
         let h = ray.direction.cross(self.edges[1]);
         let a = self.edges[0].dot(h);
         if a.abs() < 0.00001 {
@@ -71,12 +90,7 @@ impl HasBoundingBox for Triangle {
 }
 
 impl Intersectable for Triangle {
-    fn intersect<'a>(
-        &'a self,
-        ray: Ray,
-        min: f64,
-        max: f64,
-    ) -> Option<(Collision, &'a Intersectable)> {
+    fn intersect<'a>(&'a self, ray: Ray, min: f64, max: f64) -> Option<(Collision, &'a Shadable)> {
         return self.intersects(ray, min, max);
     }
 }

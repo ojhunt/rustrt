@@ -2,6 +2,7 @@ use bounding_box::BoundingBox;
 use collision::Collision;
 use intersectable::Intersectable;
 use ray::Ray;
+use shader::Shadable;
 use vec4d::Vec4d;
 
 #[derive(Debug)]
@@ -58,7 +59,7 @@ impl BVH {
         ray: Ray,
         min: f64,
         max: f64,
-    ) -> Option<(Collision, &'a Intersectable)> {
+    ) -> Option<(Collision, &'a Shadable)> {
         return intersect(&self.root, elements, ray, min, max);
     }
 }
@@ -69,9 +70,9 @@ fn intersect_primitives<'a, T: Intersectable + 'a>(
     ray: Ray,
     min: f64,
     max: f64,
-) -> Option<(Collision, &'a Intersectable)> {
+) -> Option<(Collision, &'a Shadable)> {
     let mut closest = max;
-    let mut result: Option<(Collision, &'a Intersectable)> = None;
+    let mut result: Option<(Collision, &'a Shadable)> = None;
     for index in indices {
         let element = &primitives[*index];
         match element.intersect(ray, min, closest) {
@@ -93,10 +94,10 @@ fn intersect<'a, T: Intersectable>(
     ray: Ray,
     parent_min: f64,
     parent_max: f64,
-) -> Option<(Collision, &'a Intersectable)> {
+) -> Option<(Collision, &'a Shadable)> {
     let mut stack: Vec<(&BVHNode, /*min*/ f64, /*max*/ f64)> = Vec::new();
     stack.push((node, parent_min, parent_max));
-    let mut result: Option<(Collision, &'a Intersectable)> = None;
+    let mut result: Option<(Collision, &'a Shadable)> = None;
     let mut nearest = parent_max;
     let mut primitive_count = 0;
     let mut node_count = 0;

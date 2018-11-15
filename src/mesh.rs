@@ -1,8 +1,12 @@
 use bounding_box::*;
 use bvh::BVH;
 use collision::Collision;
+use fragment::Fragment;
 use intersectable::Intersectable;
 use ray::Ray;
+use scene::Scene;
+use shader::Shadable;
+
 use triangle::Triangle;
 
 #[derive(Debug)]
@@ -39,12 +43,7 @@ impl HasBoundingBox for Mesh {
 }
 
 impl Intersectable for Mesh {
-    fn intersect<'a>(
-        &'a self,
-        ray: Ray,
-        min: f64,
-        max: f64,
-    ) -> Option<(Collision, &'a Intersectable)> {
+    fn intersect<'a>(&'a self, ray: Ray, min: f64, max: f64) -> Option<(Collision, &'a Shadable)> {
         return self.tree.intersect(&self.triangles, ray, min, max);
     }
 }

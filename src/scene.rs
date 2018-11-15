@@ -4,6 +4,7 @@ use compound_object::CompoundObject;
 use image::*;
 use intersectable::Intersectable;
 use ray::Ray;
+use shader::Shadable;
 use vec4d::Vec4d;
 
 use genmesh::*;
@@ -39,12 +40,16 @@ impl Scene {
         self._scene.add_object(object)
     }
 
-    pub fn intersect<'a>(&'a self, ray: Ray) -> Option<(Collision, &'a Intersectable)> {
+    pub fn intersect<'a>(&'a self, ray: Ray) -> Option<(Collision, &'a Shadable)> {
         return self._scene.intersect(ray, 0.0, std::f64::INFINITY);
     }
 
     pub fn finalize(&mut self) {
         self._scene.finalize();
+    }
+
+    pub fn get_normal(&self, idx: usize) -> Vec4d {
+        return self.normals[idx];
     }
 
     pub fn render(&self, camera: &Camera, size: usize) -> DynamicImage {
@@ -63,22 +68,16 @@ impl Scene {
                 let ray = rays[x + size * y];
                 match self.intersect(ray) {
                     None => continue,
-                    Some((
-                        Collision {
-                            distance: d,
-                            uv: _,
-                            intersection_count,
-                            node_count,
-                        },
-                        _,
-                    )) => {
-                        max_depth = max_depth.max(d);
-                        min_depth = min_depth.min(d);
-                        max_nodecount = max_nodecount.max(node_count);
-                        min_nodecount = min_nodecount.min(node_count);
-                        max_intersectcount = max_intersectcount.max(intersection_count);
-                        min_intersectount = min_intersectount.min(intersection_count);
-                        buffer[x + y * size] = (d, intersection_count as f64, node_count as f64);
+                    Some((c, shadable)) => {
+                        // max_depth = max_depth.max(d);
+                        // min_depth = min_depth.min(d);
+                        // max_nodecount = max_nodecount.max(node_count);
+                        // min_nodecount = min_nodecount.min(node_count);
+                        // max_intersectcount = max_intersectcount.max(intersection_count);
+                        // min_intersectount = min_intersectount.min(intersection_count);
+                        let fragment = shadable.compute_fragment(self, ray, c);
+                        let normal = fragment.normal * 0.5 + Vec4d::vector(0.5, 0.5, 0.5);
+                        buffer[x + y * size] = (normal.x, normal.y, normal.z);
                     }
                 }
             }
@@ -89,23 +88,33 @@ impl Scene {
             min_intersectount, max_intersectcount
         );
         for (x, y, _pixel) in result.enumerate_pixels_mut() {
-            let (d, ic, nc) = buffer[x as usize + y as usize * size];
-            let scaled_depth = (255. * (1. - (d - min_depth) / (max_depth - min_depth)))
-                .max(0.)
-                .min(255.) as u8;
-            let scaled_intersection_count = (255. * (ic - min_intersectount as f64) as f64
-                / (max_intersectcount - min_intersectount) as f64)
-                .max(0.)
-                .min(255.) as u8;
-            let scaled_node_count = ((nc - min_nodecount as f64) as f64
-                / (max_nodecount - min_nodecount) as f64)
-                .min(0.)
-                .max(255.) as u8;
-            *_pixel = image::Rgb([
-                scaled_depth * 1,
-                scaled_intersection_count * 0,
-                scaled_node_count * 0,
-            ]);
+            if false {
+                let (d, ic, nc) = buffer[x as usize + y as usize * size];
+
+                let scaled_depth = (255. * (1. - (d - min_depth) / (max_depth - min_depth)))
+                    .max(0.)
+                    .min(255.) as u8;
+                let scaled_intersection_count = (255. * (ic - min_intersectount as f64) as f64
+                    / (max_intersectcount - min_intersectount) as f64)
+                    .max(0.)
+                    .min(255.) as u8;
+                let scaled_node_count = ((nc - min_nodecount as f64) as f64
+                    / (max_nodecount - min_nodecount) as f64)
+                    .min(0.)
+                    .max(255.) as u8;
+                *_pixel = image::Rgb([
+                    scaled_depth * 1,
+                    scaled_intersection_count * 0,
+                    scaled_node_count * 0,
+                ]);
+            } else {
+                let (r, g, b) = buffer[x as usize + y as usize * size];
+                *_pixel = image::Rgb([
+                    (r * 255.).max(0.).min(255.) as u8,
+                    (g * 255.).max(0.).min(255.) as u8,
+                    (b * 255.).max(0.).min(255.) as u8,
+                ]);
+            }
         }
 
         return ImageRgb8(result);
@@ -117,7 +126,6 @@ pub fn load_scene(path: &str) -> Scene {
 
     let mut obj = Obj::<Polygon<IndexTuple>>::load(&Path::new(path)).unwrap();
     obj.load_mtls().unwrap();
-
     scn.textures = obj.material_libs.to_vec();
     for [x, y, z] in obj.position.iter() {
         scn.positions
