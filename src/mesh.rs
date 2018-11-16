@@ -1,10 +1,8 @@
 use bounding_box::*;
 use bvh::BVH;
 use collision::Collision;
-use fragment::Fragment;
 use intersectable::Intersectable;
 use ray::Ray;
-use scene::Scene;
 use shader::Shadable;
 
 use triangle::Triangle;

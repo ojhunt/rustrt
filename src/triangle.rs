@@ -11,20 +11,42 @@ use vec4d::Vec4d;
 pub struct Triangle {
     pub origin: Vec4d,
     pub edges: [Vec4d; 2],
-    pub normals: [Option<usize>; 3],
+    pub normals: [Option<NormalIdx>; 3],
     pub texture_coords: [Option<usize>; 3],
 }
 
-type Vertex = (Vec4d, Option<usize>, Option<usize>);
+#[derive(Debug, Copy, Clone)]
+pub enum NormalIdx {
+    NormalIdx(usize),
+}
+
+impl NormalIdx {
+    pub fn get(&self, s: &Scene) -> Vec4d {
+        let NormalIdx::NormalIdx(idx) = *self;
+        return s.get_normal(idx);
+    }
+}
+
+type Vertex = (Vec4d, Option<NormalIdx>, Option<usize>);
+
 impl Shadable for Triangle {
     fn compute_fragment(&self, s: &Scene, r: Ray, collision: Collision) -> Fragment {
-        let mut normal = self.edges[0]
-            .normalize()
-            .cross(self.edges[1].normalize())
-            .normalize();
-        if r.direction.dot(normal) < 0.0 {
-            normal = normal * 1.0;
-        }
+        let normal: Vec4d = match (self.normals[0], self.normals[1], self.normals[2]) {
+            (Some(n_idx0), Some(n_idx1), Some(n_idx2)) => {
+                let normal0 = n_idx0.get(s).normalize();
+                let normal1 = n_idx1.get(s).normalize();
+                let normal2 = n_idx2.get(s).normalize();
+                let u = collision.uv.0;
+                let v = collision.uv.1;
+                let w = 1.0 - u - v;
+                normal0 * w + normal1 * u + normal2 * v
+            }
+            _ => self.edges[0]
+                .normalize()
+                .cross(self.edges[1].normalize())
+                .normalize(),
+        };
+
         return Fragment {
             position: r.origin + r.direction * collision.distance,
             normal: normal,

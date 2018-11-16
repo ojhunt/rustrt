@@ -1,8 +1,6 @@
 use bounding_box::HasBoundingBox;
 use collision::Collision;
-use fragment::Fragment;
 use ray::Ray;
-use scene::Scene;
 use shader::Shadable;
 use std::fmt::Debug;
 

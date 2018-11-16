@@ -1,10 +1,8 @@
 use bounding_box::*;
 use bvh::*;
 use collision::Collision;
-use fragment::Fragment;
 use intersectable::Intersectable;
 use ray::Ray;
-use scene::Scene;
 use shader::Shadable;
 
 #[derive(Debug)]
@@ -38,7 +36,7 @@ impl HasBoundingBox for CompoundObject {
 }
 
 impl Intersectable for CompoundObject {
-    fn intersect<'a>(&'a self, ray: Ray, min: f64, max: f64) -> Option<(Collision, &'a Shadable)> {
+    fn intersect<'a>(&'a self, ray: Ray, _min: f64, max: f64) -> Option<(Collision, &'a Shadable)> {
         match self.bvh_tree {
             Some(ref tree) => {
                 return tree.intersect(&self.elements, ray, 0.0, max);

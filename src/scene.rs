@@ -11,7 +11,7 @@ use genmesh::*;
 use obj::*;
 use objects::*;
 use std::path::Path;
-use triangle::Triangle;
+use triangle::{NormalIdx, Triangle};
 
 fn vecf32_to_point(v: [f32; 3]) -> Vec4d {
     Vec4d::point(v[0] as f64, v[1] as f64, v[2] as f64)
@@ -69,12 +69,12 @@ impl Scene {
                 match self.intersect(ray) {
                     None => continue,
                     Some((c, shadable)) => {
-                        // max_depth = max_depth.max(d);
-                        // min_depth = min_depth.min(d);
-                        // max_nodecount = max_nodecount.max(node_count);
-                        // min_nodecount = min_nodecount.min(node_count);
-                        // max_intersectcount = max_intersectcount.max(intersection_count);
-                        // min_intersectount = min_intersectount.min(intersection_count);
+                        max_depth = max_depth.max(c.distance);
+                        min_depth = min_depth.min(c.distance);
+                        max_nodecount = max_nodecount.max(c.node_count);
+                        min_nodecount = min_nodecount.min(c.node_count);
+                        max_intersectcount = max_intersectcount.max(c.intersection_count);
+                        min_intersectount = min_intersectount.min(c.intersection_count);
                         let fragment = shadable.compute_fragment(self, ray, c);
                         let normal = fragment.normal * 0.5 + Vec4d::vector(0.5, 0.5, 0.5);
                         buffer[x + y * size] = (normal.x, normal.y, normal.z);
@@ -151,7 +151,13 @@ pub fn load_scene(path: &str) -> Scene {
                 .polys
                 .iter()
                 .map(|x| *x)
-                .vertex(|IndexTuple(p, t, n)| (vecf32_to_point(obj.position[p]), t, n))
+                .vertex(|IndexTuple(p, n, t)| {
+                    let n_idx = match n {
+                        Some(idx) => Some(NormalIdx::NormalIdx(idx)),
+                        None => None,
+                    };
+                    (vecf32_to_point(obj.position[p]), n_idx, t)
+                })
                 .triangulate()
                 .map(|genmesh::Triangle { x, y, z }| Triangle::new(x, y, z))
                 .collect();

@@ -18,7 +18,11 @@
                     "kind": "bin"
                 }
             },
-            "args": ["models/sponza.obj", "-o", "${tmp}/test.png"],
+            "args": [
+                "models/sponza.obj",
+                "-o",
+                "${workspaceFolder}/test.png"
+            ],
             "cwd": "${workspaceFolder}"
         },
         {
@@ -36,7 +40,11 @@
                     "kind": "bin"
                 }
             },
-            "args": [],
+            "args": [
+                "models/sponza.obj",
+                "-o",
+                "${workspaceFolder}/test.png"
+            ],
             "cwd": "${workspaceFolder}"
         }
     ]

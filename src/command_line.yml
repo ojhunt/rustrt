@@ -16,4 +16,15 @@ args:
         long: output
         required: true
         takes_value: true
+    - position:
+        help: Camera position
+        short: p
+        long: position
+        takes_value: true
+    - target:
+        help: Camera target
+        short: t
+        long: target
+        takes_value: true
+
 
