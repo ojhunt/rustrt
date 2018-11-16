@@ -25,7 +25,7 @@ impl NormalIdx {
     }
 }
 
-type Vertex = (Vec4d, Option<NormalIdx>, Option<usize>);
+type Vertex = (Vec4d, Option<usize>, Option<NormalIdx>);
 
 impl Shadable for Triangle {
     fn compute_fragment(&self, s: &Scene, r: Ray, collision: Collision) -> Fragment {
@@ -60,7 +60,7 @@ impl Shadable for Triangle {
 }
 
 impl Triangle {
-    pub fn new((v0, n0, t0): Vertex, (v1, n1, t1): Vertex, (v2, n2, t2): Vertex) -> Triangle {
+    pub fn new((v0, t0, n0): Vertex, (v1, t1, n1): Vertex, (v2, t2, n2): Vertex) -> Triangle {
         let edge0 = v1 - v0;
         let edge1 = v2 - v0;
         Triangle {

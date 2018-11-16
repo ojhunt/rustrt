@@ -153,7 +153,8 @@ pub fn load_scene(path: &str) -> Scene {
         let group_count = object.groups.len();
 
         for group_index in 0..group_count {
-            let mut triangles: Vec<Triangle> = object.groups[group_index]
+            let group = &object.groups[group_index];
+            let mut triangles: Vec<Triangle> = group
                 .polys
                 .iter()
                 .map(|x| *x)
@@ -169,19 +170,19 @@ pub fn load_scene(path: &str) -> Scene {
                         }
                         None => None,
                     };
-                    (vecf32_to_point(obj.position[p]), n_idx, t)
+                    (vecf32_to_point(obj.position[p]), t, n_idx)
                 })
                 .triangulate()
                 .map(|genmesh::Triangle { x, y, z }| {
-                    if let Some(nidx) = x.1 {
+                    if let Some(nidx) = x.2 {
                         let n = nidx.get(&scn);
                         assert!(n.dot(n) != 0.0);
                     };
-                    if let Some(nidx) = y.1 {
+                    if let Some(nidx) = y.2 {
                         let n = nidx.get(&scn);
                         assert!(n.dot(n) != 0.0);
                     };
-                    if let Some(nidx) = z.1 {
+                    if let Some(nidx) = z.2 {
                         let n = nidx.get(&scn);
                         assert!(n.dot(n) != 0.0);
                     };
