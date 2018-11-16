@@ -36,11 +36,17 @@ impl Shadable for Triangle {
                 let normal0 = n_idx0.get(s).normalize();
                 let normal1 = n_idx1.get(s).normalize();
                 let normal2 = n_idx2.get(s).normalize();
+                assert!(normal0.dot(normal1) >= 0.0);
+                assert!(normal0.dot(normal2) >= 0.0);
+                assert!(normal2.dot(normal1) >= 0.0);
                 let u = collision.uv.0;
                 let v = collision.uv.1;
                 let w = 1.0 - u - v;
                 normal0 * w + normal1 * u + normal2 * v
             }
+            (Some(idx), None, None) => idx.get(s),
+            (None, Some(idx), None) => idx.get(s),
+            (None, None, Some(idx)) => idx.get(s),
             _ => self.edges[0]
                 .normalize()
                 .cross(self.edges[1].normalize())

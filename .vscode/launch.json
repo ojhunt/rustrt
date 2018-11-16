@@ -19,7 +19,11 @@
                 }
             },
             "args": [
-                "models/sponza.obj",
+                "models/sponza1.obj",
+                "-p",
+                "(12,3,0.1)",
+                "-t",
+                "(0,5,0)",
                 "-o",
                 "${workspaceFolder}/test.png"
             ],
@@ -41,7 +45,11 @@
                 }
             },
             "args": [
-                "models/sponza.obj",
+                "models/sponza1.obj",
+                "-p",
+                "(12,3,0.1)",
+                "-t",
+                "(0,5,0)",
                 "-o",
                 "${workspaceFolder}/test.png"
             ],

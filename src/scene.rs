@@ -49,7 +49,9 @@ impl Scene {
     }
 
     pub fn get_normal(&self, idx: usize) -> Vec4d {
-        return self.normals[idx];
+        let n = self.normals[idx];
+        assert!(n.w == 0.0);
+        return n;
     }
 
     pub fn render(&self, camera: &Camera, size: usize) -> DynamicImage {
@@ -132,8 +134,12 @@ pub fn load_scene(path: &str) -> Scene {
             .push(Vec4d::point(*x as f64, *y as f64, *z as f64));
     }
     for [x, y, z] in obj.normal.iter() {
-        scn.normals
-            .push(Vec4d::vector(*x as f64, *y as f64, *z as f64));
+        let n = Vec4d::vector(*x as f64, *y as f64, *z as f64);
+        if n.dot(n) == 0.0 {
+            scn.normals.push(Vec4d::vector(0.0, 0.0, 0.0));
+        } else {
+            scn.normals.push(n);
+        }
     }
     for [u, v] in obj.texture.iter() {
         scn.texture_coords.push((*u as f64, *v as f64));
@@ -151,15 +157,36 @@ pub fn load_scene(path: &str) -> Scene {
                 .polys
                 .iter()
                 .map(|x| *x)
-                .vertex(|IndexTuple(p, n, t)| {
+                .vertex(|IndexTuple(p, t, n)| {
                     let n_idx = match n {
-                        Some(idx) => Some(NormalIdx::NormalIdx(idx)),
+                        Some(idx) => {
+                            let normal = scn.get_normal(idx);
+                            if normal.dot(normal) != 0.0 {
+                                Some(NormalIdx::NormalIdx(idx))
+                            } else {
+                                None
+                            }
+                        }
                         None => None,
                     };
                     (vecf32_to_point(obj.position[p]), n_idx, t)
                 })
                 .triangulate()
-                .map(|genmesh::Triangle { x, y, z }| Triangle::new(x, y, z))
+                .map(|genmesh::Triangle { x, y, z }| {
+                    if let Some(nidx) = x.1 {
+                        let n = nidx.get(&scn);
+                        assert!(n.dot(n) != 0.0);
+                    };
+                    if let Some(nidx) = y.1 {
+                        let n = nidx.get(&scn);
+                        assert!(n.dot(n) != 0.0);
+                    };
+                    if let Some(nidx) = z.1 {
+                        let n = nidx.get(&scn);
+                        assert!(n.dot(n) != 0.0);
+                    };
+                    Triangle::new(x, y, z)
+                })
                 .collect();
             object_triangles.append(&mut triangles);
         }
