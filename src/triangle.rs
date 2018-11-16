@@ -16,13 +16,11 @@ pub struct Triangle {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum NormalIdx {
-    NormalIdx(usize),
-}
+pub struct NormalIdx(pub usize);
 
 impl NormalIdx {
     pub fn get(&self, s: &Scene) -> Vec4d {
-        let NormalIdx::NormalIdx(idx) = *self;
+        let NormalIdx(idx) = *self;
         return s.get_normal(idx);
     }
 }

@@ -158,11 +158,11 @@ pub fn load_scene(path: &str) -> Scene {
                 .iter()
                 .map(|x| *x)
                 .vertex(|IndexTuple(p, t, n)| {
-                    let n_idx = match n {
+                    let n_idx: Option<NormalIdx> = match n {
                         Some(idx) => {
                             let normal = scn.get_normal(idx);
                             if normal.dot(normal) != 0.0 {
-                                Some(NormalIdx::NormalIdx(idx))
+                                Some(NormalIdx(idx))
                             } else {
                                 None
                             }
