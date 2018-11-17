@@ -8,6 +8,7 @@ use shader::Shadable;
 use vec4d::Vec4d;
 
 use genmesh::*;
+use material;
 use obj::*;
 use objects::*;
 use std::path::Path;
@@ -18,19 +19,21 @@ fn vecf32_to_point(v: [f32; 3]) -> Vec4d {
 }
 
 #[derive(Debug)]
-pub struct Scene {
+pub struct Scene<'a> {
     normals: Vec<Vec4d>,
     positions: Vec<Vec4d>,
+    materials: Vec<Box<material::Material<'a>>>,
     texture_coords: Vec<(f64, f64)>,
     textures: Vec<String>,
     _scene: CompoundObject,
 }
 
-impl Scene {
-    pub fn new() -> Scene {
+impl<'s> Scene<'s> {
+    pub fn new() -> Scene<'s> {
         Scene {
             normals: Vec::new(),
             positions: Vec::new(),
+            materials: Vec::new(),
             texture_coords: Vec::new(),
             textures: Vec::new(),
             _scene: CompoundObject::new(),

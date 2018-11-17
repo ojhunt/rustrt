@@ -11,6 +11,7 @@ mod collision;
 mod compound_object;
 mod fragment;
 mod intersectable;
+mod material;
 mod mesh;
 mod objects;
 mod ray;
