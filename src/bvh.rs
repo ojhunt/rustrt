@@ -145,11 +145,11 @@ fn intersect<'a, T: Intersectable>(
                     None => continue,
                     Some((child_min, child_max)) => {
                         if dir_is_negative[*axis] {
-                            stack.push((right, child_min - 0.01, child_max));
-                            stack.push((left, child_min - 0.01, child_max));
+                            stack.push((right, child_min, child_max));
+                            stack.push((left, child_min, child_max));
                         } else {
-                            stack.push((left, child_min - 0.01, child_max));
-                            stack.push((right, child_min - 0.01, child_max));
+                            stack.push((left, child_min, child_max));
+                            stack.push((right, child_min, child_max));
                         }
                     }
                 };

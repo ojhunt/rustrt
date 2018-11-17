@@ -148,12 +148,19 @@ pub fn load_scene(path: &str) -> Scene {
     let object_count = obj.objects.len();
     for object_index in 0..object_count {
         let object = &obj.objects[object_index];
+        println!("Object Name: {}", object.name);
         let mut object_triangles: Vec<Triangle> = vec![];
 
         let group_count = object.groups.len();
 
         for group_index in 0..group_count {
             let group = &object.groups[group_index];
+            let material_name = if let Some(material) = &group.material {
+                &material.name
+            } else {
+                "none"
+            };
+            println!("Group Name: {}, material: {}", group.name, material_name);
             let mut triangles: Vec<Triangle> = group
                 .polys
                 .iter()

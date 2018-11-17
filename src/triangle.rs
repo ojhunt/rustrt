@@ -31,9 +31,9 @@ impl Shadable for Triangle {
     fn compute_fragment(&self, s: &Scene, r: Ray, collision: Collision) -> Fragment {
         let normal: Vec4d = match (self.normals[0], self.normals[1], self.normals[2]) {
             (Some(n_idx0), Some(n_idx1), Some(n_idx2)) => {
-                let normal0 = n_idx0.get(s).normalize();
-                let normal1 = n_idx1.get(s).normalize();
-                let normal2 = n_idx2.get(s).normalize();
+                let normal0 = n_idx0.get(s);
+                let normal1 = n_idx1.get(s);
+                let normal2 = n_idx2.get(s);
                 assert!(normal0.dot(normal1) >= 0.0);
                 assert!(normal0.dot(normal2) >= 0.0);
                 assert!(normal2.dot(normal1) >= 0.0);
