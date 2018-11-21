@@ -1,13 +1,14 @@
+extern crate clap;
 extern crate genmesh;
 extern crate image;
 extern crate itertools;
-
-extern crate clap;
+extern crate obj;
 
 mod bounding_box;
 mod bvh;
 mod camera;
 mod collision;
+mod colour;
 mod compound_object;
 mod fragment;
 mod intersectable;
@@ -19,14 +20,13 @@ mod scene;
 mod shader;
 mod triangle;
 mod vec4d;
+mod wavefront_material;
 
 use camera::Camera;
 use clap::*;
 use scene::*;
 use std::str::FromStr;
 use vec4d::Vec4d;
-
-extern crate obj;
 
 struct SceneSettings {
     pub output_file: String,

@@ -3,12 +3,14 @@ use collision::Collision;
 use fragment::Fragment;
 use intersectable::*;
 use ray::Ray;
+use scene::MaterialIdx;
 use scene::Scene;
 use shader::Shadable;
 use vec4d::Vec4d;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Triangle {
+    pub material: Option<MaterialIdx>,
     pub origin: Vec4d,
     pub edges: [Vec4d; 2],
     pub normals: [Option<NormalIdx>; 3],
@@ -50,20 +52,25 @@ impl Shadable for Triangle {
                 .cross(self.edges[1].normalize())
                 .normalize(),
         };
-
         return Fragment {
             position: r.origin + r.direction * collision.distance,
             normal: normal,
-            tex_coord: [0.0, 0.0],
+            material: self.material,
         };
     }
 }
 
 impl Triangle {
-    pub fn new((v0, t0, n0): Vertex, (v1, t1, n1): Vertex, (v2, t2, n2): Vertex) -> Triangle {
+    pub fn new(
+        material: Option<MaterialIdx>,
+        (v0, t0, n0): Vertex,
+        (v1, t1, n1): Vertex,
+        (v2, t2, n2): Vertex,
+    ) -> Triangle {
         let edge0 = v1 - v0;
         let edge1 = v2 - v0;
         Triangle {
+            material,
             origin: v0,
             edges: [edge0, edge1],
             normals: [n0, n1, n2],
