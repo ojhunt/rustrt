@@ -4,7 +4,9 @@ use fragment::Fragment;
 use intersectable::*;
 use ray::Ray;
 use scene::MaterialIdx;
+use scene::NormalIdx;
 use scene::Scene;
+use scene::TextureCoordinateIdx;
 use shader::Shadable;
 use vec4d::Vec4d;
 
@@ -14,23 +16,15 @@ pub struct Triangle {
     pub origin: Vec4d,
     pub edges: [Vec4d; 2],
     pub normals: [Option<NormalIdx>; 3],
-    pub texture_coords: [Option<usize>; 3],
+    pub texture_coords: [Option<TextureCoordinateIdx>; 3],
 }
-
-#[derive(Debug, Copy, Clone)]
-pub struct NormalIdx(pub usize);
-
-impl NormalIdx {
-    pub fn get(&self, s: &Scene) -> Vec4d {
-        let NormalIdx(idx) = *self;
-        return s.get_normal(idx);
-    }
-}
-
-type Vertex = (Vec4d, Option<usize>, Option<NormalIdx>);
+type Vertex = (Vec4d, Option<TextureCoordinateIdx>, Option<NormalIdx>);
 
 impl Shadable for Triangle {
     fn compute_fragment(&self, s: &Scene, r: Ray, collision: Collision) -> Fragment {
+        let u = collision.uv.0;
+        let v = collision.uv.1;
+        let w = 1.0 - u - v;
         let normal: Vec4d = match (self.normals[0], self.normals[1], self.normals[2]) {
             (Some(n_idx0), Some(n_idx1), Some(n_idx2)) => {
                 let normal0 = n_idx0.get(s);
@@ -39,9 +33,6 @@ impl Shadable for Triangle {
                 assert!(normal0.dot(normal1) >= 0.0);
                 assert!(normal0.dot(normal2) >= 0.0);
                 assert!(normal2.dot(normal1) >= 0.0);
-                let u = collision.uv.0;
-                let v = collision.uv.1;
-                let w = 1.0 - u - v;
                 normal0 * w + normal1 * u + normal2 * v
             }
             (Some(idx), None, None) => idx.get(s),
@@ -52,9 +43,31 @@ impl Shadable for Triangle {
                 .cross(self.edges[1].normalize())
                 .normalize(),
         };
+
+        let texture_coords: (f64, f64) = match (
+            self.texture_coords[0],
+            self.texture_coords[1],
+            self.texture_coords[2],
+        ) {
+            (Some(n_idx0), Some(n_idx1), Some(n_idx2)) => {
+                let t0 = n_idx0.get(s);
+                let t1 = n_idx1.get(s);
+                let t2 = n_idx2.get(s);
+                (
+                    t0.0 * w + t1.0 * u + t2.0 * v,
+                    t0.1 * w + t1.1 * u + t2.1 * v,
+                )
+            }
+            (Some(idx), None, None) => idx.get(s),
+            (None, Some(idx), None) => idx.get(s),
+            (None, None, Some(idx)) => idx.get(s),
+            _ => (0.0, 0.0),
+        };
+
         return Fragment {
             position: r.origin + r.direction * collision.distance,
             normal: normal,
+            uv: texture_coords,
             material: self.material,
         };
     }

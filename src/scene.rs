@@ -6,14 +6,14 @@ use genmesh::*;
 use image::*;
 use intersectable::Intersectable;
 use material;
-use material::Transparency;
 use obj::*;
 use objects::*;
 use ray::Ray;
 use shader::Shadable;
 use std::collections::HashMap;
 use std::path::Path;
-use triangle::{NormalIdx, Triangle};
+use std::path::PathBuf;
+use triangle::Triangle;
 use vec4d::Vec4d;
 use wavefront_material::WFMaterial;
 
@@ -24,19 +24,96 @@ fn vecf32_to_point(v: [f32; 3]) -> Vec4d {
 #[derive(Debug, Copy, Clone)]
 pub struct MaterialIdx(usize);
 
+#[derive(Debug, Copy, Clone)]
+pub struct TextureIdx(usize);
+
+#[derive(Debug, Copy, Clone)]
+pub struct NormalIdx(pub usize);
+
+#[derive(Debug, Copy, Clone)]
+pub struct TextureCoordinateIdx(pub usize);
+
+impl NormalIdx {
+    pub fn get(&self, s: &Scene) -> Vec4d {
+        let NormalIdx(idx) = *self;
+        return s.get_normal(idx);
+    }
+}
+
+impl TextureCoordinateIdx {
+    pub fn get(&self, s: &Scene) -> (f64, f64) {
+        let TextureCoordinateIdx(idx) = *self;
+        return s.get_texture_coordinate(idx);
+    }
+}
+
+#[derive(Debug)]
+pub struct Texture {
+    pub name: String,
+    width: usize,
+    height: usize,
+    data: Vec<u8>,
+}
+
+impl Texture {
+    pub fn new(name: &str, image: &image::DynamicImage) -> Texture {
+        let width = image.width() as usize;
+        let height = image.height() as usize;
+        let bytewidth = 4 * width;
+        let mut buffer: Vec<u8> = Vec::with_capacity(width * height);
+        for i in 0..(width * height * 4) {
+            buffer.push(0);
+        }
+
+        for (x, y, pixel) in image.pixels() {
+            buffer[y as usize * bytewidth + x as usize] = pixel[0];
+            buffer[y as usize * bytewidth + x as usize + 1] = pixel[1];
+            buffer[y as usize * bytewidth + x as usize + 2] = pixel[2];
+            buffer[y as usize * bytewidth + x as usize + 3] = pixel[3];
+        }
+
+        return Texture {
+            name: String::from(name),
+            width: image.width() as usize,
+            height: image.height() as usize,
+            data: buffer,
+        };
+    }
+
+    pub fn sample(&self, (u, v): (f64, f64)) -> Colour {
+        let x = u * self.width as f64;
+        let y = v * self.height as f64;
+        let xf = x.fract();
+        let yf = y.fract();
+        let xb = x.floor() as usize % self.width;
+        let yb = y.floor() as usize % self.height;
+        let bytewidth = self.width * 4;
+        Colour::RGB(
+            self.data[yb * bytewidth + xb] as f64 / 255.,
+            self.data[yb * bytewidth + xb + 1] as f64 / 255.,
+            self.data[yb * bytewidth + xb + 2] as f64 / 255.,
+        )
+    }
+}
+
 #[derive(Debug)]
 pub struct Scene {
+    path: PathBuf,
+    directory: PathBuf,
     normals: Vec<Vec4d>,
     positions: Vec<Vec4d>,
     materials: Vec<Box<material::Material>>,
     texture_coords: Vec<(f64, f64)>,
-    textures: Vec<String>,
+    textures: Vec<Texture>,
     _scene: CompoundObject,
 }
 
 impl Scene {
-    pub fn new() -> Scene {
+    pub fn new(path: &str) -> Scene {
+        let real_path = Path::new(path).canonicalize().unwrap();
         Scene {
+            path: real_path.clone(),
+            directory: real_path.parent().unwrap().to_owned(),
             normals: Vec::new(),
             positions: Vec::new(),
             materials: Vec::new(),
@@ -63,8 +140,17 @@ impl Scene {
         return n;
     }
 
+    pub fn get_texture_coordinate(&self, idx: usize) -> (f64, f64) {
+        let n = self.texture_coords[idx];
+        return n;
+    }
+
     pub fn get_material(&self, MaterialIdx(idx): MaterialIdx) -> &material::Material {
         return &*self.materials[idx];
+    }
+
+    pub fn get_texture(&self, TextureIdx(idx): TextureIdx) -> &Texture {
+        return &self.textures[idx];
     }
 
     pub fn render(&self, camera: &Camera, size: usize) -> DynamicImage {
@@ -90,7 +176,7 @@ impl Scene {
                             Some(inner) => self.get_material(inner),
                             None => continue,
                         };
-                        let surface = material.compute_surface_properties(&fragment);
+                        let surface = material.compute_surface_properties(self, &fragment);
                         let ambient_colour = Vec4d::from(surface.ambient_colour);
                         let diffuse_colour = Vec4d::from(surface.diffuse_colour);
 
@@ -115,14 +201,6 @@ impl Scene {
 
                             colour = colour + diffuse_colour * diffuse_intensity;
                         }
-                        // max_depth = max_depth.max(c.distance);
-                        // min_depth = min_depth.min(c.distance);
-                        // max_nodecount = max_nodecount.max(c.node_count);
-                        // min_nodecount = min_nodecount.min(c.node_count);
-                        // max_intersectcount = max_intersectcount.max(c.intersection_count);
-                        // min_intersectount = min_intersectount.min(c.intersection_count);
-                        // let fragment = shadable.compute_fragment(self, ray, c);
-                        // let normal = fragment.normal * 0.5 + Vec4d::vector(0.5, 0.5, 0.5);
                         buffer[x + y * size] = (colour.x, colour.y, colour.z);
                     }
                 }
@@ -167,45 +245,51 @@ impl Scene {
     }
 }
 
-fn colour_from_slice(colour: Option<[f32; 3]>) -> Option<Colour> {
-    match colour {
-        None => None,
-        Some([r, g, b]) => Some(Colour::RGB(r as f64, g as f64, b as f64)),
-    }
-}
-
-fn material_from_obj_material<'a>(mat: &obj::Material) -> WFMaterial {
-    let opt_f32_to_f64 = |o: Option<f32>| {
-        if let Some(v) = o {
-            Some(v as f64)
-        } else {
-            None
-        }
-    };
-    WFMaterial {
-        ambient_colour: colour_from_slice(mat.ka),
-        diffuse_colour: colour_from_slice(mat.kd),
-        specular_colour: colour_from_slice(mat.ks),
-        emissive_colour: colour_from_slice(mat.ke),
-        transparent_colour: colour_from_slice(mat.tf),
-        specular_exponent: opt_f32_to_f64(mat.ns),
-        index_of_refraction: opt_f32_to_f64(mat.ni),
-        transparency: if let Some(d) = mat.d {
-            Transparency::Constant(d as f64)
-        } else {
-            Transparency::Opaque
-        },
-        sharpness: Some(1.),
-    }
-}
-
 pub fn load_scene(path: &str) -> Scene {
-    let mut scn = Scene::new();
+    let mut scn = Scene::new(path);
 
     let mut obj = Obj::<Polygon<IndexTuple>>::load(&Path::new(path)).unwrap();
 
     obj.load_mtls().unwrap();
-    scn.textures = obj.material_libs.to_vec();
+
+    let mut texture_map: HashMap<PathBuf, TextureIdx> = HashMap::new();
+    let mut textures: Vec<Texture> = Vec::new();
+    let directory = scn.directory.clone();
+    let mut load_texture = |textures: &mut Vec<Texture>, file: &str| {
+        let resolved_path = directory.join(file);
+        if let Some(result) = texture_map.get(&resolved_path) {
+            return Some(*result);
+        }
+
+        let format = if let Some(extension) = resolved_path.extension() {
+            match (extension.to_str().unwrap()).to_lowercase().as_str() {
+                "png" => ImageFormat::PNG,
+                "pnm" => ImageFormat::PNG,
+                "jpeg" => ImageFormat::JPEG,
+                "jpg" => ImageFormat::JPEG,
+                x => panic!("Extension {}", x),
+            }
+        } else {
+            panic!();
+        };
+
+        let image = match std::fs::File::open(&resolved_path) {
+            Ok(file) => {
+                let mut buffer = std::io::BufReader::new(file);
+                match image::load(buffer, format) {
+                    Ok(image) => image,
+                    _ => panic!(),
+                }
+            }
+            _ => panic!(),
+        };
+        let texture = Texture::new(resolved_path.to_str().unwrap(), &image);
+        let texture_idx = TextureIdx(textures.len());
+        textures.push(texture);
+        texture_map.insert(resolved_path, texture_idx);
+        return Some(texture_idx);
+    };
+
     for [x, y, z] in obj.position.iter() {
         scn.positions
             .push(Vec4d::point(*x as f64, *y as f64, *z as f64));
@@ -221,6 +305,7 @@ pub fn load_scene(path: &str) -> Scene {
     for [u, v] in obj.texture.iter() {
         scn.texture_coords.push((*u as f64, *v as f64));
     }
+    let max_tex: usize = scn.texture_coords.len();
     let mut material_map: HashMap<String, MaterialIdx> = HashMap::new();
     let mut materials: Vec<Box<material::Material>> = Vec::new();
 
@@ -231,13 +316,14 @@ pub fn load_scene(path: &str) -> Scene {
             if let Some(existing) = material_map.get(name) {
                 return *existing;
             }
-            materials.push(Box::new(material_from_obj_material(mat)));
+            materials.push(Box::new(WFMaterial::new(mat, |file| {
+                load_texture(&mut textures, file)
+            })));
             material_map.insert(name.clone(), MaterialIdx(materials.len() - 1));
             return MaterialIdx(materials.len() - 1);
         };
 
         let object = &obj.objects[object_index];
-        println!("Object Name: {}", object.name);
         let mut object_triangles: Vec<Triangle> = vec![];
 
         let group_count = object.groups.len();
@@ -250,12 +336,6 @@ pub fn load_scene(path: &str) -> Scene {
             } else {
                 None
             };
-            let material_name = if let Some(material) = &group.material {
-                &material.name
-            } else {
-                "none"
-            };
-            println!("Group Name: {}, material: {}", group.name, material_name);
             let mut triangles: Vec<Triangle> = group
                 .polys
                 .iter()
@@ -272,7 +352,14 @@ pub fn load_scene(path: &str) -> Scene {
                         }
                         None => None,
                     };
-                    (vecf32_to_point(obj.position[p]), t, n_idx)
+                    let t_idx: Option<TextureCoordinateIdx> = match t {
+                        Some(idx) => {
+                            assert!(idx < max_tex);
+                            Some(TextureCoordinateIdx(idx))
+                        }
+                        None => None,
+                    };
+                    (vecf32_to_point(obj.position[p]), t_idx, n_idx)
                 })
                 .triangulate()
                 .map(|genmesh::Triangle { x, y, z }| {
@@ -299,6 +386,8 @@ pub fn load_scene(path: &str) -> Scene {
         scn.add_object(new_object);
     }
     scn.materials.append(&mut materials);
+    scn.textures.append(&mut textures);
+
     scn.finalize();
     return scn;
 }
