@@ -278,10 +278,10 @@ pub fn load_scene(path: &str) -> Scene {
                 let mut buffer = std::io::BufReader::new(file);
                 match image::load(buffer, format) {
                     Ok(image) => image,
-                    _ => panic!(),
+                    Err(msg) => panic!("Failed to open {:?} with error: {}", resolved_path, msg),
                 }
             }
-            _ => panic!(),
+            Err(msg) => panic!("Fopen({:?}) failed with {}", resolved_path, msg),
         };
         let texture = Texture::new(resolved_path.to_str().unwrap(), &image);
         let texture_idx = TextureIdx(textures.len());
