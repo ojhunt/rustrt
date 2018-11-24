@@ -7,6 +7,7 @@ extern crate obj;
 mod bounding_box;
 mod bvh;
 mod camera;
+mod casefopen;
 mod collision;
 mod colour;
 mod compound_object;
@@ -19,14 +20,14 @@ mod ray;
 mod scene;
 mod shader;
 mod triangle;
-mod vec4d;
+mod vectors;
 mod wavefront_material;
 
 use camera::Camera;
 use clap::*;
 use scene::*;
 use std::str::FromStr;
-use vec4d::Vec4d;
+use vectors::Vec4d;
 
 struct SceneSettings {
     pub output_file: String,

@@ -8,7 +8,7 @@ use scene::NormalIdx;
 use scene::Scene;
 use scene::TextureCoordinateIdx;
 use shader::Shadable;
-use vec4d::Vec4d;
+use vectors::Vec4d;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Triangle {
@@ -43,8 +43,10 @@ impl Shadable for Triangle {
                 .cross(self.edges[1].normalize())
                 .normalize(),
         };
-
-        let texture_coords: (f64, f64) = match (
+        let mut du = Vec4d::new();
+        let mut dv = Vec4d::new();
+        let mut texture_coords: (f64, f64) = (0.0, 0.0);
+        match (
             self.texture_coords[0],
             self.texture_coords[1],
             self.texture_coords[2],
@@ -53,21 +55,29 @@ impl Shadable for Triangle {
                 let t0 = n_idx0.get(s);
                 let t1 = n_idx1.get(s);
                 let t2 = n_idx2.get(s);
-                (
+                texture_coords = (
                     t0.0 * w + t1.0 * u + t2.0 * v,
                     t0.1 * w + t1.1 * u + t2.1 * v,
-                )
+                );
             }
-            (Some(idx), None, None) => idx.get(s),
-            (None, Some(idx), None) => idx.get(s),
-            (None, None, Some(idx)) => idx.get(s),
-            _ => (0.0, 0.0),
+            (Some(idx), None, None) => {
+                idx.get(s);
+            }
+            (None, Some(idx), None) => {
+                idx.get(s);
+            }
+            (None, None, Some(idx)) => {
+                idx.get(s);
+            }
+            _ => {}
         };
 
         return Fragment {
             position: r.origin + r.direction * collision.distance,
             normal: normal,
             uv: texture_coords,
+            du: du,
+            dv: dv,
             material: self.material,
         };
     }

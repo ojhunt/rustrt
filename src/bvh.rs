@@ -3,7 +3,7 @@ use collision::Collision;
 use intersectable::Intersectable;
 use ray::Ray;
 use shader::Shadable;
-use vec4d::Vec4d;
+use vectors::Vec4d;
 
 #[derive(Debug)]
 enum BVHNode {

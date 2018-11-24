@@ -1,5 +1,5 @@
 use ray::Ray;
-use vec4d::Vec4d;
+use vectors::Vec4d;
 
 pub struct Camera {
     position: Vec4d,

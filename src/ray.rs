@@ -1,4 +1,4 @@
-use vec4d::Vec4d;
+use vectors::Vec4d;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ray {

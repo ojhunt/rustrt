@@ -1,4 +1,5 @@
 use camera::Camera;
+use casefopen;
 use collision::Collision;
 use colour::Colour;
 use compound_object::CompoundObject;
@@ -6,15 +7,15 @@ use genmesh::*;
 use image::*;
 use intersectable::Intersectable;
 use material;
-use obj::*;
-use objects::*;
+use obj::{IndexTuple, Obj};
+use objects::Mesh;
 use ray::Ray;
 use shader::Shadable;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use triangle::Triangle;
-use vec4d::Vec4d;
+use vectors::Vec4d;
 use wavefront_material::WFMaterial;
 
 fn vecf32_to_point(v: [f32; 3]) -> Vec4d {
@@ -157,12 +158,6 @@ impl Scene {
         let mut result = image::RgbImage::new(size as u32, size as u32);
         let mut buffer = vec![(0 as f64, 0 as f64, 0 as f64); size * size];
 
-        let mut min_depth = std::f64::INFINITY;
-        let mut max_depth = -std::f64::INFINITY;
-        let mut min_nodecount = 0;
-        let mut max_nodecount = 0;
-        let mut min_intersectount = 0;
-        let mut max_intersectcount = 0;
         let rays = camera.get_rays(size, size);
         let lights = [Vec4d::point(2., 1., 0.), Vec4d::point(-10., -12., -4.)];
         for x in 0..size {
@@ -185,16 +180,19 @@ impl Scene {
                             let mut ldir = *light - fragment.position;
                             let ldir_len = ldir.dot(ldir).sqrt();
                             ldir = ldir.normalize();
+
                             let shadow_test = Ray::new_bound(
                                 fragment.position,
                                 ldir,
                                 0.001 * ldir_len,
                                 ldir_len * 0.999,
                             );
+
                             if self.intersect(shadow_test).is_some() {
                                 continue;
                             }
-                            let diffuse_intensity = ldir.dot(fragment.normal) / lights.len() as f64;
+
+                            let diffuse_intensity = ldir.dot(surface.normal) / lights.len() as f64;
                             if diffuse_intensity <= 0.0 {
                                 continue;
                             }
@@ -207,38 +205,13 @@ impl Scene {
             }
         }
 
-        println!(
-            "Minimum intersections: {}, max: {}",
-            min_intersectount, max_intersectcount
-        );
         for (x, y, _pixel) in result.enumerate_pixels_mut() {
-            if false {
-                let (d, ic, nc) = buffer[x as usize + y as usize * size];
-
-                let scaled_depth = (255. * (1. - (d - min_depth) / (max_depth - min_depth)))
-                    .max(0.)
-                    .min(255.) as u8;
-                let scaled_intersection_count = (255. * (ic - min_intersectount as f64) as f64
-                    / (max_intersectcount - min_intersectount) as f64)
-                    .max(0.)
-                    .min(255.) as u8;
-                let scaled_node_count = ((nc - min_nodecount as f64) as f64
-                    / (max_nodecount - min_nodecount) as f64)
-                    .min(0.)
-                    .max(255.) as u8;
-                *_pixel = image::Rgb([
-                    scaled_depth * 1,
-                    scaled_intersection_count * 0,
-                    scaled_node_count * 0,
-                ]);
-            } else {
-                let (r, g, b) = buffer[x as usize + y as usize * size];
-                *_pixel = image::Rgb([
-                    (r * 255.).max(0.).min(255.) as u8,
-                    (g * 255.).max(0.).min(255.) as u8,
-                    (b * 255.).max(0.).min(255.) as u8,
-                ]);
-            }
+            let (r, g, b) = buffer[x as usize + y as usize * size];
+            *_pixel = image::Rgb([
+                (r * 255.).max(0.).min(255.) as u8,
+                (g * 255.).max(0.).min(255.) as u8,
+                (b * 255.).max(0.).min(255.) as u8,
+            ]);
         }
 
         return ImageRgb8(result);
@@ -273,7 +246,7 @@ pub fn load_scene(path: &str) -> Scene {
             panic!();
         };
 
-        let image = match std::fs::File::open(&resolved_path) {
+        let image = match casefopen::open(&resolved_path) {
             Ok(file) => {
                 let mut buffer = std::io::BufReader::new(file);
                 match image::load(buffer, format) {
