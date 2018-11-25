@@ -8,7 +8,7 @@ use scene::NormalIdx;
 use scene::Scene;
 use scene::TextureCoordinateIdx;
 use shader::Shadable;
-use vectors::Vec4d;
+use vectors::{Vec2d, Vec4d};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Triangle {
@@ -45,7 +45,7 @@ impl Shadable for Triangle {
         };
         let mut du = Vec4d::new();
         let mut dv = Vec4d::new();
-        let mut texture_coords: (f64, f64) = (0.0, 0.0);
+        let mut texture_coords = Vec2d(0.0, 0.0);
         match (
             self.texture_coords[0],
             self.texture_coords[1],
@@ -55,7 +55,7 @@ impl Shadable for Triangle {
                 let t0 = n_idx0.get(s);
                 let t1 = n_idx1.get(s);
                 let t2 = n_idx2.get(s);
-                texture_coords = (
+                texture_coords = Vec2d(
                     t0.0 * w + t1.0 * u + t2.0 * v,
                     t0.1 * w + t1.1 * u + t2.1 * v,
                 );
@@ -135,7 +135,7 @@ impl Triangle {
             return None;
         }
 
-        return Some((Collision::new(t, (u, v)), self));
+        return Some((Collision::new(t, Vec2d(u, v)), self));
     }
 }
 

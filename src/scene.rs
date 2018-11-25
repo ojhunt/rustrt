@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use triangle::Triangle;
-use vectors::Vec4d;
+use vectors::{Vec2d, Vec4d};
 use wavefront_material::WFMaterial;
 
 fn vecf32_to_point(v: [f32; 3]) -> Vec4d {
@@ -42,7 +42,7 @@ impl NormalIdx {
 }
 
 impl TextureCoordinateIdx {
-    pub fn get(&self, s: &Scene) -> (f64, f64) {
+    pub fn get(&self, s: &Scene) -> Vec2d {
         let TextureCoordinateIdx(idx) = *self;
         return s.get_texture_coordinate(idx);
     }
@@ -81,7 +81,7 @@ impl Texture {
         };
     }
 
-    pub fn sample(&self, (u, v): (f64, f64)) -> Colour {
+    pub fn sample(&self, Vec2d(u, v): Vec2d) -> Colour {
         let x = u * self.width as f64;
         let y = v * self.height as f64;
         let xf = x.fract();
@@ -104,7 +104,7 @@ pub struct Scene {
     normals: Vec<Vec4d>,
     positions: Vec<Vec4d>,
     materials: Vec<Box<material::Material>>,
-    texture_coords: Vec<(f64, f64)>,
+    texture_coords: Vec<Vec2d>,
     textures: Vec<Texture>,
     _scene: CompoundObject,
 }
@@ -141,7 +141,7 @@ impl Scene {
         return n;
     }
 
-    pub fn get_texture_coordinate(&self, idx: usize) -> (f64, f64) {
+    pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {
         let n = self.texture_coords[idx];
         return n;
     }
@@ -276,7 +276,7 @@ pub fn load_scene(path: &str) -> Scene {
         }
     }
     for [u, v] in obj.texture.iter() {
-        scn.texture_coords.push((*u as f64, *v as f64));
+        scn.texture_coords.push(Vec2d(*u as f64, *v as f64));
     }
     let max_tex: usize = scn.texture_coords.len();
     let mut material_map: HashMap<String, MaterialIdx> = HashMap::new();

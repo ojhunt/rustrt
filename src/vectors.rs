@@ -130,23 +130,18 @@ impl ops::Index<usize> for Vec4d {
     }
 }
 
-pub struct Vec2d {
-    pub data: [f64; 2],
-}
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Vec2d(pub f64, pub f64);
 
 impl Vec2d {
     pub fn new() -> Vec2d {
-        return Vec2d { data: [0.0, 0.0] };
+        return Vec2d(0.0, 0.0);
     }
     pub fn scale(&self, s: f64) -> Vec2d {
-        return Vec2d {
-            data: [self.data[0] * s, self.data[1] * s],
-        };
+        return Vec2d(self.0 * s, self.1 * s);
     }
     pub fn add_elements(&self, rhs: Vec2d) -> Vec2d {
-        return Vec2d {
-            data: [self.data[0] + rhs.data[0], self.data[1] + rhs.data[1]],
-        };
+        return Vec2d(self.0 + rhs.0, self.1 + rhs.1);
     }
 }
 impl ops::Mul<f64> for Vec2d {
@@ -167,9 +162,7 @@ impl ops::Sub<Vec2d> for Vec2d {
     type Output = Vec2d;
 
     fn sub(self, rhs: Vec2d) -> Vec2d {
-        Vec2d {
-            data: [self.data[0] - rhs.data[0], self.data[1] - rhs.data[1]],
-        }
+        Vec2d(self.0 - rhs.0, self.1 - rhs.1)
     }
 }
 

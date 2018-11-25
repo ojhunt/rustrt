@@ -1,13 +1,15 @@
+use vectors::Vec2d;
+
 #[derive(PartialEq, Debug)]
 pub struct Collision {
     pub distance: f64,
-    pub uv: (f64, f64),
+    pub uv: Vec2d,
     pub intersection_count: usize,
     pub node_count: usize,
 }
 
 impl Collision {
-    pub fn new(distance: f64, uv: (f64, f64)) -> Collision {
+    pub fn new(distance: f64, uv: Vec2d) -> Collision {
         Collision {
             distance,
             uv,
