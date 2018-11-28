@@ -56,7 +56,7 @@ impl BVH {
     pub fn intersect<'a, T: Intersectable>(
         &self,
         elements: &'a [T],
-        ray: Ray,
+        ray: &Ray,
         min: f64,
         max: f64,
     ) -> Option<(Collision, &'a Shadable)> {
@@ -67,7 +67,7 @@ impl BVH {
 fn intersect_primitives<'a, T: Intersectable + 'a>(
     indices: &[usize],
     primitives: &'a [T],
-    ray: Ray,
+    ray: &Ray,
     min: f64,
     max: f64,
 ) -> Option<(Collision, &'a Shadable)> {
@@ -91,7 +91,7 @@ fn intersect_primitives<'a, T: Intersectable + 'a>(
 fn intersect<'a, T: Intersectable>(
     node: &BVHNode,
     elements: &'a [T],
-    ray: Ray,
+    ray: &Ray,
     parent_min: f64,
     parent_max: f64,
 ) -> Option<(Collision, &'a Shadable)> {

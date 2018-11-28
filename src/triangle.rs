@@ -21,7 +21,7 @@ pub struct Triangle {
 type Vertex = (Vec4d, Option<TextureCoordinateIdx>, Option<NormalIdx>);
 
 impl Shadable for Triangle {
-    fn compute_fragment(&self, s: &Scene, r: Ray, collision: Collision) -> Fragment {
+    fn compute_fragment(&self, s: &Scene, r: &Ray, collision: Collision) -> Fragment {
         let u = collision.uv.0;
         let v = collision.uv.1;
         let w = 1.0 - u - v;
@@ -43,8 +43,8 @@ impl Shadable for Triangle {
                 .cross(self.edges[1].normalize())
                 .normalize(),
         };
-        let mut du = Vec4d::new();
-        let mut dv = Vec4d::new();
+        let mut dpdu = Vec4d::new();
+        let mut dpdv = Vec4d::new();
         let mut texture_coords = Vec2d(0.0, 0.0);
         match (
             self.texture_coords[0],
@@ -59,6 +59,17 @@ impl Shadable for Triangle {
                     t0.0 * w + t1.0 * u + t2.0 * v,
                     t0.1 * w + t1.1 * u + t2.1 * v,
                 );
+
+                let uv_edge0 = t1 - t0;
+                let uv_edge1 = t2 - t0;
+                let determinant = uv_edge0.0 * uv_edge1.1 - uv_edge0.1 * uv_edge1.0;
+                if determinant == 0.0 {
+                } else {
+                    let edge0 = self.edges[0];
+                    let edge1 = self.edges[1];
+                    dpdu = (uv_edge1.1 * edge0 - uv_edge0.1 * edge1) * (1.0 / determinant);
+                    dpdv = (uv_edge0.0 * edge1 - uv_edge1.0 * edge0) * (1.0 / determinant);
+                }
             }
             (Some(idx), None, None) => {
                 idx.get(s);
@@ -76,8 +87,8 @@ impl Shadable for Triangle {
             position: r.origin + r.direction * collision.distance,
             normal: normal,
             uv: texture_coords,
-            du: du,
-            dv: dv,
+            dpdu,
+            dpdv,
             material: self.material,
         };
     }
@@ -110,7 +121,7 @@ impl Triangle {
 
     pub fn intersects<'a>(
         &'a self,
-        ray: Ray,
+        ray: &Ray,
         min: f64,
         max: f64,
     ) -> Option<(Collision, &'a Shadable)> {
@@ -146,7 +157,7 @@ impl HasBoundingBox for Triangle {
 }
 
 impl Intersectable for Triangle {
-    fn intersect<'a>(&'a self, ray: Ray, min: f64, max: f64) -> Option<(Collision, &'a Shadable)> {
+    fn intersect<'a>(&'a self, ray: &Ray, min: f64, max: f64) -> Option<(Collision, &'a Shadable)> {
         return self.intersects(ray, min, max);
     }
 }

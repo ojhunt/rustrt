@@ -23,7 +23,7 @@ mod triangle;
 mod vectors;
 mod wavefront_material;
 
-use camera::Camera;
+use camera::*;
 use clap::*;
 use scene::*;
 use std::str::FromStr;
@@ -107,7 +107,9 @@ fn main() {
 
     const SIZE: usize = 700;
     let scn = load_scene(&settings.scene_file);
-    let camera = Camera::new(
+    let camera = PerspectiveCamera::new(
+        SIZE,
+        SIZE,
         settings.camera_position,
         settings.camera_target,
         settings.camera_up,

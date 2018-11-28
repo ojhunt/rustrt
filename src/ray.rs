@@ -1,6 +1,6 @@
 use vectors::Vec4d;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Ray {
     pub origin: Vec4d,
     pub direction: Vec4d,

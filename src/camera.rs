@@ -1,34 +1,46 @@
 use ray::Ray;
 use vectors::Vec4d;
 
-pub struct Camera {
+pub trait Camera {
+    fn get_rays(&self, width: usize, height: usize) -> Vec<Ray>;
+    fn get_differentials(&self, r: &Ray) -> (Ray, Ray);
+}
+
+pub struct PerspectiveCamera {
+    width: usize,
+    height: usize,
     position: Vec4d,
     direction: Vec4d,
     up: Vec4d,
     fov: f64,
+    x_delta: Vec4d,
+    y_delta: Vec4d,
+    view_origin: Vec4d,
+    dxDifferential: Ray,
+    dyDifferential: Ray,
 }
 
-impl Camera {
-    pub fn new(position: Vec4d, target: Vec4d, up: Vec4d, fov: f64) -> Camera {
-        Camera {
-            position,
-            direction: (target - position).normalize(),
-            up,
-            fov,
-        }
+impl PerspectiveCamera {
+    fn ray_for_coordinate(&self, x: usize, y: usize) -> Ray {
+        let view_target = self.view_origin + (self.x_delta * x as f64) - (self.y_delta * y as f64);
+        Ray::new(self.position, (view_target - self.position).normalize())
     }
-    pub fn get_rays(&self, width: usize, height: usize) -> Vec<Ray> {
-        let mut result: Vec<Ray> = Vec::new();
-        let position = self.position;
-
-        let direction = self.direction;
-        let right = direction.cross(self.up).normalize();
+    pub fn new(
+        width: usize,
+        height: usize,
+        position: Vec4d,
+        target: Vec4d,
+        up: Vec4d,
+        fov: f64,
+    ) -> PerspectiveCamera {
+        let direction = (target - position).normalize();
+        let right = direction.cross(up).normalize();
 
         // Technically we already have an "up" vector, but for out purposes
         // we need /true/ up, relative to our direction and right vectors.
         let up = right.cross(direction).normalize();
 
-        let half_width = (self.fov.to_radians() / 2.).tan();
+        let half_width = (fov.to_radians() / 2.).tan();
         let aspect_ratio = height as f64 / width as f64;
         let half_height = aspect_ratio * half_width;
         let view_origin = (position + direction) + up * half_height - right * half_width;
@@ -36,13 +48,33 @@ impl Camera {
         let x_delta = (right * 2. * half_width) * (1. / width as f64);
         let y_delta = (up * 2. * half_height) * (1. / height as f64);
 
+        return PerspectiveCamera {
+            width,
+            height,
+            position,
+            direction,
+            view_origin,
+            up,
+            fov,
+            x_delta,
+            y_delta,
+            dxDifferential: Ray::new(position, x_delta),
+            dyDifferential: Ray::new(position, y_delta),
+        };
+    }
+}
+
+impl Camera for PerspectiveCamera {
+    fn get_rays(&self, width: usize, height: usize) -> Vec<Ray> {
+        let mut result: Vec<Ray> = Vec::new();
         for y in 0..height {
             for x in 0..width {
-                let view_target = view_origin + (x_delta * x as f64) - (y_delta * y as f64);
-
-                result.push(Ray::new(position, (view_target - position).normalize()));
+                result.push(self.ray_for_coordinate(x, y));
             }
         }
         return result;
+    }
+    fn get_differentials(&self, _r: &Ray) -> (Ray, Ray) {
+        return (self.dxDifferential.clone(), self.dyDifferential.clone());
     }
 }

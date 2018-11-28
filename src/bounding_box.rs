@@ -85,7 +85,7 @@ impl BoundingBox {
         return o;
     }
 
-    pub fn intersect(&self, ray: Ray, min: f64, max: f64) -> Option<(f64, f64)> {
+    pub fn intersect(&self, ray: &Ray, min: f64, max: f64) -> Option<(f64, f64)> {
         let mut tmin = min;
         let mut tmax = max;
         let direction = ray.direction;

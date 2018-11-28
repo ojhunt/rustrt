@@ -93,6 +93,14 @@ impl ops::Mul<f64> for Vec4d {
         return self.scale(rhs);
     }
 }
+
+impl ops::Mul<Vec4d> for f64 {
+    type Output = Vec4d;
+    fn mul(self, rhs: Vec4d) -> Vec4d {
+        return rhs.scale(self);
+    }
+}
+
 impl ops::Add<Vec4d> for Vec4d {
     type Output = Vec4d;
 
@@ -134,9 +142,6 @@ impl ops::Index<usize> for Vec4d {
 pub struct Vec2d(pub f64, pub f64);
 
 impl Vec2d {
-    pub fn new() -> Vec2d {
-        return Vec2d(0.0, 0.0);
-    }
     pub fn scale(&self, s: f64) -> Vec2d {
         return Vec2d(self.0 * s, self.1 * s);
     }
@@ -150,6 +155,7 @@ impl ops::Mul<f64> for Vec2d {
         return self.scale(rhs);
     }
 }
+
 impl ops::Add<Vec2d> for Vec2d {
     type Output = Vec2d;
 

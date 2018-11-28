@@ -72,6 +72,12 @@ pub struct WFMaterial {
     index_of_refraction: Option<f64>, // Ni
 }
 
+fn apply_bump_map(bump: Option<TextureIdx>, s: &Scene, m: &mut MaterialCollisionInfo) {
+    if bump.is_none() {
+        return;
+    }
+}
+
 impl Material for WFMaterial {
     fn compute_surface_properties(&self, s: &Scene, f: &Fragment) -> MaterialCollisionInfo {
         return MaterialCollisionInfo {
@@ -79,6 +85,7 @@ impl Material for WFMaterial {
             diffuse_colour: self.diffuse_colour.raw_for_fragment(s, f),
             specular_colour: self.specular_colour.raw_for_fragment(s, f),
             normal: f.normal,
+            position: f.position,
             transparent_colour: None,
             secondaries: vec![],
         };

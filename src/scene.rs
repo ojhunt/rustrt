@@ -127,7 +127,7 @@ impl Scene {
         self._scene.add_object(object)
     }
 
-    pub fn intersect<'a>(&'a self, ray: Ray) -> Option<(Collision, &'a Shadable)> {
+    pub fn intersect<'a>(&'a self, ray: &Ray) -> Option<(Collision, &'a Shadable)> {
         return self._scene.intersect(ray, ray.min, ray.max);
     }
 
@@ -154,7 +154,7 @@ impl Scene {
         return &self.textures[idx];
     }
 
-    pub fn render(&self, camera: &Camera, size: usize) -> DynamicImage {
+    pub fn render<C: Camera>(&self, camera: &C, size: usize) -> DynamicImage {
         let mut result = image::RgbImage::new(size as u32, size as u32);
         let mut buffer = vec![(0 as f64, 0 as f64, 0 as f64); size * size];
 
@@ -162,7 +162,7 @@ impl Scene {
         let lights = [Vec4d::point(2., 1., 0.), Vec4d::point(-10., -12., -4.)];
         for x in 0..size {
             for y in 0..size {
-                let ray = rays[x + size * y];
+                let ray = &rays[x + size * y];
                 match self.intersect(ray) {
                     None => continue,
                     Some((c, shadable)) => {
@@ -188,7 +188,7 @@ impl Scene {
                                 ldir_len * 0.999,
                             );
 
-                            if self.intersect(shadow_test).is_some() {
+                            if self.intersect(&shadow_test).is_some() {
                                 continue;
                             }
 

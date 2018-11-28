@@ -18,6 +18,7 @@ pub struct MaterialCollisionInfo {
     pub diffuse_colour: Colour,
     pub specular_colour: Colour,
     pub transparent_colour: Option<Colour>,
+    pub position: Vec4d,
     pub normal: Vec4d,
     pub secondaries: Vec<(Ray, f64)>,
 }
