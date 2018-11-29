@@ -5,6 +5,7 @@ use material::MaterialCollisionInfo;
 use material::{Material, Transparency};
 use scene::Scene;
 use scene::TextureIdx;
+use vectors::Vec2d;
 use vectors::Vec4d;
 
 trait RawSurfaceValue: Clone + Clone + Copy {
@@ -19,11 +20,15 @@ impl RawSurfaceValue for Colour {
 
 trait TextureSurfaceValue<Raw: RawSurfaceValue> {
     fn raw_for_fragment(&self, s: &Scene, f: &Fragment) -> Raw;
+    fn gradient(&self, s: &Scene, point: Vec2d) -> (Vec4d, Vec4d);
 }
 
 impl TextureSurfaceValue<Colour> for TextureIdx {
     fn raw_for_fragment(&self, s: &Scene, f: &Fragment) -> Colour {
-        return s.get_texture(*self).sample(f.uv);
+        return Colour::from(s.get_texture(*self).sample(f.uv));
+    }
+    fn gradient(&self, s: &Scene, uv: Vec2d) -> (Vec4d, Vec4d) {
+        return s.get_texture(*self).gradient(uv);
     }
 }
 

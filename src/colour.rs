@@ -10,3 +10,16 @@ impl From<Colour> for Vec4d {
         Vec4d::vector(x, y, z)
     }
 }
+
+impl From<Vec4d> for Colour {
+    fn from(
+        Vec4d {
+            x: r,
+            y: g,
+            z: b,
+            w: _a,
+        }: Vec4d,
+    ) -> Self {
+        Colour::RGB(r, g, b)
+    }
+}

@@ -81,19 +81,59 @@ impl Texture {
         };
     }
 
-    pub fn sample(&self, Vec2d(u, v): Vec2d) -> Colour {
-        let x = u * self.width as f64;
-        let y = v * self.height as f64;
+    fn get_raw_pixel(&self, x: usize, y: usize) -> (f64, f64, f64) {
+        let bytewidth = self.width * 4;
+        return (
+            self.data[y * bytewidth + x] as f64 / 255.,
+            self.data[y * bytewidth + x + 1] as f64 / 255.,
+            self.data[y * bytewidth + x + 2] as f64 / 255.,
+        );
+    }
+
+    fn lerp(t: f64, l: (f64, f64, f64), r: (f64, f64, f64)) -> (f64, f64, f64) {
+        return (
+            (1. - t) * l.0 + t * r.0,
+            (1. - t) * l.1 + t * r.1,
+            (1. - t) * l.2 + t * r.2,
+        );
+    }
+
+    fn get_pixel(&self, x: f64, y: f64) -> (f64, f64, f64) {
         let xf = x.fract();
         let yf = y.fract();
         let xb = x.floor() as usize % self.width;
         let yb = y.floor() as usize % self.height;
-        let bytewidth = self.width * 4;
-        Colour::RGB(
-            self.data[yb * bytewidth + xb] as f64 / 255.,
-            self.data[yb * bytewidth + xb + 1] as f64 / 255.,
-            self.data[yb * bytewidth + xb + 2] as f64 / 255.,
-        )
+
+        let tl = self.get_raw_pixel(xb, yb);
+        let tr = self.get_raw_pixel((xb + 1) % self.width, yb);
+
+        let t = Self::lerp(xf, tl, tr);
+
+        let bl = self.get_raw_pixel(xb, (yb + 1) % self.height);
+        let br = self.get_raw_pixel((xb + 1) % self.width, (yb + 1) % self.height);
+
+        let b = Self::lerp(xf, bl, br);
+        return Self::lerp(yf, t, b);
+    }
+
+    pub fn sample(&self, Vec2d(u, v): Vec2d) -> Vec4d {
+        let x = u * self.width as f64;
+        let y = v * self.height as f64;
+        let (r, g, b) = self.get_pixel(x, y);
+        return Vec4d::vector(r, g, b);
+    }
+
+    pub fn gradient(&self, Vec2d(u, v): Vec2d) -> (Vec4d, Vec4d) {
+        let x = u * self.width as f64;
+        let y = v * self.height as f64;
+        let left = self.sample(Vec2d(x - 0.5, y));
+        let right = self.sample(Vec2d(x + 0.5, y));
+        let du = right - left;
+
+        let top = self.sample(Vec2d(x, y - 0.5));
+        let bottom = self.sample(Vec2d(x, y + 0.5));
+        let dv = bottom - top;
+        return (du, dv);
     }
 }
 
