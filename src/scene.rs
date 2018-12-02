@@ -101,7 +101,7 @@ impl Scene {
         let mut buffer = vec![(0 as f64, 0 as f64, 0 as f64); size * size];
 
         let rays = camera.get_rays(size, size);
-        let lights = [Vec4d::point(8.5, -12.0, 12.0), Vec4d::point(2., 3., 0.)]; //, Vec4d::point(-10., -12., -4.)];
+        let lights = [Vec4d::point(2., 3., 0.), Vec4d::point(-10., -12., -4.)];
         for x in 0..size {
             for y in 0..size {
                 let ray = &rays[x + size * y];
