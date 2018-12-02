@@ -85,41 +85,36 @@ fn apply_bump_map(
 ) -> MaterialCollisionInfo {
     let mut new_info = m.clone();
     if bump.is_none() {
+        //new_info.diffuse_colour = Colour::RGB(0.0, 1.0, 0.0);
         return new_info;
     }
     let map = s.get_texture(bump.unwrap());
     let (fu, fv) = {
         let (u, v) = map.gradient(f.uv);
-        (u.x * 10.0, v.x * 10.0)
+        (u.x * 5.0, v.x * 5.0)
     };
-    if fu != 0.0 {
-        // new_info.ambient_colour = Colour::RGB(0.0, 0.0, 1.0);
-        // new_info.diffuse_colour = Colour::RGB(0.0, 0.0, 0.0);
-    }
-    if fv != 0.0 {
-        // new_info.ambient_colour = Colour::RGB(1.0, 0.0, 0.0);
-        // new_info.diffuse_colour = Colour::RGB(0.0, 0.0, 0.0);
-    }
     let n = m.normal;
-    let n_length = n.dot(n).sqrt();
     let ndpdv = n.cross(f.dpdv);
     let ndpdu = n.cross(f.dpdu);
-    let mut perturbed_normal = m.normal + (fu * ndpdv - fv * ndpdu);
+    let mut perturbed_normal = n + (fu * ndpdv - fv * ndpdu);
     if perturbed_normal.dot(perturbed_normal) == 0.0 {
-        perturbed_normal = Vec4d::vector(1., 1., 1.);
-        new_info.diffuse_colour = Colour::RGB(0.0, 0.0, 1.0);
+        perturbed_normal = n;
     } else {
         // new_info.diffuse_colour = Colour::RGB(0.4, 0.4, 0.4);
 
         // new_info.ambient_colour = new_info.diffuse_colour;
-        new_info.ambient_colour = Colour::RGB(fu.abs() * 16., fv.abs() * 16., 0.0);
-        // new_info.diffuse_colour = Colour::RGB(0.0, 0.0, 0.0);
+        // new_info.ambient_colour =
+        //     Colour::from(perturbed_normal.normalize() * 0.5 + Vec4d::vector(0.5, 0.5, 0.5)); // Colour::RGB(fu.abs() * 4., fv.abs() * 4., 0.0);
+        //                                                                                      // new_info.diffuse_colour = Colour::RGB(0.0, 0.0, 0.0);
     }
 
     // new_info.ambient_colour = Colour::from(
     //     (n + fu * ndpdv - fv * ndpdu).normalize() * 0.5 + Vec4d::vector(0.5, 0.5, 0.5),
     // );
-    new_info.diffuse_colour = Colour::RGB(0.5, f.uv.0.fract(), f.uv.1.fract());
+    let mut temp = Vec4d::from(new_info.diffuse_colour);
+    temp.y += (perturbed_normal.x - n.x).abs() * 500.;
+    // new_info.diffuse_colour = Colour::from(temp);
+    // new_info.diffuse_colour = new_info.ambient_colour; //Colour::RGB(0.5, f.uv.0.fract(), f.uv.1.fract());
     new_info.normal = perturbed_normal.normalize();
     return new_info;
 }

@@ -101,7 +101,7 @@ impl Scene {
         let mut buffer = vec![(0 as f64, 0 as f64, 0 as f64); size * size];
 
         let rays = camera.get_rays(size, size);
-        let lights = [Vec4d::point(2., 3., 0.)]; //, Vec4d::point(-10., -12., -4.)];
+        let lights = [Vec4d::point(8.5, -12.0, 12.0), Vec4d::point(2., 3., 0.)]; //, Vec4d::point(-10., -12., -4.)];
         for x in 0..size {
             for y in 0..size {
                 let ray = &rays[x + size * y];
@@ -118,28 +118,33 @@ impl Scene {
                         let diffuse_colour = Vec4d::from(surface.diffuse_colour);
 
                         let mut colour = ambient_colour * 0.2;
-                        for light in lights.iter() {
-                            let mut ldir = *light - surface.position;
-                            let ldir_len = ldir.dot(ldir).sqrt();
-                            ldir = ldir.normalize();
+                        if true {
+                            for light in lights.iter() {
+                                let mut ldir = *light - surface.position;
+                                let ldir_len = ldir.dot(ldir).sqrt();
+                                ldir = ldir.normalize();
 
-                            let shadow_test = Ray::new_bound(
-                                surface.position,
-                                ldir,
-                                0.001 * ldir_len,
-                                ldir_len * 0.999,
-                            );
+                                let shadow_test = Ray::new_bound(
+                                    surface.position,
+                                    ldir,
+                                    0.001 * ldir_len,
+                                    ldir_len * 0.999,
+                                );
 
-                            if self.intersect(&shadow_test).is_some() {
-                                continue;
+                                if true && self.intersect(&shadow_test).is_some() {
+                                    continue;
+                                }
+
+                                let diffuse_intensity =
+                                    ldir.dot(surface.normal) / lights.len() as f64;
+                                if diffuse_intensity <= 0.0 {
+                                    continue;
+                                }
+
+                                colour = colour + diffuse_colour * diffuse_intensity;
                             }
-
-                            let diffuse_intensity = ldir.dot(surface.normal) / lights.len() as f64;
-                            if diffuse_intensity <= 0.0 {
-                                continue;
-                            }
-
-                            colour = colour + diffuse_colour * diffuse_intensity;
+                        } else {
+                            colour = diffuse_colour;
                         }
                         buffer[x + y * size] = (colour.x, colour.y, colour.z);
                     }
