@@ -6,8 +6,8 @@ use ray::Ray;
 use scene::MaterialIdx;
 use scene::NormalIdx;
 use scene::Scene;
-use scene::TextureCoordinateIdx;
 use shader::Shadable;
+use texture::TextureCoordinateIdx;
 use vectors::{Vec2d, Vec4d};
 
 #[derive(Debug, Copy, Clone)]
@@ -64,11 +64,38 @@ impl Shadable for Triangle {
                 let uv_edge1 = t2 - t0;
                 let determinant = uv_edge0.0 * uv_edge1.1 - uv_edge0.1 * uv_edge1.0;
                 if determinant == 0.0 {
+                    let uv_edge0 = t0 - t1;
+                    let uv_edge1 = t2 - t1;
+                    let determinant = uv_edge0.0 * uv_edge1.1 - uv_edge0.1 * uv_edge1.0;
+                    if determinant != 0. {
+                        let edge0 = -self.edges[0];
+                        let edge1 = self.edges[1] - self.edges[0];
+                        dpdu = ((uv_edge1.1 * edge0 - uv_edge0.1 * edge1) * (1.0 / determinant))
+                            .normalize();
+                        dpdv = ((uv_edge0.0 * edge1 - uv_edge1.0 * edge0) * (1.0 / determinant))
+                            .normalize();
+                    } else {
+                        let uv_edge0 = t0 - t2;
+                        let uv_edge1 = t1 - t2;
+                        let edge0 = -self.edges[1];
+                        let edge1 = self.edges[0] - self.edges[1];
+                        let determinant = uv_edge0.0 * uv_edge1.1 - uv_edge0.1 * uv_edge1.0;
+                        if determinant != 0.0 {
+                            dpdu = ((uv_edge1.1 * edge0 - uv_edge0.1 * edge1)
+                                * (1.0 / determinant))
+                                .normalize();
+                            dpdv = ((uv_edge0.0 * edge1 - uv_edge1.0 * edge0)
+                                * (1.0 / determinant))
+                                .normalize();
+                        }
+                    }
                 } else {
                     let edge0 = self.edges[0];
                     let edge1 = self.edges[1];
-                    dpdu = (uv_edge1.1 * edge0 - uv_edge0.1 * edge1) * (1.0 / determinant);
-                    dpdv = (uv_edge0.0 * edge1 - uv_edge1.0 * edge0) * (1.0 / determinant);
+                    dpdu = ((uv_edge1.1 * edge0 - uv_edge0.1 * edge1) * (1.0 / determinant))
+                        .normalize();
+                    dpdv = ((uv_edge0.0 * edge1 - uv_edge1.0 * edge0) * (1.0 / determinant))
+                        .normalize();
                 }
             }
             (Some(idx), None, None) => {
@@ -87,8 +114,8 @@ impl Shadable for Triangle {
             position: r.origin + r.direction * collision.distance,
             normal: normal,
             uv: texture_coords,
-            dpdu,
-            dpdv,
+            dpdu: dpdu,
+            dpdv: dpdv,
             material: self.material,
         };
     }

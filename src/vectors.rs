@@ -87,6 +87,13 @@ impl Vec4d {
     }
 }
 
+impl ops::Neg for Vec4d {
+    type Output = Vec4d;
+    fn neg(self) -> Vec4d {
+        return self.scale(-1.0);
+    }
+}
+
 impl ops::Mul<f64> for Vec4d {
     type Output = Vec4d;
     fn mul(self, rhs: f64) -> Vec4d {

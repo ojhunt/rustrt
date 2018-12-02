@@ -13,6 +13,7 @@ pub enum Transparency {
     Halo(f64), // 1.0 - (N*v)(1.0-factor)
 }
 
+#[derive(Clone)]
 pub struct MaterialCollisionInfo {
     pub ambient_colour: Colour,
     pub diffuse_colour: Colour,

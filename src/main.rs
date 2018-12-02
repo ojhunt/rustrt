@@ -20,6 +20,7 @@ mod ray;
 mod scene;
 mod shader;
 mod triangle;
+mod texture;
 mod vectors;
 mod wavefront_material;
 

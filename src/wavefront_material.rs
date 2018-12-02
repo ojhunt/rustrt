@@ -77,23 +77,69 @@ pub struct WFMaterial {
     index_of_refraction: Option<f64>, // Ni
 }
 
-fn apply_bump_map(bump: Option<TextureIdx>, s: &Scene, m: &mut MaterialCollisionInfo) {
+fn apply_bump_map(
+    bump: Option<TextureIdx>,
+    f: &Fragment,
+    s: &Scene,
+    m: &MaterialCollisionInfo,
+) -> MaterialCollisionInfo {
+    let mut new_info = m.clone();
     if bump.is_none() {
-        return;
+        return new_info;
     }
+    let map = s.get_texture(bump.unwrap());
+    let (fu, fv) = {
+        let (u, v) = map.gradient(f.uv);
+        (u.x * 10.0, v.x * 10.0)
+    };
+    if fu != 0.0 {
+        // new_info.ambient_colour = Colour::RGB(0.0, 0.0, 1.0);
+        // new_info.diffuse_colour = Colour::RGB(0.0, 0.0, 0.0);
+    }
+    if fv != 0.0 {
+        // new_info.ambient_colour = Colour::RGB(1.0, 0.0, 0.0);
+        // new_info.diffuse_colour = Colour::RGB(0.0, 0.0, 0.0);
+    }
+    let n = m.normal;
+    let n_length = n.dot(n).sqrt();
+    let ndpdv = n.cross(f.dpdv);
+    let ndpdu = n.cross(f.dpdu);
+    let mut perturbed_normal = m.normal + (fu * ndpdv - fv * ndpdu);
+    if perturbed_normal.dot(perturbed_normal) == 0.0 {
+        perturbed_normal = Vec4d::vector(1., 1., 1.);
+        new_info.diffuse_colour = Colour::RGB(0.0, 0.0, 1.0);
+    } else {
+        // new_info.diffuse_colour = Colour::RGB(0.4, 0.4, 0.4);
+
+        // new_info.ambient_colour = new_info.diffuse_colour;
+        new_info.ambient_colour = Colour::RGB(fu.abs() * 16., fv.abs() * 16., 0.0);
+        // new_info.diffuse_colour = Colour::RGB(0.0, 0.0, 0.0);
+    }
+
+    // new_info.ambient_colour = Colour::from(
+    //     (n + fu * ndpdv - fv * ndpdu).normalize() * 0.5 + Vec4d::vector(0.5, 0.5, 0.5),
+    // );
+    new_info.diffuse_colour = Colour::RGB(0.5, f.uv.0.fract(), f.uv.1.fract());
+    new_info.normal = perturbed_normal.normalize();
+    return new_info;
 }
 
 impl Material for WFMaterial {
     fn compute_surface_properties(&self, s: &Scene, f: &Fragment) -> MaterialCollisionInfo {
-        return MaterialCollisionInfo {
-            ambient_colour: self.ambient_colour.raw_for_fragment(s, f),
-            diffuse_colour: self.diffuse_colour.raw_for_fragment(s, f),
-            specular_colour: self.specular_colour.raw_for_fragment(s, f),
-            normal: f.normal,
-            position: f.position,
-            transparent_colour: None,
-            secondaries: vec![],
-        };
+        return apply_bump_map(
+            self.bump_map,
+            f,
+            s,
+            &MaterialCollisionInfo {
+                ambient_colour: self.ambient_colour.raw_for_fragment(s, f),
+                diffuse_colour: self.diffuse_colour.raw_for_fragment(s, f),
+                specular_colour: self.specular_colour.raw_for_fragment(s, f),
+                normal: f.normal,
+                position: f.position,
+                transparent_colour: None,
+                secondaries: vec![],
+            },
+        );
     }
 }
 
