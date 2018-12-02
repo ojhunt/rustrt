@@ -101,14 +101,18 @@ impl Scene {
         let mut buffer = vec![(0 as f64, 0 as f64, 0 as f64); size * size];
 
         let rays = camera.get_rays(size, size);
-        let lights = [Vec4d::point(2., 3., 0.), Vec4d::point(-10., -12., -4.)];
+        let lights = [
+            Vec4d::point(2., 3., 0.),
+            Vec4d::point(-10., -12., -4.),
+            Vec4d::point(-16., 9.5, -1.),
+        ];
         for x in 0..size {
             for y in 0..size {
                 let ray = &rays[x + size * y];
                 match self.intersect(ray) {
                     None => continue,
                     Some((c, shadable)) => {
-                        let fragment = shadable.compute_fragment(self, ray, c);
+                        let fragment = shadable.compute_fragment(self, ray, &c);
                         let material = match fragment.material {
                             Some(inner) => self.get_material(inner),
                             None => continue,
@@ -117,7 +121,7 @@ impl Scene {
                         let ambient_colour = Vec4d::from(surface.ambient_colour);
                         let diffuse_colour = Vec4d::from(surface.diffuse_colour);
 
-                        let mut colour = ambient_colour * 0.2;
+                        let mut colour = ambient_colour * 0.05;
                         if true {
                             for light in lights.iter() {
                                 let mut ldir = *light - surface.position;
@@ -131,12 +135,11 @@ impl Scene {
                                     ldir_len * 0.999,
                                 );
 
-                                if true && self.intersect(&shadow_test).is_some() {
+                                if self.intersect(&shadow_test).is_some() {
                                     continue;
                                 }
 
-                                let diffuse_intensity =
-                                    ldir.dot(surface.normal) / lights.len() as f64;
+                                let diffuse_intensity = ldir.dot(surface.normal) / 2. as f64;
                                 if diffuse_intensity <= 0.0 {
                                     continue;
                                 }
@@ -144,7 +147,8 @@ impl Scene {
                                 colour = colour + diffuse_colour * diffuse_intensity;
                             }
                         } else {
-                            colour = diffuse_colour;
+                            colour =
+                                Vec4d::vector(diffuse_colour.x, 1. - c.distance.log10() / 2., 0.0); // ambient_colour + diffuse_colour;
                         }
                         buffer[x + y * size] = (colour.x, colour.y, colour.z);
                     }

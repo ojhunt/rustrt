@@ -20,19 +20,31 @@ pub struct Triangle {
 }
 type Vertex = (Vec4d, Option<TextureCoordinateIdx>, Option<NormalIdx>);
 
+fn orient_normal(normal: Vec4d, ray_direction: Vec4d) -> Vec4d {
+    if normal.dot(ray_direction) < 0.0 {
+        -normal
+    } else {
+        normal
+    }
+}
+
 impl Shadable for Triangle {
-    fn compute_fragment(&self, s: &Scene, r: &Ray, collision: Collision) -> Fragment {
+    fn compute_fragment(&self, s: &Scene, r: &Ray, collision: &Collision) -> Fragment {
         let u = collision.uv.0;
         let v = collision.uv.1;
         let w = 1.0 - u - v;
         let normal: Vec4d = match (self.normals[0], self.normals[1], self.normals[2]) {
             (Some(n_idx0), Some(n_idx1), Some(n_idx2)) => {
-                let normal0 = n_idx0.get(s);
-                let normal1 = n_idx1.get(s);
-                let normal2 = n_idx2.get(s);
-                assert!(normal0.dot(normal1) >= 0.0);
-                assert!(normal0.dot(normal2) >= 0.0);
-                assert!(normal2.dot(normal1) >= 0.0);
+                let true_normal = self.edges[0]
+                    .normalize()
+                    .cross(self.edges[1].normalize())
+                    .normalize();
+                let normal0 = orient_normal(n_idx0.get(s), true_normal);
+                let normal1 = orient_normal(n_idx1.get(s), true_normal);
+                let normal2 = orient_normal(n_idx2.get(s), true_normal);
+                // assert!(normal0.dot(normal1) >= 0.0);
+                // assert!(normal0.dot(normal2) >= 0.0);
+                // assert!(normal2.dot(normal1) >= 0.0);
                 normal0 * w + normal1 * u + normal2 * v
             }
             (Some(idx), None, None) => idx.get(s),

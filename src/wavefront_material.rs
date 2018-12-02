@@ -40,23 +40,32 @@ enum WFSurfaceProperty<Raw: Copy + RawSurfaceValue, Texture: Copy + TextureSurfa
     Complex(Raw, Texture),
 }
 
-impl<Raw: Copy + RawSurfaceValue, Texture: Copy + TextureSurfaceValue<Raw>>
+trait MergeValues {
+    fn merge(&self, other: Self) -> Self;
+}
+
+impl MergeValues for Colour {
+    fn merge(&self, other: Self) -> Self {
+        match (self, other) {
+            (Colour::RGB(r1, g1, b1), Colour::RGB(r2, g2, b2)) => {
+                Colour::RGB(r1 * r2, b1 * b2, g1 * g2)
+            }
+        }
+    }
+}
+
+impl<Raw: Copy + RawSurfaceValue + MergeValues, Texture: Copy + TextureSurfaceValue<Raw>>
     WFSurfaceProperty<Raw, Texture>
 {
-    pub fn new(raw: Option<Raw>, texture: Option<Texture>) -> WFSurfaceProperty<Raw, Texture> {
-        match (raw, texture) {
-            (Some(r), None) => WFSurfaceProperty::Single(r),
-            (None, Some(t)) => WFSurfaceProperty::Texture(t),
-            (Some(r), Some(t)) => WFSurfaceProperty::Complex(r, t),
-            (None, None) => WFSurfaceProperty::None,
-        }
+    pub fn new() -> WFSurfaceProperty<Raw, Texture> {
+        WFSurfaceProperty::None
     }
     pub fn raw_for_fragment(&self, scene: &Scene, fragment: &Fragment) -> Raw {
         return match self {
             WFSurfaceProperty::None => Raw::empty(),
             WFSurfaceProperty::Single(v) => *v,
             WFSurfaceProperty::Texture(t) => t.raw_for_fragment(scene, fragment),
-            WFSurfaceProperty::Complex(_, t) => t.raw_for_fragment(scene, fragment),
+            WFSurfaceProperty::Complex(c, t) => c.merge(t.raw_for_fragment(scene, fragment)),
             _ => panic!(),
         };
     }
@@ -85,13 +94,12 @@ fn apply_bump_map(
 ) -> MaterialCollisionInfo {
     let mut new_info = m.clone();
     if bump.is_none() {
-        //new_info.diffuse_colour = Colour::RGB(0.0, 1.0, 0.0);
         return new_info;
     }
     let map = s.get_texture(bump.unwrap());
     let (fu, fv) = {
         let (u, v) = map.gradient(f.uv);
-        (u.x * 5.0, v.x * 5.0)
+        (u.x * 0.2, v.x * 0.2)
     };
     let n = m.normal;
     let ndpdv = n.cross(f.dpdv);
@@ -171,6 +179,9 @@ fn load_surface_colour<F: FnMut(&str) -> Option<TextureIdx>>(
 
     return (
         match (real_colour, real_texture) {
+            (Some(Colour::RGB(r, g, b)), Some(texture)) if r == 0.0 && g == 0.0 && b == 0.0 => {
+                WFSurfaceProperty::Texture(texture)
+            }
             (Some(colour), Some(texture)) => WFSurfaceProperty::Complex(colour, texture),
             (Some(colour), None) => WFSurfaceProperty::Single(colour),
             (None, Some(texture)) => WFSurfaceProperty::Texture(texture),
