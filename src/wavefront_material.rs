@@ -20,14 +20,14 @@ impl RawSurfaceValue for Colour {
 
 trait TextureSurfaceValue<Raw: RawSurfaceValue> {
     fn raw_for_fragment(&self, s: &Scene, f: &Fragment) -> Raw;
-    fn gradient(&self, s: &Scene, point: Vec2d) -> (Vec4d, Vec4d);
+    fn gradient(&self, s: &Scene, point: Vec2d) -> (f64, f64);
 }
 
 impl TextureSurfaceValue<Colour> for TextureIdx {
     fn raw_for_fragment(&self, s: &Scene, f: &Fragment) -> Colour {
         return Colour::from(s.get_texture(*self).sample(f.uv));
     }
-    fn gradient(&self, s: &Scene, uv: Vec2d) -> (Vec4d, Vec4d) {
+    fn gradient(&self, s: &Scene, uv: Vec2d) -> (f64, f64) {
         return s.get_texture(*self).gradient(uv);
     }
 }
@@ -99,7 +99,7 @@ fn apply_bump_map(
     let map = s.get_texture(bump.unwrap());
     let (fu, fv) = {
         let (u, v) = map.gradient(f.uv);
-        (u.x * 0.2, v.x * 0.2)
+        (u * 0.2, v * 0.2)
     };
     let n = m.normal;
     let ndpdv = n.cross(f.dpdv);

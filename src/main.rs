@@ -19,8 +19,8 @@ mod objects;
 mod ray;
 mod scene;
 mod shader;
-mod triangle;
 mod texture;
+mod triangle;
 mod vectors;
 mod wavefront_material;
 
