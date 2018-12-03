@@ -1,3 +1,4 @@
+use colour::Colour;
 use image::GenericImageView;
 use scene::Scene;
 use std::cell::*;
@@ -37,12 +38,23 @@ impl Lerpable for Vec4d {
     }
 }
 
+impl Lerpable for Colour {
+    fn scale(&self, other: f64) -> Self {
+        let Colour::RGB(r, g, b) = *self;
+        return Colour::RGB(r * other, g * other, b * other);
+    }
+    fn add(&self, Colour::RGB(rr, rg, rb): &Self) -> Self {
+        let Colour::RGB(r, g, b) = *self;
+        return Colour::RGB(r + rr, g + rg, b + rb);
+    }
+}
+
 #[derive(Debug)]
 pub struct Texture {
     pub name: String,
     width: usize,
     height: usize,
-    data: Vec<Vec4d>,
+    data: Vec<Colour>,
     gradient_maps: RefCell<Option<(Vec<f64>, Vec<f64>)>>,
     foo: Cell<Option<f64>>,
 }
@@ -51,17 +63,17 @@ impl Texture {
     pub fn new(name: &str, image: &image::DynamicImage) -> Texture {
         let width = image.width() as usize;
         let height = image.height() as usize;
-        let mut buffer: Vec<Vec4d> = Vec::with_capacity(width * height);
+        let mut buffer: Vec<Colour> = Vec::with_capacity(width * height);
         for _ in 0..(width * height) {
-            buffer.push(Vec4d::new());
+            buffer.push(Colour::RGB(0.0, 0.0, 0.0));
         }
 
         for (x, iy, pixel) in image.pixels() {
             let y = height - 1 - iy as usize;
-            buffer[y * width + x as usize] = Vec4d::vector(
-                pixel[0] as f64 / 255.,
-                pixel[1] as f64 / 255.,
+            buffer[y * width + x as usize] = Colour::RGB(
                 pixel[2] as f64 / 255.,
+                pixel[1] as f64 / 255.,
+                pixel[0] as f64 / 255.,
             );
         }
 
@@ -104,10 +116,12 @@ impl Texture {
         return Self::lerp(yf, &t, &b);
     }
 
-    pub fn sample(&self, Vec2d(u, v): Vec2d) -> Vec4d {
+    pub fn sample(&self, Vec2d(u, v): Vec2d) -> Colour {
         let x = u * self.width as f64;
         let y = v * self.height as f64;
-        return self.get_pixel(&self.data, x, y);
+        let xb = (x.floor() % self.width as f64) as usize;
+        let yb = (y.floor() % self.height as f64) as usize;
+        return self.get_raw_pixel(&self.data, xb, yb);
     }
     fn generate_gradient_maps(&self) -> (Vec<f64>, Vec<f64>) {
         let mut du: Vec<f64> = Vec::with_capacity(self.data.len());
@@ -124,17 +138,17 @@ impl Texture {
                 let right = self.get_raw_pixel(&self.data, x + 1, y) * 2.
                     + self.get_raw_pixel(&self.data, x + 1, y - 1)
                     + self.get_raw_pixel(&self.data, x + 1, y + 1);
-                let fu = right - left;
+                let Colour::RGB(fu, _, _) = right - left;
 
-                let top = self.get_raw_pixel(&self.data, x, y + 1) * 2.0
+                let top = self.get_raw_pixel(&self.data, x, y + 1) * 2.
                     + self.get_raw_pixel(&self.data, x - 1, y + 1)
                     + self.get_raw_pixel(&self.data, x + 1, y + 1);
-                let bottom = self.get_raw_pixel(&self.data, x, y - 1) * 2.0
+                let bottom = self.get_raw_pixel(&self.data, x, y - 1) * 2.
                     + self.get_raw_pixel(&self.data, x - 1, y - 1)
                     + self.get_raw_pixel(&self.data, x + 1, y - 1);
-                let fv = top - bottom;
-                du[y * self.width + x] = fu.x;
-                dv[y * self.width + x] = fv.x;
+                let Colour::RGB(fv, _, _) = top - bottom;
+                du[y * self.width + x] = fu;
+                dv[y * self.width + x] = fv;
             }
         }
         return (du, dv);

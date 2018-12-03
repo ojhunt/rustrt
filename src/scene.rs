@@ -147,8 +147,8 @@ impl Scene {
                                 colour = colour + diffuse_colour * diffuse_intensity;
                             }
                         } else {
-                            colour =
-                                Vec4d::vector(diffuse_colour.x, 1. - c.distance.log10() / 2., 0.0); // ambient_colour + diffuse_colour;
+                            colour = diffuse_colour;
+                            // Vec4d::vector(diffuse_colour.x, 1. - c.distance.log10() / 2., 0.0); // ambient_colour + diffuse_colour;
                         }
                         buffer[x + y * size] = (colour.x, colour.y, colour.z);
                     }
