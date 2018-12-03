@@ -1,5 +1,5 @@
 use colour::Colour;
-use image::GenericImageView;
+use image::*;
 use scene::Scene;
 use std::cell::*;
 use std::ops::Deref;
@@ -68,13 +68,13 @@ impl Texture {
             buffer.push(Colour::RGB(0.0, 0.0, 0.0));
         }
 
-        for (x, iy, pixel) in image.pixels() {
-            let y = height - 1 - iy as usize;
-            buffer[y * width + x as usize] = Colour::RGB(
-                pixel[2] as f64 / 255.,
-                pixel[1] as f64 / 255.,
+        for (x, y, pixel) in image.pixels() {
+            let c = Colour::RGB(
                 pixel[0] as f64 / 255.,
+                pixel[1] as f64 / 255.,
+                pixel[2] as f64 / 255.,
             );
+            buffer[(height - 1 - y as usize) * width + x as usize] = c;
         }
 
         return Texture {

@@ -102,9 +102,10 @@ impl Scene {
 
         let rays = camera.get_rays(size, size);
         let lights = [
-            Vec4d::point(2., 3., 0.),
-            Vec4d::point(-10., -12., -4.),
+            // Vec4d::point(2., 3., 0.),
+            // Vec4d::point(-10., -12., -4.),
             Vec4d::point(-16., 9.5, 4.),
+            Vec4d::point(-14., 19.5, -2.),
         ];
         for x in 0..size {
             for y in 0..size {
@@ -121,7 +122,7 @@ impl Scene {
                         let ambient_colour = Vec4d::from(surface.ambient_colour);
                         let diffuse_colour = Vec4d::from(surface.diffuse_colour);
 
-                        let mut colour = ambient_colour * 0.05;
+                        let mut colour = ambient_colour * 0.2;
                         if true {
                             for light in lights.iter() {
                                 let mut ldir = *light - surface.position;
@@ -139,7 +140,8 @@ impl Scene {
                                     continue;
                                 }
 
-                                let diffuse_intensity = ldir.dot(surface.normal) / 2. as f64;
+                                let diffuse_intensity =
+                                    ldir.dot(surface.normal) / lights.len() as f64;
                                 if diffuse_intensity <= 0.0 {
                                     continue;
                                 }
