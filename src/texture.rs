@@ -96,11 +96,21 @@ impl Texture {
         return l.scale(1. - t).add(&r.scale(t));
     }
 
-    fn get_pixel<T: Lerpable>(&self, vec: &Vec<T>, x: f64, y: f64) -> T {
+    fn get_pixel<T: Lerpable>(&self, vec: &Vec<T>, _x: f64, _y: f64) -> T {
+        let x = if _x > 0.0 {
+            _x % self.width as f64
+        } else {
+            self.width as f64 + (_x % self.width as f64)
+        };
+        let y = if _y > 0.0 {
+            _y % self.height as f64
+        } else {
+            self.height as f64 + (_x % self.height as f64)
+        };
         let xf = x.fract();
         let yf = y.fract();
-        let xb = (x.floor() % self.width as f64) as usize;
-        let yb = (y.floor() % self.height as f64) as usize;
+        let xb = x.floor() as usize;
+        let yb = y.floor() as usize;
 
         let tl = self.get_raw_pixel(vec, xb, yb);
         let tr = self.get_raw_pixel(vec, xb + 1, yb);

@@ -98,8 +98,10 @@ impl Scene {
 
     pub fn render<C: Camera>(&self, camera: &C, size: usize) -> DynamicImage {
         let mut result = image::RgbImage::new(size as u32, size as u32);
-        let mut buffer = vec![(0 as f64, 0 as f64, 0 as f64); size * size];
-
+        let mut buffer: Vec<Vec<Vec4d>> = vec![];
+        for _ in 0..(size * size) {
+            buffer.push(vec![]);
+        }
         let rays = camera.get_rays(size, size);
         let lights = [
             Vec4d::point(2., 3., 0.),
@@ -107,59 +109,62 @@ impl Scene {
             Vec4d::point(-16., 9.5, 4.),
             Vec4d::point(-14., 19.5, -2.),
         ];
-        for x in 0..size {
-            for y in 0..size {
-                let ray = &rays[x + size * y];
-                match self.intersect(ray) {
-                    None => continue,
-                    Some((c, shadable)) => {
-                        let fragment = shadable.compute_fragment(self, ray, &c);
-                        let material = match fragment.material {
-                            Some(inner) => self.get_material(inner),
-                            None => continue,
-                        };
-                        let surface = material.compute_surface_properties(self, &fragment);
-                        let ambient_colour = Vec4d::from(surface.ambient_colour);
-                        let diffuse_colour = Vec4d::from(surface.diffuse_colour);
+        for (x, y, w, ray) in &rays {
+            match self.intersect(ray) {
+                None => continue,
+                Some((c, shadable)) => {
+                    let fragment = shadable.compute_fragment(self, ray, &c);
+                    let material = match fragment.material {
+                        Some(inner) => self.get_material(inner),
+                        None => continue,
+                    };
+                    let surface = material.compute_surface_properties(self, &fragment);
+                    let ambient_colour = Vec4d::from(surface.ambient_colour);
+                    let diffuse_colour = Vec4d::from(surface.diffuse_colour);
 
-                        let mut colour = ambient_colour * 0.5;
-                        if true {
-                            for light in lights.iter() {
-                                let mut ldir = *light - surface.position;
-                                let ldir_len = ldir.dot(ldir).sqrt();
-                                ldir = ldir.normalize();
+                    let mut colour = ambient_colour * 0.5;
+                    if true {
+                        for light in lights.iter() {
+                            let mut ldir = *light - surface.position;
+                            let ldir_len = ldir.dot(ldir).sqrt();
+                            ldir = ldir.normalize();
 
-                                let shadow_test = Ray::new_bound(
-                                    surface.position,
-                                    ldir,
-                                    0.01 * ldir_len,
-                                    ldir_len * 0.999,
-                                );
+                            let shadow_test = Ray::new_bound(
+                                surface.position,
+                                ldir,
+                                0.01 * ldir_len,
+                                ldir_len * 0.999,
+                            );
 
-                                if self.intersect(&shadow_test).is_some() {
-                                    continue;
-                                }
-
-                                let diffuse_intensity =
-                                    ldir.dot(surface.normal) / lights.len() as f64;
-                                if diffuse_intensity <= 0.0 {
-                                    continue;
-                                }
-
-                                colour = colour + diffuse_colour * diffuse_intensity;
+                            if self.intersect(&shadow_test).is_some() {
+                                continue;
                             }
-                        } else {
-                            colour = diffuse_colour;
-                            // Vec4d::vector(diffuse_colour.x, 1. - c.distance.log10() / 2., 0.0); // ambient_colour + diffuse_colour;
+
+                            let diffuse_intensity = ldir.dot(surface.normal) / lights.len() as f64;
+                            if diffuse_intensity <= 0.0 {
+                                continue;
+                            }
+
+                            colour = colour + diffuse_colour * diffuse_intensity;
                         }
-                        buffer[x + y * size] = (colour.x, colour.y, colour.z);
+                    } else {
+                        colour = diffuse_colour;
+                        // Vec4d::vector(diffuse_colour.x, 1. - c.distance.log10() / 2., 0.0); // ambient_colour + diffuse_colour;
                     }
+                    buffer[x + y * size].push(colour * *w);
                 }
             }
         }
 
         for (x, y, _pixel) in result.enumerate_pixels_mut() {
-            let (r, g, b) = buffer[x as usize + y as usize * size];
+            let mut r = 0.0;
+            let mut g = 0.0;
+            let mut b = 0.0;
+            for v in &buffer[x as usize + y as usize * size] {
+                r += v.x;
+                g += v.y;
+                b += v.z;
+            }
             *_pixel = image::Rgb([
                 (r * 255.).max(0.).min(255.) as u8,
                 (g * 255.).max(0.).min(255.) as u8,

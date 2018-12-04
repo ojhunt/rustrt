@@ -2,7 +2,7 @@ use ray::Ray;
 use vectors::Vec4d;
 
 pub trait Camera {
-    fn get_rays(&self, width: usize, height: usize) -> Vec<Ray>;
+    fn get_rays(&self, width: usize, height: usize) -> Vec<(usize, usize, f64, Ray)>;
     fn get_differentials(&self, r: &Ray) -> (Ray, Ray);
 }
 
@@ -21,8 +21,8 @@ pub struct PerspectiveCamera {
 }
 
 impl PerspectiveCamera {
-    fn ray_for_coordinate(&self, x: usize, y: usize) -> Ray {
-        let view_target = self.view_origin + (self.x_delta * x as f64) - (self.y_delta * y as f64);
+    fn ray_for_coordinate(&self, x: f64, y: f64) -> Ray {
+        let view_target = self.view_origin + (self.x_delta * x) - (self.y_delta * y);
         Ray::new(self.position, (view_target - self.position).normalize())
     }
     pub fn new(
@@ -65,11 +65,34 @@ impl PerspectiveCamera {
 }
 
 impl Camera for PerspectiveCamera {
-    fn get_rays(&self, width: usize, height: usize) -> Vec<Ray> {
-        let mut result: Vec<Ray> = Vec::new();
+    fn get_rays(&self, width: usize, height: usize) -> Vec<(usize, usize, f64, Ray)> {
+        let mut result: Vec<(usize, usize, f64, Ray)> = Vec::new();
         for y in 0..height {
             for x in 0..width {
-                result.push(self.ray_for_coordinate(x, y));
+                result.push((
+                    x,
+                    y,
+                    0.25,
+                    self.ray_for_coordinate(x as f64 - 0.25, y as f64 - 0.25),
+                ));
+                result.push((
+                    x,
+                    y,
+                    0.25,
+                    self.ray_for_coordinate(x as f64 + 0.25, y as f64 - 0.25),
+                ));
+                result.push((
+                    x,
+                    y,
+                    0.25,
+                    self.ray_for_coordinate(x as f64 - 0.25, y as f64 + 0.25),
+                ));
+                result.push((
+                    x,
+                    y,
+                    0.25,
+                    self.ray_for_coordinate(x as f64 + 0.25, y as f64 + 0.25),
+                ));
             }
         }
         return result;
