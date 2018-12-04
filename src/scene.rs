@@ -102,8 +102,8 @@ impl Scene {
 
         let rays = camera.get_rays(size, size);
         let lights = [
-            // Vec4d::point(2., 3., 0.),
-            // Vec4d::point(-10., -12., -4.),
+            Vec4d::point(2., 3., 0.),
+            Vec4d::point(-10., -12., -4.),
             Vec4d::point(-16., 9.5, 4.),
             Vec4d::point(-14., 19.5, -2.),
         ];
