@@ -11,3 +11,6 @@ obj = { version = "*", features = ["genmesh"]}
 
 [dependencies.clap]
 features = ["yaml"]
+
+[profile.release]
+debug = true

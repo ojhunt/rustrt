@@ -56,7 +56,6 @@ pub struct Texture {
     height: usize,
     data: Vec<Colour>,
     gradient_maps: RefCell<Option<(Vec<f64>, Vec<f64>)>>,
-    foo: Cell<Option<f64>>,
 }
 
 impl Texture {
@@ -83,7 +82,6 @@ impl Texture {
             height: image.height() as usize,
             data: buffer,
             gradient_maps: RefCell::new(None),
-            foo: Cell::new(None),
         };
     }
 
@@ -123,6 +121,24 @@ impl Texture {
         let yb = (y.floor() % self.height as f64) as usize;
         return self.get_raw_pixel(&self.data, xb, yb);
     }
+    fn get_gradient_for_pixel(&self, x: f64, y: f64) -> (f64, f64) {
+        let left = self.get_pixel(&self.data, x - 1., y) * 2.
+            + self.get_pixel(&self.data, x - 1., y - 1.)
+            + self.get_pixel(&self.data, x - 1., y + 1.);
+        let right = self.get_pixel(&self.data, x + 1., y) * 2.
+            + self.get_pixel(&self.data, x + 1., y - 1.)
+            + self.get_pixel(&self.data, x + 1., y + 1.);
+        let Colour::RGB(fu, _, _) = right - left;
+
+        let top = self.get_pixel(&self.data, x, y + 1.) * 2.
+            + self.get_pixel(&self.data, x - 1., y + 1.)
+            + self.get_pixel(&self.data, x + 1., y + 1.);
+        let bottom = self.get_pixel(&self.data, x, y - 1.) * 2.
+            + self.get_pixel(&self.data, x - 1., y - 1.)
+            + self.get_pixel(&self.data, x + 1., y - 1.);
+        let Colour::RGB(fv, _, _) = top - bottom;
+        return (fu, fv);
+    }
     fn generate_gradient_maps(&self) -> (Vec<f64>, Vec<f64>) {
         let mut du: Vec<f64> = Vec::with_capacity(self.data.len());
         let mut dv: Vec<f64> = Vec::with_capacity(self.data.len());
@@ -132,21 +148,7 @@ impl Texture {
         }
         for x in 0..self.width {
             for y in 0..self.height {
-                let left = self.get_raw_pixel(&self.data, x - 1, y) * 2.
-                    + self.get_raw_pixel(&self.data, x - 1, y - 1)
-                    + self.get_raw_pixel(&self.data, x - 1, y + 1);
-                let right = self.get_raw_pixel(&self.data, x + 1, y) * 2.
-                    + self.get_raw_pixel(&self.data, x + 1, y - 1)
-                    + self.get_raw_pixel(&self.data, x + 1, y + 1);
-                let Colour::RGB(fu, _, _) = right - left;
-
-                let top = self.get_raw_pixel(&self.data, x, y + 1) * 2.
-                    + self.get_raw_pixel(&self.data, x - 1, y + 1)
-                    + self.get_raw_pixel(&self.data, x + 1, y + 1);
-                let bottom = self.get_raw_pixel(&self.data, x, y - 1) * 2.
-                    + self.get_raw_pixel(&self.data, x - 1, y - 1)
-                    + self.get_raw_pixel(&self.data, x + 1, y - 1);
-                let Colour::RGB(fv, _, _) = top - bottom;
+                let (fu, fv) = self.get_gradient_for_pixel(x as f64, y as f64);
                 du[y * self.width + x] = fu;
                 dv[y * self.width + x] = fv;
             }
@@ -157,13 +159,12 @@ impl Texture {
     pub fn gradient(&self, Vec2d(u, v): Vec2d) -> (f64, f64) {
         let x = (u % 1.0) * self.width as f64;
         let y = (v % 1.0) * self.height as f64;
-
+        return self.get_gradient_for_pixel(x, y);
         if let Some((l, r)) = self.gradient_maps.borrow().deref() {
             let u = self.get_pixel(l, x, y);
             let v = self.get_pixel(r, x, y);
             return (u, v);
         }
-
         let (du, dv) = self.generate_gradient_maps();
         let result = (self.get_pixel(&du, x, y), self.get_pixel(&dv, x, y));
         self.gradient_maps.replace(Some((du, dv)));
