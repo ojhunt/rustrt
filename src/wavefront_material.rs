@@ -107,20 +107,11 @@ fn apply_bump_map(
     let mut perturbed_normal = n + (fu * ndpdv - fv * ndpdu);
     if perturbed_normal.dot(perturbed_normal) == 0.0 {
         perturbed_normal = n;
-    } else {
-        // new_info.diffuse_colour = Colour::RGB(0.4, 0.4, 0.4);
-
-        // new_info.ambient_colour = new_info.diffuse_colour;
-        // new_info.ambient_colour =
-        //     Colour::from(perturbed_normal.normalize() * 0.5 + Vec4d::vector(0.5, 0.5, 0.5)); // Colour::RGB(fu.abs() * 4., fv.abs() * 4., 0.0);
-        //                                                                                      // new_info.diffuse_colour = Colour::RGB(0.0, 0.0, 0.0);
     }
 
     // new_info.ambient_colour = Colour::from(
     //     (n + fu * ndpdv - fv * ndpdu).normalize() * 0.5 + Vec4d::vector(0.5, 0.5, 0.5),
     // );
-    let mut temp = Vec4d::from(new_info.diffuse_colour);
-    temp.y += (perturbed_normal.x - n.x).abs() * 500.;
     // new_info.diffuse_colour = Colour::from(temp);
     // new_info.diffuse_colour = new_info.ambient_colour; //Colour::RGB(0.5, f.uv.0.fract(), f.uv.1.fract());
     new_info.normal = perturbed_normal.normalize();
@@ -153,17 +144,17 @@ fn colour_from_slice(colour: Option<[f32; 3]>) -> Option<Colour> {
     }
 }
 
-fn load_texture<F: FnMut(&str) -> Option<TextureIdx>>(
+fn load_bumpmap<F: FnMut(&str, bool) -> Option<TextureIdx>>(
     texture: &Option<String>,
     mut texture_loader: F,
 ) -> (Option<TextureIdx>, F) {
     return match texture {
         None => (None, texture_loader),
-        Some(texture_name) => (texture_loader(texture_name), texture_loader),
+        Some(texture_name) => (texture_loader(texture_name, true), texture_loader),
     };
 }
 
-fn load_surface_colour<F: FnMut(&str) -> Option<TextureIdx>>(
+fn load_surface_colour<F: FnMut(&str, bool) -> Option<TextureIdx>>(
     colour: Option<[f32; 3]>,
     texture: &Option<String>,
     mut texture_loader: F,
@@ -174,7 +165,7 @@ fn load_surface_colour<F: FnMut(&str) -> Option<TextureIdx>>(
     };
     let real_texture = match texture {
         None => None,
-        Some(texture_name) => texture_loader(texture_name),
+        Some(texture_name) => texture_loader(texture_name, false),
     };
 
     return (
@@ -192,7 +183,7 @@ fn load_surface_colour<F: FnMut(&str) -> Option<TextureIdx>>(
 }
 
 impl WFMaterial {
-    pub fn new<F: FnMut(&str) -> Option<TextureIdx>>(
+    pub fn new<F: FnMut(&str, bool) -> Option<TextureIdx>>(
         mat: &obj::Material,
         texture_loader: F,
     ) -> WFMaterial {
@@ -208,7 +199,7 @@ impl WFMaterial {
         let (diffuse, f1) = load_surface_colour(mat.kd, &mat.map_kd, f);
         let (specular, f2) = load_surface_colour(mat.ks, &mat.map_ks, f1);
         let (emission, f3) = load_surface_colour(mat.ke, &mat.map_ke, f2);
-        let (bump_map, _) = load_texture(&mat.map_bump, f3);
+        let (bump_map, _) = load_bumpmap(&mat.map_bump, f3);
 
         WFMaterial {
             ambient_colour: ambient,

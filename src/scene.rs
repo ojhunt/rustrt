@@ -122,7 +122,7 @@ impl Scene {
                         let ambient_colour = Vec4d::from(surface.ambient_colour);
                         let diffuse_colour = Vec4d::from(surface.diffuse_colour);
 
-                        let mut colour = ambient_colour * 0.2;
+                        let mut colour = ambient_colour * 0.5;
                         if true {
                             for light in lights.iter() {
                                 let mut ldir = *light - surface.position;
@@ -132,7 +132,7 @@ impl Scene {
                                 let shadow_test = Ray::new_bound(
                                     surface.position,
                                     ldir,
-                                    0.001 * ldir_len,
+                                    0.01 * ldir_len,
                                     ldir_len * 0.999,
                                 );
 
@@ -181,9 +181,13 @@ pub fn load_scene(path: &str) -> Scene {
     let mut texture_map: HashMap<PathBuf, TextureIdx> = HashMap::new();
     let mut textures: Vec<Texture> = Vec::new();
     let directory = scn.directory.clone();
-    let mut load_texture = |textures: &mut Vec<Texture>, file: &str| {
+    let mut load_texture = |textures: &mut Vec<Texture>, file: &str, need_bumpmap: bool| {
         let resolved_path = directory.join(file);
         if let Some(result) = texture_map.get(&resolved_path) {
+            if need_bumpmap {
+                let TextureIdx(idx) = result;
+                textures[*idx].generate_derivate_maps();
+            }
             return Some(*result);
         }
 
@@ -210,9 +214,16 @@ pub fn load_scene(path: &str) -> Scene {
             Err(msg) => panic!("Fopen({:?}) failed with {}", resolved_path, msg),
         };
         let texture = Texture::new(resolved_path.to_str().unwrap(), &image);
+
         let texture_idx = TextureIdx(textures.len());
+
         textures.push(texture);
+        if need_bumpmap {
+            let TextureIdx(idx) = texture_idx;
+            textures[idx].generate_derivate_maps();
+        }
         texture_map.insert(resolved_path, texture_idx);
+
         return Some(texture_idx);
     };
 
@@ -242,8 +253,8 @@ pub fn load_scene(path: &str) -> Scene {
             if let Some(existing) = material_map.get(name) {
                 return *existing;
             }
-            materials.push(Box::new(WFMaterial::new(mat, |file| {
-                load_texture(&mut textures, file)
+            materials.push(Box::new(WFMaterial::new(mat, |file, need_bumpmap| {
+                load_texture(&mut textures, file, need_bumpmap)
             })));
             material_map.insert(name.clone(), MaterialIdx(materials.len() - 1));
             return MaterialIdx(materials.len() - 1);

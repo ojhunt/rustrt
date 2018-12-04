@@ -55,7 +55,7 @@ pub struct Texture {
     width: usize,
     height: usize,
     data: Vec<Colour>,
-    gradient_maps: RefCell<Option<(Vec<f64>, Vec<f64>)>>,
+    derivate_maps: Option<(Vec<f64>, Vec<f64>)>,
 }
 
 impl Texture {
@@ -81,7 +81,7 @@ impl Texture {
             width: image.width() as usize,
             height: image.height() as usize,
             data: buffer,
-            gradient_maps: RefCell::new(None),
+            derivate_maps: None,
         };
     }
 
@@ -139,7 +139,10 @@ impl Texture {
         let Colour::RGB(fv, _, _) = top - bottom;
         return (fu, fv);
     }
-    fn generate_gradient_maps(&self) -> (Vec<f64>, Vec<f64>) {
+    pub fn generate_derivate_maps(&mut self) {
+        if self.derivate_maps.is_some() {
+            return;
+        }
         let mut du: Vec<f64> = Vec::with_capacity(self.data.len());
         let mut dv: Vec<f64> = Vec::with_capacity(self.data.len());
         for _ in 0..(self.width * self.height) {
@@ -153,21 +156,19 @@ impl Texture {
                 dv[y * self.width + x] = fv;
             }
         }
-        return (du, dv);
+        self.derivate_maps = Some((du, dv));
     }
 
     pub fn gradient(&self, Vec2d(u, v): Vec2d) -> (f64, f64) {
         let x = (u % 1.0) * self.width as f64;
         let y = (v % 1.0) * self.height as f64;
-        return self.get_gradient_for_pixel(x, y);
-        if let Some((l, r)) = self.gradient_maps.borrow().deref() {
-            let u = self.get_pixel(l, x, y);
-            let v = self.get_pixel(r, x, y);
-            return (u, v);
-        }
-        let (du, dv) = self.generate_gradient_maps();
-        let result = (self.get_pixel(&du, x, y), self.get_pixel(&dv, x, y));
-        self.gradient_maps.replace(Some((du, dv)));
-        return result;
+        return match &self.derivate_maps {
+            None => (0.0, 0.0),
+            Some((du, dv)) => {
+                let u = self.get_pixel(du, x, y);
+                let v = self.get_pixel(dv, x, y);
+                (u, v)
+            }
+        };
     }
 }
