@@ -1,4 +1,3 @@
-use collision::Collision;
 use colour::Colour;
 use fragment::Fragment;
 use ray::Ray;
@@ -18,6 +17,7 @@ pub struct MaterialCollisionInfo {
     pub ambient_colour: Colour,
     pub diffuse_colour: Colour,
     pub specular_colour: Colour,
+    pub emissive_colour: Option<Colour>,
     pub transparent_colour: Option<Colour>,
     pub position: Vec4d,
     pub normal: Vec4d,

@@ -27,9 +27,9 @@ mod wavefront_material;
 
 use camera::*;
 use clap::*;
-use scene::*;
 use std::str::FromStr;
 use vectors::Vec4d;
+use wavefront_material::load_scene;
 
 struct SceneSettings {
     pub output_file: String,
