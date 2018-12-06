@@ -9,6 +9,7 @@ use material::MaterialCollisionInfo;
 use material::{Material, Transparency};
 use obj::{IndexTuple, Obj};
 use objects::Mesh;
+use ray::Ray;
 use scene::MaterialIdx;
 use scene::NormalIdx;
 use scene::Scene;
@@ -103,38 +104,31 @@ pub struct WFMaterial {
     specular_exponent: Option<f64>, // Ns
     sharpness: Option<f64>,
     index_of_refraction: Option<f64>, // Ni
+    illumination_model: usize,
 }
 
-fn apply_bump_map(
-    bump: Option<TextureIdx>,
-    f: &Fragment,
-    s: &Scene,
-    m: &MaterialCollisionInfo,
-) -> MaterialCollisionInfo {
-    let mut new_info = m.clone();
+fn perturb_normal(bump: Option<TextureIdx>, f: &Fragment, s: &Scene) -> Vec4d {
     if bump.is_none() {
-        return new_info;
+        return f.normal;
     }
     let map = s.get_texture(bump.unwrap());
     let (fu, fv) = {
         let (u, v) = map.gradient(f.uv);
         (u * 0.2, v * 0.2)
     };
-    let n = m.normal;
-    let ndpdv = n.cross(f.dpdv);
-    let ndpdu = n.cross(f.dpdu);
-    let mut perturbed_normal = n + (fu * ndpdv - fv * ndpdu);
+    let normal = f.normal;
+    let ndpdv = normal.cross(f.dpdv);
+    let ndpdu = normal.cross(f.dpdu);
+    let mut perturbed_normal = normal + (fu * ndpdv - fv * ndpdu);
     if perturbed_normal.dot(perturbed_normal) == 0.0 {
-        perturbed_normal = n;
+        perturbed_normal = normal;
     }
-
     // new_info.ambient_colour = Colour::from(
     //     (n + fu * ndpdv - fv * ndpdu).normalize() * 0.5 + Vec4d::vector(0.5, 0.5, 0.5),
     // );
     // new_info.diffuse_colour = Colour::from(temp);
     // new_info.diffuse_colour = new_info.ambient_colour; //Colour::RGB(0.5, f.uv.0.fract(), f.uv.1.fract());
-    new_info.normal = perturbed_normal.normalize();
-    return new_info;
+    return perturbed_normal.normalize();
 }
 
 impl Material for WFMaterial {
@@ -145,21 +139,28 @@ impl Material for WFMaterial {
         }
     }
     fn compute_surface_properties(&self, s: &Scene, f: &Fragment) -> MaterialCollisionInfo {
-        return apply_bump_map(
-            self.bump_map,
-            f,
-            s,
-            &MaterialCollisionInfo {
-                ambient_colour: self.ambient_colour.raw_for_fragment(s, f),
-                diffuse_colour: self.diffuse_colour.raw_for_fragment(s, f),
-                specular_colour: self.specular_colour.raw_for_fragment(s, f),
-                emissive_colour: self.emissive_colour.option_for_fragment(s, f),
-                normal: f.normal,
-                position: f.position,
-                transparent_colour: None,
-                secondaries: vec![],
-            },
-        );
+        let normal = perturb_normal(self.bump_map, f, s);
+        let mut result = MaterialCollisionInfo {
+            ambient_colour: self.ambient_colour.raw_for_fragment(s, f),
+            diffuse_colour: self.diffuse_colour.raw_for_fragment(s, f),
+            specular_colour: self.specular_colour.raw_for_fragment(s, f),
+            emissive_colour: self.emissive_colour.option_for_fragment(s, f),
+            normal: normal,
+            position: f.position,
+            transparent_colour: None,
+            secondaries: vec![],
+        };
+        if self.illumination_model < 5 {
+            return result;
+        }
+
+        let reflected_ray = (-2.0 * f.view.dot(normal) * normal + f.view).normalize();
+        result.secondaries.push((
+            Ray::new(f.position + reflected_ray * 0.001, reflected_ray),
+            result.specular_colour,
+            1.0,
+        ));
+        return result;
     }
 }
 
@@ -244,7 +245,22 @@ impl WFMaterial {
                 Transparency::Opaque
             },
             sharpness: Some(1.),
+            illumination_model: mat.illum.unwrap_or(4) as usize,
         }
+    }
+    fn add_secondaries(
+        &self,
+        s: &Scene,
+        f: &Fragment,
+        m: &MaterialCollisionInfo,
+    ) -> MaterialCollisionInfo {
+        let mut result = m.clone();
+        if self.illumination_model < 5 {
+            return result;
+        }
+        let mut secondaries: Vec<(Ray, f64)> = vec![];
+
+        return result;
     }
 }
 

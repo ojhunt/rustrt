@@ -156,6 +156,13 @@ impl Scene {
                         if diffuse_colour.length() <= 0.01 {
                             continue;
                         }
+                        let mut remaining_weight = 1.0;
+                        for (ray, colour, weight) in &surface.secondaries {
+                            if remaining_weight <= 0.0 {
+                                break;
+                            }
+                            remaining_weight -= weight;
+                        }
                         let light_samples = 20;
                         let mut has_intersected = false;
                         for i in 0..light_samples {

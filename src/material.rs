@@ -21,7 +21,7 @@ pub struct MaterialCollisionInfo {
     pub transparent_colour: Option<Colour>,
     pub position: Vec4d,
     pub normal: Vec4d,
-    pub secondaries: Vec<(Ray, f64)>,
+    pub secondaries: Vec<(Ray, Colour, f64)>,
 }
 
 pub trait Material: Debug {

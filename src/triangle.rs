@@ -164,6 +164,7 @@ impl Shadable for Triangle {
             uv: texture_coords,
             dpdu: dpdu,
             dpdv: dpdv,
+            view: r.direction,
             material: self.material,
         };
     }
