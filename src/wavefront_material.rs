@@ -156,7 +156,7 @@ impl Material for WFMaterial {
 
         let reflected_ray = (-2.0 * f.view.dot(normal) * normal + f.view).normalize();
         result.secondaries.push((
-            Ray::new(f.position + reflected_ray * 0.001, reflected_ray),
+            Ray::new(f.position + reflected_ray * 0.01, reflected_ray),
             result.specular_colour,
             1.0,
         ));

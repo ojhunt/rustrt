@@ -85,6 +85,75 @@ impl Scene {
         return &self.textures[idx];
     }
 
+    fn intersect_ray(&self, ray: &Ray, lights: &Vec<Vec4d>) -> Vec4d {
+        match self.intersect(ray) {
+            None => return Vec4d::new(),
+            Some((c, shadable)) => {
+                let fragment = shadable.compute_fragment(self, ray, &c);
+                let material = match fragment.material {
+                    Some(inner) => self.get_material(inner),
+                    None => return Vec4d::new(),
+                };
+                let surface = material.compute_surface_properties(self, &fragment);
+                let ambient_colour = Vec4d::from(surface.ambient_colour);
+                let mut diffuse_colour = Vec4d::from(surface.diffuse_colour);
+                if let Some(c) = surface.emissive_colour {
+                    return Vec4d::from(c);
+                }
+
+                let mut colour = if surface.secondaries.len() > 0 {
+                    Vec4d::new()
+                } else {
+                    ambient_colour * 0.2
+                };
+                if true {
+                    let mut remaining_weight = 1.0;
+                    for (ray, _colour, weight) in &surface.secondaries {
+                        if remaining_weight <= 0.0 {
+                            break;
+                        }
+                        remaining_weight -= weight;
+                        colour = colour + self.intersect_ray(ray, lights) * *weight;
+                    }
+                    diffuse_colour = diffuse_colour * remaining_weight;
+                    if diffuse_colour.length() <= 0.01 {
+                        return colour;
+                    }
+                    let light_samples = 5;
+                    let mut has_intersected = false;
+                    for i in 0..light_samples {
+                        let light = &lights[thread_rng().gen_range(0, lights.len())];
+                        let mut ldir = *light - surface.position;
+                        let ldir_len = ldir.dot(ldir).sqrt();
+                        ldir = ldir.normalize();
+                        if i * 2 < light_samples || has_intersected {
+                            let shadow_test = Ray::new_bound(
+                                surface.position,
+                                ldir,
+                                0.01 * ldir_len,
+                                ldir_len * 0.999,
+                            );
+
+                            if self.intersect(&shadow_test).is_some() {
+                                has_intersected = true;
+                                continue;
+                            }
+                        }
+                        let diffuse_intensity = ldir.dot(surface.normal) / light_samples as f64;
+                        if diffuse_intensity <= 0.0 {
+                            continue;
+                        }
+
+                        colour = colour + diffuse_colour * diffuse_intensity;
+                    }
+                } else {
+                    colour = diffuse_colour;
+                    // Vec4d::vector(diffuse_colour.x, 1. - c.distance.log10() / 2., 0.0); // ambient_colour + diffuse_colour;
+                }
+                return colour;
+            }
+        }
+    }
     pub fn render<C: Camera>(&self, camera: &C, size: usize) -> DynamicImage {
         let mut result = image::RgbImage::new(size as u32, size as u32);
         let mut buffer: Vec<Vec<Vec4d>> = vec![];
@@ -133,70 +202,8 @@ impl Scene {
         };
         println!("virtual count: {}", lights.len());
         for (x, y, pixel_contribution_weight, ray) in &rays {
-            match self.intersect(ray) {
-                None => continue,
-                Some((c, shadable)) => {
-                    let fragment = shadable.compute_fragment(self, ray, &c);
-                    let material = match fragment.material {
-                        Some(inner) => self.get_material(inner),
-                        None => continue,
-                    };
-                    let surface = material.compute_surface_properties(self, &fragment);
-                    let ambient_colour = Vec4d::from(surface.ambient_colour);
-                    let diffuse_colour = Vec4d::from(surface.diffuse_colour);
-                    let emissive_colour = if let Some(c) = surface.emissive_colour {
-                        Some(Vec4d::from(c))
-                    } else {
-                        None
-                    };
-                    let mut colour = ambient_colour * 0.2;
-                    if let Some(e_colour) = emissive_colour {
-                        colour = e_colour;
-                    } else if true {
-                        if diffuse_colour.length() <= 0.01 {
-                            continue;
-                        }
-                        let mut remaining_weight = 1.0;
-                        for (ray, colour, weight) in &surface.secondaries {
-                            if remaining_weight <= 0.0 {
-                                break;
-                            }
-                            remaining_weight -= weight;
-                        }
-                        let light_samples = 20;
-                        let mut has_intersected = false;
-                        for i in 0..light_samples {
-                            let light = &lights[thread_rng().gen_range(0, lights.len())];
-                            let mut ldir = *light - surface.position;
-                            let ldir_len = ldir.dot(ldir).sqrt();
-                            ldir = ldir.normalize();
-                            if i * 2 < light_samples || has_intersected {
-                                let shadow_test = Ray::new_bound(
-                                    surface.position,
-                                    ldir,
-                                    0.01 * ldir_len,
-                                    ldir_len * 0.999,
-                                );
-
-                                if self.intersect(&shadow_test).is_some() {
-                                    has_intersected = true;
-                                    continue;
-                                }
-                            }
-                            let diffuse_intensity = ldir.dot(surface.normal) / light_samples as f64;
-                            if diffuse_intensity <= 0.0 {
-                                continue;
-                            }
-
-                            colour = colour + diffuse_colour * diffuse_intensity;
-                        }
-                    } else {
-                        colour = diffuse_colour;
-                        // Vec4d::vector(diffuse_colour.x, 1. - c.distance.log10() / 2., 0.0); // ambient_colour + diffuse_colour;
-                    }
-                    buffer[x + y * size].push(colour * *pixel_contribution_weight);
-                }
-            }
+            let colour = self.intersect_ray(ray, &lights);
+            buffer[x + y * size].push(colour * *pixel_contribution_weight);
         }
 
         for (x, y, _pixel) in result.enumerate_pixels_mut() {
