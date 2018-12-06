@@ -3,6 +3,7 @@ extern crate genmesh;
 extern crate image;
 extern crate itertools;
 extern crate obj;
+extern crate rand;
 
 mod bounding_box;
 mod bvh;

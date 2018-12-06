@@ -2,11 +2,12 @@ use bounding_box::*;
 use collision::Collision;
 use fragment::Fragment;
 use intersectable::*;
+use rand::{thread_rng, Rng};
 use ray::Ray;
 use scene::MaterialIdx;
 use scene::NormalIdx;
 use scene::Scene;
-use shader::Shadable;
+use shader::*;
 use texture::TextureCoordinateIdx;
 use vectors::{Vec2d, Vec4d};
 
@@ -25,6 +26,38 @@ fn orient_normal(normal: Vec4d, ray_direction: Vec4d) -> Vec4d {
         -normal
     } else {
         normal
+    }
+}
+
+impl Light for Triangle {
+    fn get_area(&self) -> f64 {
+        return self.edges[0].cross(self.edges[1]).length() / 2.0;
+    }
+    fn get_samples(&self, count: usize, _scene: &Scene) -> Vec<LightSample> {
+        let mut lights: Vec<LightSample> = vec![];
+        while lights.len() < count {
+            let r1: f64 = thread_rng().gen_range(0.0, 1.0);
+            let r1_root = r1.sqrt();
+            let r2 = thread_rng().gen_range(0.0, 1.0);
+            let a = self.origin;
+            let b = self.origin + self.edges[0];
+            let c = self.origin + self.edges[1];
+
+            let mut point = a
+                .scale(1.0 - r1_root)
+                .add_elements(b.scale(r1_root * (1.0 - r2)))
+                .add_elements(c.scale(r1_root * r2));
+            point.w = 1.0;
+            let sample = LightSample {
+                position: point,
+                direction: None,
+                specular: Vec4d::new(),
+                diffuse: Vec4d::new(),
+                weight: 1.0 / (count as f64),
+            };
+            lights.push(sample);
+        }
+        return lights;
     }
 }
 
@@ -199,6 +232,12 @@ impl HasBoundingBox for Triangle {
 }
 
 impl Intersectable for Triangle {
+    fn get_lights<'a>(&'a self, s: &Scene) -> Vec<&'a Light> {
+        match self.material {
+            Some(mat) if s.get_material(mat).is_light() => vec![self],
+            _ => vec![],
+        }
+    }
     fn intersect<'a>(&'a self, ray: &Ray, min: f64, max: f64) -> Option<(Collision, &'a Shadable)> {
         return self.intersects(ray, min, max);
     }

@@ -25,5 +25,6 @@ pub struct MaterialCollisionInfo {
 }
 
 pub trait Material: Debug {
+    fn is_light(&self) -> bool;
     fn compute_surface_properties(&self, s: &Scene, f: &Fragment) -> MaterialCollisionInfo;
 }

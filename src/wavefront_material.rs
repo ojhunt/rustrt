@@ -119,6 +119,12 @@ fn apply_bump_map(
 }
 
 impl Material for WFMaterial {
+    fn is_light(&self) -> bool {
+        match self.emissive_colour {
+            WFSurfaceProperty::None => false,
+            _ => true,
+        }
+    }
     fn compute_surface_properties(&self, s: &Scene, f: &Fragment) -> MaterialCollisionInfo {
         return apply_bump_map(
             self.bump_map,
@@ -174,7 +180,9 @@ fn load_surface_colour<F: FnMut(&str, bool) -> Option<TextureIdx>>(
                 WFSurfaceProperty::Texture(texture)
             }
             (Some(colour), Some(texture)) => WFSurfaceProperty::Complex(colour, texture),
-            (Some(colour), None) => WFSurfaceProperty::Single(colour),
+            (Some(Colour::RGB(r, g, b)), None) if r != 0.0 && g != 0.0 && b != 0.0 => {
+                WFSurfaceProperty::Single(Colour::RGB(r, g, b))
+            }
             (None, Some(texture)) => WFSurfaceProperty::Texture(texture),
             _ => WFSurfaceProperty::None,
         },

@@ -1,7 +1,6 @@
 use camera::Camera;
 use casefopen;
 use collision::Collision;
-use colour::Colour;
 use compound_object::CompoundObject;
 use genmesh::*;
 use image::*;
@@ -9,6 +8,7 @@ use intersectable::Intersectable;
 use material;
 use obj::{IndexTuple, Obj};
 use objects::Mesh;
+use rand::{thread_rng, Rng};
 use ray::Ray;
 use shader::Shadable;
 use std::collections::HashMap;
@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use texture::{Texture, TextureCoordinateIdx};
 use triangle::Triangle;
 use vectors::{Vec2d, Vec4d};
-use wavefront_material::WFMaterial;
+use wavefront_material::*;
 
 fn vecf32_to_point(v: [f32; 3]) -> Vec4d {
     Vec4d::point(v[0] as f64, v[1] as f64, v[2] as f64)
@@ -103,12 +103,46 @@ impl Scene {
             buffer.push(vec![]);
         }
         let rays = camera.get_rays(size, size);
-        let lights = [
-            Vec4d::point(2., 3., 0.),
-            Vec4d::point(-10., -12., -4.),
-            Vec4d::point(-16., 9.5, 4.),
-            Vec4d::point(-14., 19.5, -2.),
-        ];
+        let light_objects = &self._scene.get_lights(self);
+        let light_areas: &Vec<f64> = &light_objects.iter().map(|l| l.get_area()).collect();
+        let total_area = {
+            let mut area = 0.0;
+            for light_area in light_areas {
+                area += light_area;
+            }
+            area
+        };
+        println!("Light count: {}", light_objects.len());
+
+        let lights = if light_objects.len() != 0 {
+            let max_lights = 1000;
+            let mut remaining_lights = max_lights;
+            let mut lights: Vec<Vec4d> = vec![];
+            for i in 0..light_areas.len() {
+                let light_area = light_areas[i];
+                let light_count = if i < light_areas.len() - 1 {
+                    (max_lights as f64 * (light_area / total_area)) as usize
+                } else {
+                    remaining_lights
+                };
+                remaining_lights -= light_count;
+                let mut samples = light_objects[i]
+                    .get_samples(light_count, self)
+                    .iter()
+                    .map(|l| l.position)
+                    .collect();
+                lights.append(&mut samples);
+            }
+            lights
+        } else {
+            vec![
+                Vec4d::point(2., 3., 0.),
+                Vec4d::point(-10., -12., -4.),
+                Vec4d::point(-16., 9.5, 4.),
+                Vec4d::point(-14., 19.5, -2.),
+            ]
+        };
+        println!("virtual count: {}", lights.len());
         for (x, y, w, ray) in &rays {
             match self.intersect(ray) {
                 None => continue,
@@ -122,25 +156,32 @@ impl Scene {
                     let ambient_colour = Vec4d::from(surface.ambient_colour);
                     let diffuse_colour = Vec4d::from(surface.diffuse_colour);
 
-                    let mut colour = ambient_colour * 0.5;
+                    let mut colour = ambient_colour * 0.2;
                     if true {
-                        for light in lights.iter() {
+                        if diffuse_colour.length() == 0.0 {
+                            continue;
+                        }
+                        let light_samples = 20;
+                        let mut has_intersected = false;
+                        for i in 0..light_samples {
+                            let light = &lights[thread_rng().gen_range(0, lights.len())];
                             let mut ldir = *light - surface.position;
                             let ldir_len = ldir.dot(ldir).sqrt();
                             ldir = ldir.normalize();
+                            if i * 4 < light_samples || has_intersected {
+                                let shadow_test = Ray::new_bound(
+                                    surface.position,
+                                    ldir,
+                                    0.01 * ldir_len,
+                                    ldir_len * 0.999,
+                                );
 
-                            let shadow_test = Ray::new_bound(
-                                surface.position,
-                                ldir,
-                                0.01 * ldir_len,
-                                ldir_len * 0.999,
-                            );
-
-                            if self.intersect(&shadow_test).is_some() {
-                                continue;
+                                if self.intersect(&shadow_test).is_some() {
+                                    has_intersected = true;
+                                    continue;
+                                }
                             }
-
-                            let diffuse_intensity = ldir.dot(surface.normal) / lights.len() as f64;
+                            let diffuse_intensity = ldir.dot(surface.normal) / light_samples as f64;
                             if diffuse_intensity <= 0.0 {
                                 continue;
                             }
@@ -248,35 +289,41 @@ pub fn load_scene(path: &str) -> Scene {
         scn.texture_coords.push(Vec2d(*u as f64, *v as f64));
     }
     let max_tex: usize = scn.texture_coords.len();
-    let mut material_map: HashMap<String, MaterialIdx> = HashMap::new();
+    let mut material_map: HashMap<String, (MaterialIdx, bool)> = HashMap::new();
     let mut materials: Vec<Box<material::Material>> = Vec::new();
 
     let object_count = obj.objects.len();
     for object_index in 0..object_count {
-        let mut index_for_material = |mat: &obj::Material| -> MaterialIdx {
+        let mut index_for_material = |mat: &obj::Material| -> (MaterialIdx, bool) {
             let name = &mat.name;
             if let Some(existing) = material_map.get(name) {
                 return *existing;
             }
-            materials.push(Box::new(WFMaterial::new(mat, |file, need_bumpmap| {
-                load_texture(&mut textures, file, need_bumpmap)
-            })));
-            material_map.insert(name.clone(), MaterialIdx(materials.len() - 1));
-            return MaterialIdx(materials.len() - 1);
+            let material: Box<material::Material> =
+                Box::new(WFMaterial::new(mat, |file, need_bumpmap| {
+                    load_texture(&mut textures, file, need_bumpmap)
+                }));
+            let is_light = material.is_light();
+            materials.push(material);
+
+            material_map.insert(name.clone(), (MaterialIdx(materials.len() - 1), is_light));
+            return (MaterialIdx(materials.len() - 1), is_light);
         };
 
         let object = &obj.objects[object_index];
         let mut object_triangles: Vec<Triangle> = vec![];
 
         let group_count = object.groups.len();
-
+        let mut lights: Vec<(usize, usize)> = vec![];
         for group_index in 0..group_count {
             let ref group = &object.groups[group_index];
-            let material_index = if let Some(ref mat) = group.material {
+            let mut is_light = false;
+            let (material_index, is_light) = if let Some(ref mat) = group.material {
                 let material: &obj::Material = &**mat;
-                Some(index_for_material(material))
+                let (mat, is_light) = index_for_material(material);
+                (Some(mat), is_light)
             } else {
-                None
+                (None, false)
             };
             let mut triangles: Vec<Triangle> = group
                 .polys

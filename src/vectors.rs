@@ -42,6 +42,12 @@ impl Vec4d {
             w: 0.,
         }
     }
+    pub fn square_length(&self) -> f64 {
+        return self.dot(*self);
+    }
+    pub fn length(&self) -> f64 {
+        return self.square_length().sqrt();
+    }
     pub fn dot(&self, rhs: Vec4d) -> f64 {
         assert!(self.w == 0. && rhs.w == 0.);
         return self.x * rhs.x + self.y * rhs.y + self.z * rhs.z;
@@ -59,6 +65,7 @@ impl Vec4d {
             w: self.w * scale,
         }
     }
+
     pub fn add_elements(self, _rhs: Vec4d) -> Vec4d {
         Vec4d {
             x: self.x + _rhs.x,

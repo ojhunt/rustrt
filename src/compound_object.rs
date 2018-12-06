@@ -3,7 +3,8 @@ use bvh::*;
 use collision::Collision;
 use intersectable::Intersectable;
 use ray::Ray;
-use shader::Shadable;
+use scene::Scene;
+use shader::*;
 
 #[derive(Debug)]
 pub struct CompoundObject {
@@ -48,5 +49,13 @@ impl Intersectable for CompoundObject {
             }
             None => panic!(),
         }
+    }
+
+    fn get_lights<'a>(&'a self, s: &Scene) -> Vec<&'a Light> {
+        let mut result: Vec<&'a Light> = vec![];
+        for element in &self.elements {
+            result.append(&mut element.get_lights(s));
+        }
+        return result;
     }
 }
