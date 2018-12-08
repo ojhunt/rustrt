@@ -185,18 +185,13 @@ impl Material for WFMaterial {
         let (refracted_vector, new_context): (Vec4d, RayContext) = match self.index_of_refraction {
             None => (f.view, ray.ray_context.clone()),
             Some(ior) => {
-                // let ior = 1.5;
                 let V = f.view * -1.0;
-                let in_object = V.dot(f.true_normal) > 0.0; // ray.ray_context.current_ior_or(-0.5) == ior;
+                let in_object = V.dot(f.true_normal) > 0.0;
                 let (ni, nt, new_context) = if in_object {
-                    // result.diffuse_colour = Colour::RGB(0.0, 10.0, 0.0);
-                    // result.ambient_colour = Colour::RGB(0.0, 10.0, 0.0);
-                    // return result;
-
                     let new_context = ray.ray_context.exit_material();
                     (
-                        ior, //ray.ray_context.current_ior_or(ior),
-                        1.0, //new_context.current_ior_or(1.0),
+                        ray.ray_context.current_ior_or(ior),
+                        new_context.current_ior_or(1.0),
                         new_context,
                     )
                 } else {
@@ -204,11 +199,7 @@ impl Material for WFMaterial {
                     // result.ambient_colour = Colour::RGB(0.0, 0.0, 100.0);
                     // return result;
                     let new_context = ray.ray_context.enter_material(ior);
-                    (
-                        1.0, //ray.ray_context.current_ior_or(1.0),
-                        ior,
-                        new_context,
-                    )
+                    (ray.ray_context.current_ior_or(1.0), ior, new_context)
                 };
                 let mut nr = ni / nt;
                 // nr = 1.0 / nr;
