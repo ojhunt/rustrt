@@ -23,7 +23,11 @@ pub struct PerspectiveCamera {
 impl PerspectiveCamera {
     fn ray_for_coordinate(&self, x: f64, y: f64) -> Ray {
         let view_target = self.view_origin + (self.x_delta * x) - (self.y_delta * y);
-        Ray::new(self.position, (view_target - self.position).normalize())
+        Ray::new(
+            self.position,
+            (view_target - self.position).normalize(),
+            None,
+        )
     }
     pub fn new(
         width: usize,
@@ -58,8 +62,8 @@ impl PerspectiveCamera {
             fov,
             x_delta,
             y_delta,
-            dxDifferential: Ray::new(position, x_delta),
-            dyDifferential: Ray::new(position, y_delta),
+            dxDifferential: Ray::new(position, x_delta, None),
+            dyDifferential: Ray::new(position, y_delta, None),
         };
     }
 }

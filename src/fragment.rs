@@ -10,6 +10,7 @@ pub struct FragmentDifferentials {
 pub struct Fragment {
     pub position: Vec4d,
     pub normal: Vec4d,
+    pub true_normal: Vec4d,
     pub uv: Vec2d,
 
     pub dpdu: Vec4d,

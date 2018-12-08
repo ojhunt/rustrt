@@ -1,5 +1,6 @@
 use camera::Camera;
 use collision::Collision;
+use colour::Colour;
 use compound_object::CompoundObject;
 use image::*;
 use intersectable::Intersectable;
@@ -85,7 +86,10 @@ impl Scene {
         return &self.textures[idx];
     }
 
-    fn intersect_ray(&self, ray: &Ray, lights: &Vec<Vec4d>) -> Vec4d {
+    fn intersect_ray(&self, ray: &Ray, lights: &Vec<Vec4d>, depth: usize) -> Vec4d {
+        if depth > 10 {
+            return Vec4d::vector(1.0, 1.0, 1.0);
+        }
         match self.intersect(ray) {
             None => return Vec4d::new(),
             Some((c, shadable)) => {
@@ -94,7 +98,7 @@ impl Scene {
                     Some(inner) => self.get_material(inner),
                     None => return Vec4d::new(),
                 };
-                let surface = material.compute_surface_properties(self, &fragment);
+                let surface = material.compute_surface_properties(self, ray, &fragment);
                 let ambient_colour = Vec4d::from(surface.ambient_colour);
                 let mut diffuse_colour = Vec4d::from(surface.diffuse_colour);
                 if let Some(c) = surface.emissive_colour {
@@ -108,18 +112,23 @@ impl Scene {
                 };
                 if true {
                     let mut remaining_weight = 1.0;
-                    for (ray, _colour, weight) in &surface.secondaries {
+                    for (ray, secondary_colour, weight) in &surface.secondaries {
                         if remaining_weight <= 0.0 {
                             break;
                         }
                         remaining_weight -= weight;
-                        colour = colour + self.intersect_ray(ray, lights) * *weight;
+                        colour = colour
+                            + Vec4d::from(
+                                Colour::from(self.intersect_ray(ray, lights, depth + 1))
+                                    * *secondary_colour
+                                    * *weight,
+                            );
                     }
                     diffuse_colour = diffuse_colour * remaining_weight;
                     if diffuse_colour.length() <= 0.01 {
                         return colour;
                     }
-                    let light_samples = 5;
+                    let light_samples = 8;
                     let mut has_intersected = false;
                     for i in 0..light_samples {
                         let light = &lights[thread_rng().gen_range(0, lights.len())];
@@ -132,6 +141,7 @@ impl Scene {
                                 ldir,
                                 0.01 * ldir_len,
                                 ldir_len * 0.999,
+                                None,
                             );
 
                             if self.intersect(&shadow_test).is_some() {
@@ -173,7 +183,7 @@ impl Scene {
         println!("Light count: {}", light_objects.len());
 
         let lights = if light_objects.len() != 0 {
-            let max_lights = 1000;
+            let max_lights = 10000;
             let mut remaining_lights = max_lights;
             let mut lights: Vec<Vec4d> = vec![];
             for i in 0..light_areas.len() {
@@ -201,9 +211,13 @@ impl Scene {
             ]
         };
         println!("virtual count: {}", lights.len());
-        for (x, y, pixel_contribution_weight, ray) in &rays {
-            let colour = self.intersect_ray(ray, &lights);
-            buffer[x + y * size].push(colour * *pixel_contribution_weight);
+        let iteration_count = 1;
+        for _ in 0..iteration_count {
+            for (x, y, pixel_contribution_weight, ray) in &rays {
+                let colour = self.intersect_ray(ray, &lights, 0);
+                buffer[x + y * size]
+                    .push(colour * (*pixel_contribution_weight / iteration_count as f64));
+            }
         }
 
         for (x, y, _pixel) in result.enumerate_pixels_mut() {

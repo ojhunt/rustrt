@@ -42,6 +42,13 @@ impl ops::Mul<f64> for Colour {
         return self.scale(rhs);
     }
 }
+impl ops::Mul<Colour> for Colour {
+    type Output = Colour;
+    fn mul(self, Colour::RGB(rr, rg, rb): Colour) -> Colour {
+        let Colour::RGB(r, g, b) = self;
+        return Colour::RGB(r * rr, g * rg, b * rb);
+    }
+}
 
 impl ops::Mul<Colour> for f64 {
     type Output = Colour;

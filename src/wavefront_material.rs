@@ -10,6 +10,7 @@ use material::{Material, Transparency};
 use obj::{IndexTuple, Obj};
 use objects::Mesh;
 use ray::Ray;
+use ray::RayContext;
 use scene::MaterialIdx;
 use scene::NormalIdx;
 use scene::Scene;
@@ -138,7 +139,12 @@ impl Material for WFMaterial {
             _ => true,
         }
     }
-    fn compute_surface_properties(&self, s: &Scene, f: &Fragment) -> MaterialCollisionInfo {
+    fn compute_surface_properties(
+        &self,
+        s: &Scene,
+        ray: &Ray,
+        f: &Fragment,
+    ) -> MaterialCollisionInfo {
         let normal = perturb_normal(self.bump_map, f, s);
         let mut result = MaterialCollisionInfo {
             ambient_colour: self.ambient_colour.raw_for_fragment(s, f),
@@ -154,12 +160,84 @@ impl Material for WFMaterial {
             return result;
         }
 
+        // Basic reflection
         let reflected_ray = (-2.0 * f.view.dot(normal) * normal + f.view).normalize();
+
+        if self.illumination_model == 5 {
+            result.secondaries.push((
+                Ray::new(
+                    f.position + reflected_ray * 0.01,
+                    reflected_ray,
+                    Some(ray.ray_context.clone()),
+                ),
+                result.specular_colour,
+                1.0,
+            ));
+            return result;
+        }
+
+        let mut transparent_colour = if let Some(transparent_colour) = result.transparent_colour {
+            Colour::RGB(1.0, 1.0, 1.0)
+        } else {
+            Colour::RGB(1.0, 1.0, 1.0) //return result;
+        };
+
+        let (refracted_vector, new_context): (Vec4d, RayContext) = match self.index_of_refraction {
+            None => (f.view, ray.ray_context.clone()),
+            Some(ior) => {
+                // let ior = 1.5;
+                let V = f.view * -1.0;
+                let in_object = V.dot(f.true_normal) > 0.0; // ray.ray_context.current_ior_or(-0.5) == ior;
+                let (ni, nt, new_context) = if in_object {
+                    // result.diffuse_colour = Colour::RGB(0.0, 10.0, 0.0);
+                    // result.ambient_colour = Colour::RGB(0.0, 10.0, 0.0);
+                    // return result;
+
+                    let new_context = ray.ray_context.exit_material();
+                    (
+                        ior, //ray.ray_context.current_ior_or(ior),
+                        1.0, //new_context.current_ior_or(1.0),
+                        new_context,
+                    )
+                } else {
+                    // result.diffuse_colour = Colour::RGB(0.0, 0.0, 100.0);
+                    // result.ambient_colour = Colour::RGB(0.0, 0.0, 100.0);
+                    // return result;
+                    let new_context = ray.ray_context.enter_material(ior);
+                    (
+                        1.0, //ray.ray_context.current_ior_or(1.0),
+                        ior,
+                        new_context,
+                    )
+                };
+                let mut nr = ni / nt;
+                // nr = 1.0 / nr;
+
+                let n_dot_v = normal.dot(V);
+
+                let inner = 1.0 - nr * nr * (1.0 - n_dot_v * n_dot_v);
+                if inner < 0.0 {
+                    // Total internal reflection
+                    // return result;
+                    (reflected_ray, ray.ray_context.clone())
+                } else {
+                    (
+                        ((nr * n_dot_v - inner.sqrt()) * normal - nr * V).normalize(),
+                        new_context,
+                    )
+                }
+            }
+        };
         result.secondaries.push((
-            Ray::new(f.position + reflected_ray * 0.01, reflected_ray),
-            result.specular_colour,
+            Ray::new(
+                f.position + refracted_vector * 0.01,
+                refracted_vector,
+                Some(new_context),
+            ),
+            transparent_colour,
             1.0,
         ));
+
         return result;
     }
 }
@@ -247,20 +325,6 @@ impl WFMaterial {
             sharpness: Some(1.),
             illumination_model: mat.illum.unwrap_or(4) as usize,
         }
-    }
-    fn add_secondaries(
-        &self,
-        s: &Scene,
-        f: &Fragment,
-        m: &MaterialCollisionInfo,
-    ) -> MaterialCollisionInfo {
-        let mut result = m.clone();
-        if self.illumination_model < 5 {
-            return result;
-        }
-        let mut secondaries: Vec<(Ray, f64)> = vec![];
-
-        return result;
     }
 }
 
