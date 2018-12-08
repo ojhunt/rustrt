@@ -177,11 +177,11 @@ impl Material for WFMaterial {
         }
 
         let mut transparent_colour = if let Some(transparent_colour) = result.transparent_colour {
-            Colour::RGB(1.0, 1.0, 1.0)
+            transparent_colour
         } else {
             Colour::RGB(1.0, 1.0, 1.0) //return result;
         };
-
+        let mut refraction_weight = 1.0;
         let (refracted_vector, new_context): (Vec4d, RayContext) = match self.index_of_refraction {
             None => (f.view, ray.ray_context.clone()),
             Some(ior) => {
@@ -195,23 +195,40 @@ impl Material for WFMaterial {
                         new_context,
                     )
                 } else {
-                    // result.diffuse_colour = Colour::RGB(0.0, 0.0, 100.0);
-                    // result.ambient_colour = Colour::RGB(0.0, 0.0, 100.0);
-                    // return result;
                     let new_context = ray.ray_context.enter_material(ior);
                     (ray.ray_context.current_ior_or(1.0), ior, new_context)
                 };
                 let mut nr = ni / nt;
-                // nr = 1.0 / nr;
 
                 let n_dot_v = normal.dot(V);
 
                 let inner = 1.0 - nr * nr * (1.0 - n_dot_v * n_dot_v);
                 if inner < 0.0 {
-                    // Total internal reflection
-                    // return result;
                     (reflected_ray, ray.ray_context.clone())
                 } else {
+                    // Schlick approximation of fresnel term
+                    let r0 = {
+                        let r0root = (nt - ni) / (nt + ni);
+                        r0root * r0root
+                    };
+                    let fresnel_weight = {
+                        let one_minus_cos_theta = 1.0 - n_dot_v;
+                        let squared = one_minus_cos_theta * one_minus_cos_theta;
+                        let quintupled = squared * squared * one_minus_cos_theta;
+                        r0 + (1.0 - r0) * quintupled
+                    };
+                    if fresnel_weight > 0.02 {
+                        result.secondaries.push((
+                            Ray::new(
+                                f.position + reflected_ray * 0.01,
+                                reflected_ray,
+                                Some(ray.ray_context.clone()),
+                            ),
+                            result.specular_colour,
+                            fresnel_weight,
+                        ));
+                        refraction_weight -= fresnel_weight;
+                    }
                     (
                         ((nr * n_dot_v - inner.sqrt()) * normal - nr * V).normalize(),
                         new_context,
@@ -226,7 +243,7 @@ impl Material for WFMaterial {
                 Some(new_context),
             ),
             transparent_colour,
-            1.0,
+            refraction_weight,
         ));
 
         return result;
