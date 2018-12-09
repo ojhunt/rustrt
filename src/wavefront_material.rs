@@ -161,7 +161,7 @@ impl Material for WFMaterial {
         }
 
         // Basic reflection
-        let reflected_ray = (-2.0 * f.view.dot(normal) * normal + f.view).normalize();
+        let reflected_ray = f.view.reflect(normal);
 
         if self.illumination_model == 5 {
             result.secondaries.push((

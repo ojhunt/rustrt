@@ -33,6 +33,13 @@ impl Vec4d {
             w: 1.0,
         }
     }
+
+    pub fn reflect(&self, normal: Vec4d) -> Vec4d {
+        assert!(self.w == 0. && normal.w == 0.);
+        assert!(self.dot(normal) <= 0.0);
+        (-2.0 * self.dot(normal) * normal + *self).normalize()
+    }
+
     pub fn cross(&self, rhs: Vec4d) -> Vec4d {
         assert!(self.w == 0. && rhs.w == 0.);
         Vec4d {

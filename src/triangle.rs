@@ -33,7 +33,7 @@ impl Light for Triangle {
     fn get_area(&self) -> f64 {
         return self.edges[0].cross(self.edges[1]).length() / 2.0;
     }
-    fn get_samples(&self, count: usize, _scene: &Scene) -> Vec<LightSample> {
+    fn get_samples(&self, count: usize, scene: &Scene) -> Vec<LightSample> {
         let mut lights: Vec<LightSample> = vec![];
         while lights.len() < count {
             let r1: f64 = thread_rng().gen_range(0.0, 1.0);
@@ -42,15 +42,24 @@ impl Light for Triangle {
             let a = self.origin;
             let b = self.origin + self.edges[0];
             let c = self.origin + self.edges[1];
-
             let mut point = a
                 .scale(1.0 - r1_root)
                 .add_elements(b.scale(r1_root * (1.0 - r2)))
                 .add_elements(c.scale(r1_root * r2));
             point.w = 1.0;
+            let light_direction: Vec4d = match (self.normals[0], self.normals[1], self.normals[2]) {
+                (Some(n_idx0), Some(_), Some(_)) => n_idx0.get(scene),
+                (Some(idx), None, None) => idx.get(scene),
+                (None, Some(idx), None) => idx.get(scene),
+                (None, None, Some(idx)) => idx.get(scene),
+                _ => self.edges[0]
+                    .normalize()
+                    .cross(self.edges[1].normalize())
+                    .normalize(),
+            };
             let sample = LightSample {
                 position: point,
-                direction: None,
+                direction: Some(light_direction),
                 specular: Vec4d::new(),
                 diffuse: Vec4d::new(),
                 weight: 1.0 / (count as f64),

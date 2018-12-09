@@ -15,6 +15,10 @@ impl Colour {
         let Colour::RGB(r, g, b) = *self;
         return Colour::RGB(r + rr, g + rg, b + rb);
     }
+    pub fn intensity(&self) -> f64 {
+        let Colour::RGB(r, g, b) = *self;
+        return (r * r + g * g + b * b).sqrt();
+    }
 }
 
 impl From<Colour> for Vec4d {
