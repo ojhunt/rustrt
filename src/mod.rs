@@ -1,4 +1,3 @@
-
 mod basic_object;
 mod camera;
 mod collision;

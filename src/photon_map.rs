@@ -79,7 +79,7 @@ impl PhotonMap {
         let mut photon_ray = Ray::new(sample.position + light_dir * 0.01, light_dir, None);
         let mut photon_colour = Colour::from(sample.specular);
         let mut path_length: usize = 0;
-        'photon_bounce_loop: while photons.len() < photon_count {
+        'photon_bounce_loop: while photons.len() < photon_count && path_length < 16 {
           bounces += 1;
           path_length += 1;
           max_bounces = max_bounces.max(path_length);
