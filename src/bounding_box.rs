@@ -72,10 +72,10 @@ impl BoundingBox {
     if self.max.x > self.min.x {
       o.x /= self.max.x - self.min.x;
     }
-    if self.max.x > self.min.x {
+    if self.max.y > self.min.y {
       o.y /= self.max.y - self.min.y;
     }
-    if self.max.x > self.min.x {
+    if self.max.z > self.min.z {
       o.z /= self.max.z - self.min.z;
     }
     return o;

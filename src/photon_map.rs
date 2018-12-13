@@ -1,3 +1,5 @@
+use bounding_box::BoundingBox;
+use bounding_box::HasBoundingBox;
 use colour::Colour;
 use fragment::Fragment;
 use kdtree::KDTree;
@@ -12,6 +14,12 @@ use vectors::Vec4d;
 struct Photon {
   colour: Colour,
   position: Vec4d,
+}
+
+impl HasBoundingBox for Photon {
+  fn bounds(&self) -> BoundingBox {
+    BoundingBox::new_from_point(self.position)
+  }
 }
 
 #[derive(Debug)]
