@@ -1,3 +1,4 @@
+use kdtree::HasPosition;
 use bounding_box::BoundingBox;
 use bounding_box::HasBoundingBox;
 use colour::Colour;
@@ -19,6 +20,11 @@ struct Photon {
 impl HasBoundingBox for Photon {
   fn bounds(&self) -> BoundingBox {
     BoundingBox::new_from_point(self.position)
+  }
+}
+impl HasPosition for Photon {
+  fn get_position(&self) -> Vec4d {
+    return self.position;
   }
 }
 
@@ -172,8 +178,11 @@ impl PhotonMap {
     println!("Average path length: {}", average_bounces);
     println!("Total paths: {}", paths);
     println!("Max path length: {}", max_bounces);
-    return PhotonMap {
-      tree: KDTree::new(&photons),
-    };
+    let tree = KDTree::new(&photons);
+    let (min, max) = tree.depth();
+    println!("Tree minimum depth {}", min);
+    println!("Tree maximum depth {}", max);
+
+    return PhotonMap { tree };
   }
 }
