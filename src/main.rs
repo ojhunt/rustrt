@@ -39,6 +39,8 @@ struct SceneSettings {
   pub camera_position: Vec4d,
   pub camera_target: Vec4d,
   pub camera_up: Vec4d,
+  pub max_leaf_photons: usize,
+  pub photon_samples: usize,
 }
 
 impl SceneSettings {
@@ -49,6 +51,8 @@ impl SceneSettings {
       camera_position: Vec4d::point(0., 0.5, 0.),
       camera_target: Vec4d::point(0., 0., 10000000.),
       camera_up: Vec4d::vector(0.0, 1.0, 0.0),
+      max_leaf_photons: 8,
+      photon_samples: 0,
     };
   }
 }
@@ -100,6 +104,20 @@ fn load_settings() -> SceneSettings {
     Ok(value) => settings.camera_target = value.as_point(),
     _ => {}
   }
+  match value_t!(matches, "max_leaf_photons", usize) {
+    Ok(value) => {
+      println!("max-leaf-photons: {}", value);
+      settings.max_leaf_photons = value.max(4);
+    }
+    _ => {}
+  }
+  match value_t!(matches, "photon_samples", usize) {
+    Ok(value) => {
+      println!("photon_samples: {}", value);
+      settings.photon_samples = value;
+    }
+    _ => {}
+  }
   return settings;
 }
 
@@ -107,7 +125,8 @@ fn main() {
   let settings = load_settings();
 
   const SIZE: usize = 700;
-  let scn = load_scene(&settings.scene_file);
+  let mut scn = load_scene(&settings.scene_file);
+  scn.finalize(settings.max_leaf_photons);
   let camera = PerspectiveCamera::new(
     SIZE,
     SIZE,
@@ -118,7 +137,7 @@ fn main() {
   );
 
   let start = std::time::Instant::now();
-  let output = scn.render(&camera, SIZE);
+  let output = scn.render(&camera, settings.photon_samples, SIZE);
   let end = std::time::Instant::now();
   let delta = end - start;
   let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;

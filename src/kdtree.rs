@@ -150,8 +150,12 @@ impl<T: Clone + HasPosition> KDTree<T> {
   }
 }
 
-fn build_tree<T: Clone + HasBoundingBox + HasPosition>(elements: &[T], bounds: BoundingBox) -> KDTreeNode<T> {
-  if elements.len() < 8 {
+fn build_tree<T: Clone + HasBoundingBox + HasPosition>(
+  elements: &[T],
+  bounds: BoundingBox,
+  max_children: usize,
+) -> KDTreeNode<T> {
+  if elements.len() < max_children {
     return KDTreeNode::Leaf(elements.to_vec(), bounds);
   }
   let max_axis = bounds.max_axis();
@@ -183,22 +187,27 @@ fn build_tree<T: Clone + HasBoundingBox + HasPosition>(elements: &[T], bounds: B
   return KDTreeNode::Node(KDTreeInnerNode {
     axis: max_axis,
     value: split_point,
-    children: Box::new([build_tree(left, left_bounds), build_tree(right, right_bounds)]),
+    children: Box::new([
+      build_tree(left, left_bounds, max_children),
+      build_tree(right, right_bounds, max_children),
+    ]),
     bounds: bounds,
   });
 }
 
 impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
-  pub fn new(elements: &[T]) -> Self {
+  pub fn new(elements: &[T], max_children: usize) -> Self {
     let mut bounds = BoundingBox::new();
     for elem in elements {
       bounds = bounds.merge_with_bbox(elem.bounds());
     }
+    println!("Max children: {}", max_children);
     return KDTree {
-      root: build_tree(elements, bounds),
+      root: build_tree(elements, bounds, max_children),
     };
   }
-  pub fn nearest(&self, position: Vec4d, count: usize) -> Vec<T> {
-    return self.root.nearest(position, count, std::f64::INFINITY).0;
+  pub fn nearest(&self, position: Vec4d, count: usize) -> (Vec<T>, f64) {
+    let (elements, _, distance) = self.root.nearest(position, count, std::f64::INFINITY);
+    return (elements, distance);
   }
 }

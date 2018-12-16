@@ -15,6 +15,7 @@ use vectors::Vec4d;
 struct Photon {
   colour: Colour,
   position: Vec4d,
+  direction: Vec4d,
 }
 
 impl HasBoundingBox for Photon {
@@ -53,7 +54,7 @@ fn random_in_hemisphere(normal: Vec4d) -> Vec4d {
 }
 
 impl PhotonMap {
-  pub fn new(scene: &Scene) -> PhotonMap {
+  pub fn new(scene: &Scene, max_elements_per_leaf: usize) -> PhotonMap {
     let mut photons: Vec<Photon> = vec![];
     let lights = &scene.get_lights();
     let mut virtual_lights: Vec<LightSample> = vec![];
@@ -64,7 +65,7 @@ impl PhotonMap {
     let mut max_bounces: usize = 0;
     let mut paths = 0;
     let start = std::time::Instant::now();
-    let photon_count = 1000000;
+    let photon_count = 10000000;
     while photons.len() < photon_count {
       'photon_loop: for sample in &virtual_lights {
         paths += 1;
@@ -91,7 +92,7 @@ impl PhotonMap {
 
         let mut throughput = Colour::RGB(1.0, 1.0, 1.0);
         let mut photon_ray = Ray::new(sample.position + light_dir * 0.01, light_dir, None);
-        let mut photon_colour = Colour::from(sample.specular);
+        let mut photon_colour = Colour::from(sample.diffuse);
         let mut path_length: usize = 0;
         'photon_bounce_loop: while photons.len() < photon_count && path_length < 16 {
           bounces += 1;
@@ -110,11 +111,6 @@ impl PhotonMap {
 
           let surface: MaterialCollisionInfo = material.compute_surface_properties(scene, &photon_ray, &fragment);
 
-          photons.push(Photon {
-            colour: photon_colour * surface.diffuse_colour,
-            position: fragment.position,
-          });
-
           let mut next = {
             let mut selection = random(0.0, 1.0);
             let mut result = None;
@@ -128,6 +124,16 @@ impl PhotonMap {
             }
             result
           };
+          if bounces > 1 {
+            photons.push(Photon {
+              colour: photon_colour * surface.diffuse_colour,
+              position: fragment.position,
+              direction: match &next {
+                None => surface.normal,
+                Some((ray, _)) => ray.direction,
+              },
+            });
+          }
           if next.is_none() {
             let diffuse_direction = random_in_hemisphere(surface.normal);
             let diffuse_intensity = diffuse_direction.dot(surface.normal);
@@ -155,7 +161,7 @@ impl PhotonMap {
 
           let (next_ray, next_colour) = next.unwrap();
 
-          // Now we know the colour and diretion of the next bounce, let's decide if we're keeping it.
+          // Now we know the colour and direction of the next bounce, let's decide if we're keeping it.
           throughput = throughput * next_colour;
           let p = random(0.0, 1.0);
           if p > throughput.intensity() {
@@ -178,11 +184,30 @@ impl PhotonMap {
     println!("Average path length: {}", average_bounces);
     println!("Total paths: {}", paths);
     println!("Max path length: {}", max_bounces);
-    let tree = KDTree::new(&photons);
+    let tree = KDTree::new(&photons, max_elements_per_leaf);
     let (min, max) = tree.depth();
     println!("Tree minimum depth {}", min);
     println!("Tree maximum depth {}", max);
 
     return PhotonMap { tree };
+  }
+  pub fn lighting(&self, position: Vec4d, direction: Vec4d, photon_samples: usize) -> Colour {
+    if photon_samples == 0 {
+      return Colour::RGB(0.0, 0.0, 0.0);
+    }
+    let mut result = Vec4d::new();
+    let (photons, radius) = self.tree.nearest(position, photon_samples);
+    let mut count = 0.0;
+    for photon in &photons {
+      let photon_distance = (photon.position - position).length();
+      let contribution = 1.0; //- photon_distance / radius; // - photon_distance / (radius * radius);
+      let pd_dot_n = photon.direction.dot(direction);
+      if pd_dot_n < 0.0 {
+        continue;
+      }
+      result = result + Vec4d::from(photon.colour) * contribution; // * pd_dot_n;
+      count += 1.0;
+    }
+    return Colour::from(result * (1.0 / count));
   }
 }

@@ -68,9 +68,9 @@ impl Scene {
     return self._scene.intersect(ray, ray.min, ray.max);
   }
 
-  pub fn finalize(&mut self) {
+  pub fn finalize(&mut self, max_elements_per_leaf: usize) {
     self._scene.finalize();
-    self.rebuild_photon_map();
+    self.rebuild_photon_map(max_elements_per_leaf);
   }
 
   pub fn get_normal(&self, idx: usize) -> Vec4d {
@@ -79,8 +79,8 @@ impl Scene {
     return n;
   }
 
-  fn rebuild_photon_map(&mut self) {
-    self.photon_map = Some(PhotonMap::new(self));
+  fn rebuild_photon_map(&mut self, max_elements_per_leaf: usize) {
+    self.photon_map = Some(PhotonMap::new(self, max_elements_per_leaf));
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {
@@ -98,7 +98,7 @@ impl Scene {
     return &self.textures[idx];
   }
 
-  fn intersect_ray(&self, ray: &Ray, lights: &Vec<Vec4d>, depth: usize) -> Vec4d {
+  fn intersect_ray(&self, ray: &Ray, lights: &Vec<Vec4d>, photon_samples: usize, depth: usize) -> Vec4d {
     if depth > 10 {
       return Vec4d::vector(1.0, 1.0, 1.0);
     }
@@ -106,6 +106,7 @@ impl Scene {
       None => return Vec4d::new(),
       Some((c, shadable)) => {
         let fragment = shadable.compute_fragment(self, ray, &c);
+
         let material = match fragment.material {
           Some(inner) => self.get_material(inner),
           None => return Vec4d::new(),
@@ -120,7 +121,10 @@ impl Scene {
         let mut colour = if surface.secondaries.len() > 0 {
           Vec4d::new()
         } else {
-          ambient_colour * 0.2
+          match &self.photon_map {
+            None => ambient_colour * 0.2,
+            Some(photon_map) => Vec4d::from(photon_map.lighting(fragment.position, fragment.normal, photon_samples)),
+          }
         };
         if true {
           let mut remaining_weight = 1.0;
@@ -130,7 +134,9 @@ impl Scene {
             }
             remaining_weight -= weight;
             colour = colour
-              + Vec4d::from(Colour::from(self.intersect_ray(ray, lights, depth + 1)) * *secondary_colour * *weight);
+              + Vec4d::from(
+                Colour::from(self.intersect_ray(ray, lights, photon_samples, depth + 1)) * *secondary_colour * *weight,
+              );
           }
           diffuse_colour = diffuse_colour * remaining_weight;
           if diffuse_colour.length() <= 0.01 {
@@ -210,7 +216,7 @@ impl Scene {
       .collect();
     };
   }
-  pub fn render<C: Camera>(&self, camera: &C, size: usize) -> DynamicImage {
+  pub fn render<C: Camera>(&self, camera: &C, photon_samples: usize, size: usize) -> DynamicImage {
     let mut result = image::RgbImage::new(size as u32, size as u32);
     let mut buffer: Vec<Vec<Vec4d>> = vec![];
     for _ in 0..(size * size) {
@@ -219,11 +225,11 @@ impl Scene {
     let rays = camera.get_rays(size, size);
 
     let lights = self.get_light_samples(10000).iter().map(|l| l.position).collect();
-
+    println!("photon samples: {}", photon_samples);
     let iteration_count = 1;
     for _ in 0..iteration_count {
       for (x, y, pixel_contribution_weight, ray) in &rays {
-        let colour = self.intersect_ray(ray, &lights, 0);
+        let colour = self.intersect_ray(ray, &lights, photon_samples, 0);
         buffer[x + y * size].push(colour * (*pixel_contribution_weight / iteration_count as f64));
       }
     }

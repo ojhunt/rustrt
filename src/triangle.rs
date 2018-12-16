@@ -47,18 +47,22 @@ impl Light for Triangle {
         .add_elements(b.scale(r1_root * (1.0 - r2)))
         .add_elements(c.scale(r1_root * r2));
       point.w = 1.0;
-      let light_direction: Vec4d = match (self.normals[0], self.normals[1], self.normals[2]) {
-        (Some(n_idx0), Some(_), Some(_)) => n_idx0.get(scene),
-        (Some(idx), None, None) => idx.get(scene),
-        (None, Some(idx), None) => idx.get(scene),
-        (None, None, Some(idx)) => idx.get(scene),
-        _ => self.edges[0].normalize().cross(self.edges[1].normalize()).normalize(),
+      let normal = self.true_normal();
+      let ray = Ray::new(point + normal, normal * -1.0, None);
+      let (collision, _) = self.intersect(&ray, 0.0, std::f64::INFINITY).unwrap();
+      let fragment = self.compute_fragment(scene, &ray, &collision);
+
+      let material = match fragment.material {
+        Some(inner) => scene.get_material(inner),
+        None => panic!(),
       };
+      let surface = material.compute_surface_properties(scene, &ray, &fragment);
+
       let sample = LightSample {
         position: point,
-        direction: Some(light_direction),
-        specular: Vec4d::new(),
-        diffuse: Vec4d::new(),
+        direction: Some(fragment.normal),
+        specular: Vec4d::from(surface.specular_colour),
+        diffuse: Vec4d::from(surface.diffuse_colour),
         weight: 1.0 / (count as f64),
       };
       lights.push(sample);
@@ -202,6 +206,27 @@ impl Triangle {
     }
 
     return Some((Collision::new(t, Vec2d(u, v)), self));
+  }
+
+  pub fn barycentric_for_point(&self, position: Vec4d) -> (f64, f64, f64) {
+    // From https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
+    let v0 = self.edges[0];
+    let v1 = self.edges[1];
+    let v2 = position - self.origin;
+    let d00 = v0.dot(v0);
+    let d01 = v0.dot(v1);
+    let d11 = v1.dot(v1);
+    let d20 = v2.dot(v0);
+    let d21 = v2.dot(v1);
+    let denom = d00 * d11 - d01 * d01;
+    let v = (d11 * d20 - d01 * d21) / denom;
+    let w = (d00 * d21 - d01 * d20) / denom;
+    let u = 1.0 - v - w;
+    return (u, v, w);
+  }
+
+  fn true_normal(&self) -> Vec4d {
+    self.edges[0].normalize().cross(self.edges[1].normalize()).normalize()
   }
 }
 

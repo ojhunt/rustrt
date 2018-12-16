@@ -489,6 +489,5 @@ pub fn load_scene(path: &str) -> Scene {
   scn.materials.append(&mut materials);
   scn.textures.append(&mut textures);
 
-  scn.finalize();
   return scn;
 }

@@ -26,5 +26,15 @@ args:
         short: t
         long: target
         takes_value: true
+    - max_leaf_photons:
+        help: Maximum number of photons in each leaf of the photon map
+        long: max-leaf-photons
+        takes_value: true
+    - photon_samples:
+        help: Number of photons to sample from the photon map
+        long: photon-samples
+        takes_value: true
+
+
 
 
