@@ -81,7 +81,7 @@ impl PhotonMap {
     let mut max_bounces: usize = 0;
     let mut paths = 0;
     let start = std::time::Instant::now();
-    let photon_count = target_photo_count;
+    let mut photon_count = target_photo_count;
     while photons.len() < photon_count {
       'photon_loop: for sample in &virtual_lights {
         paths += 1;
@@ -142,6 +142,7 @@ impl PhotonMap {
           };
           let path_mode = selector.record_mode(&surface, bounces);
           if path_mode == RecordMode::TerminatePath {
+            photon_count -= 1;
             continue 'photon_loop;
           }
           if path_mode != RecordMode::DontRecord {
