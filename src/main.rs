@@ -13,6 +13,7 @@ mod collision;
 mod colour;
 mod compound_object;
 mod fragment;
+mod heap;
 mod intersectable;
 mod kdtree;
 mod material;
