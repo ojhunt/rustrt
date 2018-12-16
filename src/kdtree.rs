@@ -102,41 +102,39 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
   }
 
   // Far from optimal -- the furthest node should start its calculation on top of the existing list
-  fn nearest(&self, position: Vec4d, count: usize, max_distance: f64) -> (Vec<T>, BoundingBox, f64) {
+  fn nearest(&self, nearest_elements: &mut PriorityHeap<(f64, T)>, position: Vec4d) {
+    let comparator = |a: &(f64, &T), b: &(f64, &T)| {};
     let node = match self {
       KDTreeNode::Leaf(elements, bounds) => {
-        return merge_nearest((elements, *bounds), None, position, count);
+        for element in elements {
+          let distance = (position - element.get_position()).length();
+          nearest_elements.insert((distance, element.clone()));
+        }
+        return;
       }
       KDTreeNode::Node(node) => node,
     };
-    let (nearest_child, farthest_child) = {
+
+    let (nearest_child, farthest_child, left_of_split) = {
       if position[node.axis] < node.value {
-        (&node.children[0], &node.children[1])
+        (&node.children[0], &node.children[1], true)
       } else {
-        (&node.children[1], &node.children[0])
+        (&node.children[1], &node.children[0], false)
       }
     };
-
-    let (nearest_elements, nearest_bounds, current_worst) = nearest_child.nearest(position, count, std::f64::INFINITY);
-    if nearest_elements.len() == count && shortest_distance(position, farthest_child.bounds()) > current_worst {
-      return (nearest_elements, nearest_bounds, current_worst);
+    nearest_child.nearest(nearest_elements, position);
+    if let Some((distance, _)) = nearest_elements.top() {
+      if left_of_split {
+        if position[node.axis] + distance < node.value {
+          return;
+        }
+      } else {
+        if position[node.axis] - distance > node.value {
+          return;
+        }
+      }
     }
-
-    let worst_for_far_branch = {
-      if nearest_elements.len() == count {
-        current_worst
-      } else {
-        std::f64::INFINITY
-      }
-    };
-    let (farthest_elements, farthest_bounds, farthest_worse) =
-      farthest_child.nearest(position, count, worst_for_far_branch);
-    return merge_nearest(
-      (&nearest_elements, nearest_bounds),
-      Some((&farthest_elements, farthest_bounds)),
-      position,
-      count,
-    );
+    farthest_child.nearest(nearest_elements, position);
   }
 }
 
@@ -208,7 +206,13 @@ impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
     };
   }
   pub fn nearest(&self, position: Vec4d, count: usize) -> (Vec<T>, f64) {
-    let (elements, _, distance) = self.root.nearest(position, count, std::f64::INFINITY);
-    return (elements, distance);
+    let comparator = |a: &(f64, T), b: &(f64, T)| return a.0.partial_cmp(&b.0).unwrap();
+    let mut queue: PriorityHeap<(f64, T)> = PriorityHeap::new(&comparator, count);
+    self.root.nearest(&mut queue, position);
+    if queue.is_empty() {
+      return (vec![], std::f64::INFINITY);
+    }
+    let result = queue.slice().iter().map(|(_, elem)| elem.clone()).collect();
+    return (result, queue.top().unwrap().0);
   }
 }
