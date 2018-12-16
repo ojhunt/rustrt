@@ -87,7 +87,7 @@ impl Scene {
     let diffuse_selector = DiffuseSelector::new();
     // self.diffuse_photon_map = Some(PhotonMap::new(&diffuse_selector, self, 100000, max_elements_per_leaf));
     let caustic_selector = CausticSelector::new();
-    self.caustic_photon_map = Some(PhotonMap::new(&caustic_selector, self, 100000, max_elements_per_leaf));
+    self.caustic_photon_map = Some(PhotonMap::new(&caustic_selector, self, 1000000, max_elements_per_leaf));
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {
