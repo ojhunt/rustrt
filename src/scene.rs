@@ -5,6 +5,7 @@ use compound_object::CompoundObject;
 use image::*;
 use intersectable::Intersectable;
 use material;
+use photon_map::CausticSelector;
 use photon_map::DiffuseSelector;
 use photon_map::PhotonMap;
 use rand::{thread_rng, Rng};
@@ -43,7 +44,8 @@ pub struct Scene {
   pub texture_coords: Vec<Vec2d>,
   pub textures: Vec<Texture>,
   _scene: CompoundObject,
-  photon_map: Option<PhotonMap>,
+  diffuse_photon_map: Option<PhotonMap>,
+  caustic_photon_map: Option<PhotonMap>,
 }
 
 impl Scene {
@@ -58,7 +60,8 @@ impl Scene {
       texture_coords: Vec::new(),
       textures: Vec::new(),
       _scene: CompoundObject::new(),
-      photon_map: None,
+      diffuse_photon_map: None,
+      caustic_photon_map: None,
     }
   }
   pub fn add_object(&mut self, object: Box<Intersectable>) {
@@ -82,7 +85,9 @@ impl Scene {
 
   fn rebuild_photon_map(&mut self, max_elements_per_leaf: usize) {
     let diffuse_selector = DiffuseSelector::new();
-    self.photon_map = Some(PhotonMap::new(&diffuse_selector, self, max_elements_per_leaf));
+    // self.diffuse_photon_map = Some(PhotonMap::new(&diffuse_selector, self, 100000, max_elements_per_leaf));
+    let caustic_selector = CausticSelector::new();
+    self.caustic_photon_map = Some(PhotonMap::new(&caustic_selector, self, 100000, max_elements_per_leaf));
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {
@@ -123,10 +128,17 @@ impl Scene {
         let mut colour = if surface.secondaries.len() > 0 {
           Vec4d::new()
         } else {
-          match &self.photon_map {
+          let diffuse = match &self.diffuse_photon_map {
             None => ambient_colour * 0.2,
             Some(photon_map) => Vec4d::from(photon_map.lighting(fragment.position, fragment.normal, photon_samples)),
-          }
+          };
+          let caustic = match &self.caustic_photon_map {
+            None => ambient_colour * 0.0,
+            Some(photon_map) => {
+              Vec4d::from(photon_map.lighting(fragment.position, fragment.normal, (photon_samples / 8).max(1)))
+            }
+          };
+          diffuse + caustic
         };
         if true {
           let mut remaining_weight = 1.0;

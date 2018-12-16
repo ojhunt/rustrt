@@ -65,7 +65,12 @@ fn random_in_hemisphere(normal: Vec4d) -> Vec4d {
 }
 
 impl PhotonMap {
-  pub fn new<Selector: PhotonSelector>(selector: &Selector, scene: &Scene, max_elements_per_leaf: usize) -> PhotonMap {
+  pub fn new<Selector: PhotonSelector>(
+    selector: &Selector,
+    scene: &Scene,
+    target_photo_count: usize,
+    max_elements_per_leaf: usize,
+  ) -> PhotonMap {
     let mut photons: Vec<Photon> = vec![];
     let lights = &scene.get_lights();
     let mut virtual_lights: Vec<LightSample> = vec![];
@@ -76,7 +81,7 @@ impl PhotonMap {
     let mut max_bounces: usize = 0;
     let mut paths = 0;
     let start = std::time::Instant::now();
-    let photon_count = 10000000;
+    let photon_count = target_photo_count;
     while photons.len() < photon_count {
       'photon_loop: for sample in &virtual_lights {
         paths += 1;
@@ -242,5 +247,22 @@ impl PhotonSelector for DiffuseSelector {
       return RecordMode::Record;
     }
     return RecordMode::DontRecord;
+  }
+}
+
+pub struct CausticSelector {}
+
+impl CausticSelector {
+  pub fn new() -> CausticSelector {
+    CausticSelector {}
+  }
+}
+
+impl PhotonSelector for CausticSelector {
+  fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
+    if depth > 1 || surface.secondaries.len() > 0 {
+      return RecordMode::Record;
+    }
+    return RecordMode::TerminatePath;
   }
 }
