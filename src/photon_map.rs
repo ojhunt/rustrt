@@ -4,7 +4,6 @@ use bounding_box::BoundingBox;
 use bounding_box::HasBoundingBox;
 use colour::Colour;
 use fragment::Fragment;
-use heap::Heap;
 use kdtree::KDTree;
 use material::MaterialCollisionInfo;
 use rand::{thread_rng, Rng};

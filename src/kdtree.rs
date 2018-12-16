@@ -1,7 +1,7 @@
 use vectors::Vec4d;
 use bounding_box::BoundingBox;
 use bounding_box::HasBoundingBox;
-use heap::Heap;
+use heap::PriorityHeap;
 
 pub trait HasPosition {
   fn get_position(&self) -> Vec4d;
