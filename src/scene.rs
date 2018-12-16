@@ -5,6 +5,7 @@ use compound_object::CompoundObject;
 use image::*;
 use intersectable::Intersectable;
 use material;
+use photon_map::DiffuseSelector;
 use photon_map::PhotonMap;
 use rand::{thread_rng, Rng};
 use ray::Ray;
@@ -80,7 +81,8 @@ impl Scene {
   }
 
   fn rebuild_photon_map(&mut self, max_elements_per_leaf: usize) {
-    self.photon_map = Some(PhotonMap::new(self, max_elements_per_leaf));
+    let diffuse_selector = DiffuseSelector::new();
+    self.photon_map = Some(PhotonMap::new(&diffuse_selector, self, max_elements_per_leaf));
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {

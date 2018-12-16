@@ -29,6 +29,17 @@ impl HasPosition for Photon {
   }
 }
 
+#[derive(PartialEq)]
+pub enum RecordMode {
+  TerminatePath,
+  DontRecord,
+  Record,
+}
+
+pub trait PhotonSelector {
+  fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode;
+}
+
 #[derive(Debug)]
 pub struct PhotonMap {
   tree: KDTree<Photon>,
@@ -54,7 +65,7 @@ fn random_in_hemisphere(normal: Vec4d) -> Vec4d {
 }
 
 impl PhotonMap {
-  pub fn new(scene: &Scene, max_elements_per_leaf: usize) -> PhotonMap {
+  pub fn new<Selector: PhotonSelector>(selector: &Selector, scene: &Scene, max_elements_per_leaf: usize) -> PhotonMap {
     let mut photons: Vec<Photon> = vec![];
     let lights = &scene.get_lights();
     let mut virtual_lights: Vec<LightSample> = vec![];
@@ -113,18 +124,22 @@ impl PhotonMap {
 
           let mut next = {
             let mut selection = random(0.0, 1.0);
-            let mut result = None;
-            for (secondary_ray, secondary_colour, secondary_weight) in surface.secondaries {
-              if selection > secondary_weight {
+            let mut result: Option<(Ray, Colour)> = None;
+            for (secondary_ray, secondary_colour, secondary_weight) in &surface.secondaries {
+              if selection > *secondary_weight {
                 selection -= secondary_weight;
                 continue;
               }
 
-              result = Some((secondary_ray, secondary_colour))
+              result = Some((secondary_ray.clone(), *secondary_colour))
             }
             result
           };
-          if bounces > 1 {
+          let path_mode = selector.record_mode(&surface, bounces);
+          if path_mode == RecordMode::TerminatePath {
+            continue 'photon_loop;
+          }
+          if path_mode != RecordMode::DontRecord {
             photons.push(Photon {
               colour: photon_colour * surface.diffuse_colour,
               position: fragment.position,
@@ -191,6 +206,7 @@ impl PhotonMap {
 
     return PhotonMap { tree };
   }
+
   pub fn lighting(&self, position: Vec4d, direction: Vec4d, photon_samples: usize) -> Colour {
     if photon_samples == 0 {
       return Colour::RGB(0.0, 0.0, 0.0);
@@ -209,5 +225,22 @@ impl PhotonMap {
       count += 1.0;
     }
     return Colour::from(result * (1.0 / count));
+  }
+}
+
+pub struct DiffuseSelector {}
+
+impl DiffuseSelector {
+  pub fn new() -> DiffuseSelector {
+    DiffuseSelector {}
+  }
+}
+
+impl PhotonSelector for DiffuseSelector {
+  fn record_mode(&self, _surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
+    if depth > 1 {
+      return RecordMode::Record;
+    }
+    return RecordMode::DontRecord;
   }
 }
