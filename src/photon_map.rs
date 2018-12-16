@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use kdtree::HasPosition;
 use bounding_box::BoundingBox;
 use bounding_box::HasBoundingBox;
@@ -12,7 +13,7 @@ use shader::LightSample;
 use vectors::Vec4d;
 
 #[derive(Clone, Debug)]
-struct Photon {
+pub struct Photon {
   colour: Colour,
   position: Vec4d,
   direction: Vec4d,
@@ -33,16 +34,37 @@ impl HasPosition for Photon {
 pub enum RecordMode {
   TerminatePath,
   DontRecord,
+  RecordAndTerminate,
   Record,
 }
 
-pub trait PhotonSelector {
+impl RecordMode {
+  pub fn should_record(&self) -> bool {
+    match self {
+      RecordMode::TerminatePath => false,
+      RecordMode::DontRecord => false,
+      _ => true,
+    }
+  }
+  pub fn should_terminate(&self) -> bool {
+    match self {
+      RecordMode::TerminatePath => true,
+      RecordMode::RecordAndTerminate => true,
+      _ => false,
+    }
+  }
+}
+
+pub trait PhotonSelector: Debug + Clone {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode;
+  fn weight_for_sample(&self, position: Vec4d, photon: &Photon, photon_count: usize, sample_radius: f64)
+    -> Option<f64>;
 }
 
 #[derive(Debug)]
-pub struct PhotonMap {
+pub struct PhotonMap<Selector: PhotonSelector> {
   tree: KDTree<Photon>,
+  selector: Selector,
 }
 
 fn random(min: f64, max: f64) -> f64 {
@@ -64,13 +86,13 @@ fn random_in_hemisphere(normal: Vec4d) -> Vec4d {
   }
 }
 
-impl PhotonMap {
-  pub fn new<Selector: PhotonSelector>(
+impl<Selector: PhotonSelector> PhotonMap<Selector> {
+  pub fn new(
     selector: &Selector,
     scene: &Scene,
     target_photo_count: usize,
     max_elements_per_leaf: usize,
-  ) -> PhotonMap {
+  ) -> PhotonMap<Selector> {
     let mut photons: Vec<Photon> = vec![];
     let lights = &scene.get_lights();
     let mut virtual_lights: Vec<LightSample> = vec![];
@@ -141,11 +163,7 @@ impl PhotonMap {
             result
           };
           let path_mode = selector.record_mode(&surface, bounces);
-          if path_mode == RecordMode::TerminatePath {
-            photon_count -= 1;
-            continue 'photon_loop;
-          }
-          if path_mode != RecordMode::DontRecord {
+          let recorded_photon = if path_mode.should_record() {
             photons.push(Photon {
               colour: photon_colour * surface.diffuse_colour,
               position: fragment.position,
@@ -154,6 +172,15 @@ impl PhotonMap {
                 Some((ray, _)) => ray.direction,
               },
             });
+            true
+          } else {
+            false
+          };
+          if path_mode.should_terminate() {
+            if recorded_photon == false {
+              // photon_count -= 1;
+            }
+            continue 'photon_loop;
           }
           if next.is_none() {
             let diffuse_direction = random_in_hemisphere(surface.normal);
@@ -210,7 +237,10 @@ impl PhotonMap {
     println!("Tree minimum depth {}", min);
     println!("Tree maximum depth {}", max);
 
-    return PhotonMap { tree };
+    return PhotonMap {
+      tree,
+      selector: selector.clone(),
+    };
   }
 
   pub fn lighting(&self, position: Vec4d, direction: Vec4d, photon_samples: usize) -> Colour {
@@ -219,21 +249,20 @@ impl PhotonMap {
     }
     let mut result = Vec4d::new();
     let (photons, radius) = self.tree.nearest(position, photon_samples);
-    let mut count = 0.0;
+
     for photon in &photons {
-      let photon_distance = (photon.position - position).length();
-      let contribution = 1.0; //- photon_distance / radius; // - photon_distance / (radius * radius);
-      let pd_dot_n = photon.direction.dot(direction);
-      if pd_dot_n < 0.0 {
-        continue;
+      if let Some(contribution) = self
+        .selector
+        .weight_for_sample(position, &photon, photons.len(), radius)
+      {
+        result = result + Vec4d::from(photon.colour) * contribution;
       }
-      result = result + Vec4d::from(photon.colour) * contribution; // * pd_dot_n;
-      count += 1.0;
     }
-    return Colour::from(result * (1.0 / count));
+    return Colour::from(result);
   }
 }
 
+#[derive(Debug, Clone)]
 pub struct DiffuseSelector {}
 
 impl DiffuseSelector {
@@ -243,14 +272,28 @@ impl DiffuseSelector {
 }
 
 impl PhotonSelector for DiffuseSelector {
-  fn record_mode(&self, _surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
+  fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
     if depth > 1 {
+      if surface.secondaries.len() > 0 {
+        return RecordMode::DontRecord;
+      }
       return RecordMode::Record;
     }
     return RecordMode::DontRecord;
   }
+
+  fn weight_for_sample(
+    &self,
+    position: Vec4d,
+    photon: &Photon,
+    photon_count: usize,
+    sample_radius: f64,
+  ) -> Option<f64> {
+    Some(1.0 / photon_count as f64)
+  }
 }
 
+#[derive(Debug, Clone)]
 pub struct CausticSelector {}
 
 impl CausticSelector {
@@ -261,9 +304,25 @@ impl CausticSelector {
 
 impl PhotonSelector for CausticSelector {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
-    if depth > 1 || surface.secondaries.len() > 0 {
-      return RecordMode::Record;
+    let mut secondary_weight = 0.0;
+    for secondary in &surface.secondaries {
+      secondary_weight += secondary.2;
     }
-    return RecordMode::TerminatePath;
+    if secondary_weight > 0.95 {
+      return RecordMode::DontRecord;
+    }
+    if depth < 2 {
+      return RecordMode::TerminatePath;
+    }
+    return RecordMode::Record;
+  }
+  fn weight_for_sample(
+    &self,
+    position: Vec4d,
+    photon: &Photon,
+    photon_count: usize,
+    sample_radius: f64,
+  ) -> Option<f64> {
+    Some(1.0 / photon_count as f64)
   }
 }

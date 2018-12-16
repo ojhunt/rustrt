@@ -44,8 +44,8 @@ pub struct Scene {
   pub texture_coords: Vec<Vec2d>,
   pub textures: Vec<Texture>,
   _scene: CompoundObject,
-  diffuse_photon_map: Option<PhotonMap>,
-  caustic_photon_map: Option<PhotonMap>,
+  diffuse_photon_map: Option<PhotonMap<DiffuseSelector>>,
+  caustic_photon_map: Option<PhotonMap<CausticSelector>>,
 }
 
 impl Scene {
@@ -85,7 +85,7 @@ impl Scene {
 
   fn rebuild_photon_map(&mut self, max_elements_per_leaf: usize) {
     let diffuse_selector = DiffuseSelector::new();
-    // self.diffuse_photon_map = Some(PhotonMap::new(&diffuse_selector, self, 100000, max_elements_per_leaf));
+    self.diffuse_photon_map = Some(PhotonMap::new(&diffuse_selector, self, 10000000, max_elements_per_leaf));
     let caustic_selector = CausticSelector::new();
     self.caustic_photon_map = Some(PhotonMap::new(&caustic_selector, self, 1000000, max_elements_per_leaf));
   }
@@ -129,14 +129,12 @@ impl Scene {
           Vec4d::new()
         } else {
           let diffuse = match &self.diffuse_photon_map {
-            None => ambient_colour * 0.2,
+            None => ambient_colour * 0.0,
             Some(photon_map) => Vec4d::from(photon_map.lighting(fragment.position, fragment.normal, photon_samples)),
           };
           let caustic = match &self.caustic_photon_map {
             None => ambient_colour * 0.0,
-            Some(photon_map) => {
-              Vec4d::from(photon_map.lighting(fragment.position, fragment.normal, (photon_samples / 8).max(1)))
-            }
+            Some(photon_map) => Vec4d::from(photon_map.lighting(fragment.position, fragment.normal, photon_samples)),
           };
           diffuse + caustic
         };
