@@ -85,9 +85,9 @@ impl Scene {
 
   fn rebuild_photon_map(&mut self, max_elements_per_leaf: usize) {
     let diffuse_selector = DiffuseSelector::new();
-    self.diffuse_photon_map = Some(PhotonMap::new(&diffuse_selector, self, 10000000, max_elements_per_leaf));
+    self.diffuse_photon_map = Some(PhotonMap::new(&diffuse_selector, self, 100000, max_elements_per_leaf));
     let caustic_selector = CausticSelector::new();
-    self.caustic_photon_map = Some(PhotonMap::new(&caustic_selector, self, 1000000, max_elements_per_leaf));
+    self.caustic_photon_map = Some(PhotonMap::new(&caustic_selector, self, 10000, max_elements_per_leaf));
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {
@@ -119,24 +119,23 @@ impl Scene {
           None => return Vec4d::new(),
         };
         let surface = material.compute_surface_properties(self, ray, &fragment);
-        let ambient_colour = Vec4d::from(surface.ambient_colour);
+        // let ambient_colour = Vec4d::from(surface.ambient_colour);
         let mut diffuse_colour = Vec4d::from(surface.diffuse_colour);
         if let Some(c) = surface.emissive_colour {
           return Vec4d::from(c);
         }
 
-        let mut colour = if surface.secondaries.len() > 0 {
-          Vec4d::new()
-        } else {
+        let mut colour = Vec4d::new();
+        let ambient_colour = {
           let diffuse = match &self.diffuse_photon_map {
-            None => ambient_colour * 0.0,
-            Some(photon_map) => Vec4d::from(photon_map.lighting(fragment.position, fragment.normal, photon_samples)),
+            None => Colour::RGB(0.0, 0.0, 0.0),
+            Some(photon_map) => (photon_map.lighting(fragment.position, fragment.normal, photon_samples)),
           };
           let caustic = match &self.caustic_photon_map {
-            None => ambient_colour * 0.0,
-            Some(photon_map) => Vec4d::from(photon_map.lighting(fragment.position, fragment.normal, photon_samples)),
+            None => Colour::RGB(0.0, 0.0, 0.0),
+            Some(photon_map) => (photon_map.lighting(fragment.position, fragment.normal, photon_samples)),
           };
-          diffuse + caustic
+          (caustic)
         };
         if true {
           let mut remaining_weight = 1.0;
@@ -150,7 +149,8 @@ impl Scene {
                 Colour::from(self.intersect_ray(ray, lights, photon_samples, depth + 1)) * *secondary_colour * *weight,
               );
           }
-          diffuse_colour = diffuse_colour * remaining_weight;
+          let diffuse_colour = diffuse_colour * remaining_weight;
+          colour = colour + Vec4d::from(surface.diffuse_colour * remaining_weight * ambient_colour);
           if diffuse_colour.length() <= 0.01 {
             return colour;
           }
@@ -170,7 +170,7 @@ impl Scene {
               }
             }
             let diffuse_intensity = ldir.dot(surface.normal) / light_samples as f64;
-            if diffuse_intensity <= 0.0 {
+            if diffuse_intensity <= 0.0 || true {
               continue;
             }
 

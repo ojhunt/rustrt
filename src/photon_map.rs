@@ -304,14 +304,14 @@ impl CausticSelector {
 
 impl PhotonSelector for CausticSelector {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
-    let mut secondary_weight = 0.0;
-    for secondary in &surface.secondaries {
-      secondary_weight += secondary.2;
-    }
-    if secondary_weight > 0.95 {
-      return RecordMode::DontRecord;
-    }
-    if depth < 2 {
+    if depth == 1 {
+      let mut secondary_weight = 0.0;
+      for secondary in &surface.secondaries {
+        secondary_weight += secondary.2;
+      }
+      if secondary_weight > 0.9 {
+        return RecordMode::DontRecord;
+      }
       return RecordMode::TerminatePath;
     }
     return RecordMode::Record;
