@@ -15,9 +15,10 @@ impl Colour {
     let Colour::RGB(r, g, b) = *self;
     return Colour::RGB(r + rr, g + rg, b + rb);
   }
-  pub fn intensity(&self) -> f64 {
-    let Colour::RGB(r, g, b) = *self;
-    r.max(g).max(b)
+
+  pub fn max_value(&self) -> f64 {
+    let Colour::RGB(r, g, b) = self;
+    return r.max(*g).max(*b);
   }
 }
 

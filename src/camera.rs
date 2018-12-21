@@ -15,6 +15,7 @@ pub struct PerspectiveCamera {
   fov: f64,
   x_delta: Vec4d,
   y_delta: Vec4d,
+  samples_per_pixel: usize,
   view_origin: Vec4d,
   dxDifferential: Ray,
   dyDifferential: Ray,
@@ -25,7 +26,15 @@ impl PerspectiveCamera {
     let view_target = self.view_origin + (self.x_delta * x) - (self.y_delta * y);
     Ray::new(self.position, (view_target - self.position).normalize(), None)
   }
-  pub fn new(width: usize, height: usize, position: Vec4d, target: Vec4d, up: Vec4d, fov: f64) -> PerspectiveCamera {
+  pub fn new(
+    width: usize,
+    height: usize,
+    position: Vec4d,
+    target: Vec4d,
+    up: Vec4d,
+    fov: f64,
+    samples_per_pixel: usize,
+  ) -> PerspectiveCamera {
     let direction = (target - position).normalize();
     let right = direction.cross(up).normalize();
 
@@ -51,6 +60,7 @@ impl PerspectiveCamera {
       fov,
       x_delta,
       y_delta,
+      samples_per_pixel,
       dxDifferential: Ray::new(position, x_delta, None),
       dyDifferential: Ray::new(position, y_delta, None),
     };
@@ -62,10 +72,14 @@ impl Camera for PerspectiveCamera {
     let mut result: Vec<(usize, usize, f64, Ray)> = Vec::new();
     for y in 0..height {
       for x in 0..width {
-        result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 - 0.25, y as f64 - 0.25)));
-        result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 + 0.25, y as f64 - 0.25)));
-        result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 - 0.25, y as f64 + 0.25)));
-        result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 + 0.25, y as f64 + 0.25)));
+        if self.samples_per_pixel < 4 || true {
+          result.push((x, y, 1.0, self.ray_for_coordinate(x as f64, y as f64)));
+        } else {
+          result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 - 0.25, y as f64 - 0.25)));
+          result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 + 0.25, y as f64 - 0.25)));
+          result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 - 0.25, y as f64 + 0.25)));
+          result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 + 0.25, y as f64 + 0.25)));
+        }
       }
     }
     return result;

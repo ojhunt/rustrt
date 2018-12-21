@@ -34,6 +34,25 @@ args:
         help: Number of photons to sample from the photon map
         long: photon-samples
         takes_value: true
+    - width:
+        default_value: "700"
+        help: output image width
+        long: width
+        takes_value: true
+    - height:
+        default_value: "700"
+        help: output image height
+        long: height
+        takes_value: true
+    - samples_per_pixel:
+        help: number of samples per pixel
+        long: samples-per-pixel
+        takes_value: true
+    - photon_count:
+        help: Number of photons in the diffuse map
+        long: photon-count
+        takes_value: true
+
 
 
 

@@ -205,14 +205,14 @@ impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
       root: build_tree(elements, bounds, max_children),
     };
   }
-  pub fn nearest(&self, position: Vec4d, count: usize) -> (Vec<T>, f64) {
+  pub fn nearest(&self, position: Vec4d, count: usize) -> (Vec<(T, f64)>, f64) {
     let comparator = |a: &(f64, T), b: &(f64, T)| return a.0.partial_cmp(&b.0).unwrap();
     let mut queue: PriorityHeap<(f64, T)> = PriorityHeap::new(&comparator, count);
     self.root.nearest(&mut queue, position);
     if queue.is_empty() {
       return (vec![], std::f64::INFINITY);
     }
-    let result = queue.slice().iter().map(|(_, elem)| elem.clone()).collect();
+    let result = queue.slice().iter().map(|(dist, elem)| (elem.clone(), *dist)).collect();
     return (result, queue.top().unwrap().0);
   }
 }

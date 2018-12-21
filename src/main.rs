@@ -28,35 +28,12 @@ mod triangle;
 mod vectors;
 mod wavefront_material;
 
+use scene::SceneSettings;
 use camera::*;
 use clap::*;
 use std::str::FromStr;
 use vectors::Vec4d;
 use wavefront_material::load_scene;
-
-struct SceneSettings {
-  pub output_file: String,
-  pub scene_file: String,
-  pub camera_position: Vec4d,
-  pub camera_target: Vec4d,
-  pub camera_up: Vec4d,
-  pub max_leaf_photons: usize,
-  pub photon_samples: usize,
-}
-
-impl SceneSettings {
-  pub fn new() -> SceneSettings {
-    return SceneSettings {
-      output_file: String::new(),
-      scene_file: String::new(),
-      camera_position: Vec4d::point(0., 0.5, 0.),
-      camera_target: Vec4d::point(0., 0., 10000000.),
-      camera_up: Vec4d::vector(0.0, 1.0, 0.0),
-      max_leaf_photons: 8,
-      photon_samples: 0,
-    };
-  }
-}
 
 #[derive(Debug)]
 struct VecArg {
@@ -119,26 +96,45 @@ fn load_settings() -> SceneSettings {
     }
     _ => {}
   }
+  match value_t!(matches, "height", usize) {
+    Ok(value) => {
+      settings.height = value;
+    }
+    _ => {}
+  }
+  match value_t!(matches, "width", usize) {
+    Ok(value) => {
+      settings.width = value;
+    }
+    _ => {}
+  }
+  match value_t!(matches, "photon_count", usize) {
+    Ok(value) => {
+      settings.photon_count = value;
+    }
+    _ => {}
+  }
   return settings;
 }
 
 fn main() {
   let settings = load_settings();
 
-  const SIZE: usize = 700;
-  let mut scn = load_scene(&settings.scene_file);
+  const SIZE: usize = 100;
+  let mut scn = load_scene(&settings);
   scn.finalize(settings.max_leaf_photons);
   let camera = PerspectiveCamera::new(
-    SIZE,
-    SIZE,
+    settings.width,
+    settings.height,
     settings.camera_position,
     settings.camera_target,
     settings.camera_up,
     40.,
+    settings.samples_per_pixel,
   );
 
   let start = std::time::Instant::now();
-  let output = scn.render(&camera, settings.photon_samples, SIZE);
+  let output = scn.render(&camera, settings.photon_samples, settings.width, settings.height);
   let end = std::time::Instant::now();
   let delta = end - start;
   let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;

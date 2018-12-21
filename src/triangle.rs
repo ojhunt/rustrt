@@ -1,5 +1,6 @@
 use bounding_box::*;
 use collision::Collision;
+use colour::Colour;
 use fragment::Fragment;
 use intersectable::*;
 use rand::{thread_rng, Rng};
@@ -63,6 +64,7 @@ impl Light for Triangle {
         direction: Some(fragment.normal),
         specular: Vec4d::from(surface.specular_colour),
         diffuse: Vec4d::from(surface.diffuse_colour),
+        emission: Vec4d::from(surface.emissive_colour.unwrap()),
         weight: 1.0 / (count as f64),
       };
       lights.push(sample);

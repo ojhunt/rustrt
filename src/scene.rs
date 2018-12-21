@@ -34,8 +34,42 @@ impl NormalIdx {
   }
 }
 
+#[derive(Clone, Debug)]
+pub struct SceneSettings {
+  pub output_file: String,
+  pub scene_file: String,
+  pub camera_position: Vec4d,
+  pub camera_target: Vec4d,
+  pub camera_up: Vec4d,
+  pub max_leaf_photons: usize,
+  pub photon_samples: usize,
+  pub width: usize,
+  pub height: usize,
+  pub samples_per_pixel: usize,
+  pub photon_count: usize,
+}
+
+impl SceneSettings {
+  pub fn new() -> SceneSettings {
+    return SceneSettings {
+      output_file: String::new(),
+      scene_file: String::new(),
+      camera_position: Vec4d::point(0., 0.5, 0.),
+      camera_target: Vec4d::point(0., 0., 10000000.),
+      camera_up: Vec4d::vector(0.0, 1.0, 0.0),
+      max_leaf_photons: 8,
+      width: 700,
+      height: 700,
+      photon_samples: 0,
+      samples_per_pixel: 4,
+      photon_count: 0,
+    };
+  }
+}
+
 #[derive(Debug)]
 pub struct Scene {
+  settings: SceneSettings,
   path: PathBuf,
   pub directory: PathBuf,
   pub normals: Vec<Vec4d>,
@@ -49,9 +83,10 @@ pub struct Scene {
 }
 
 impl Scene {
-  pub fn new(path: &str) -> Scene {
-    let real_path = Path::new(path).canonicalize().unwrap();
+  pub fn new(settings: &SceneSettings) -> Scene {
+    let real_path = Path::new(&settings.scene_file).canonicalize().unwrap();
     Scene {
+      settings: settings.clone(),
       path: real_path.clone(),
       directory: real_path.parent().unwrap().to_owned(),
       normals: Vec::new(),
@@ -85,9 +120,14 @@ impl Scene {
 
   fn rebuild_photon_map(&mut self, max_elements_per_leaf: usize) {
     let diffuse_selector = DiffuseSelector::new();
-    self.diffuse_photon_map = Some(PhotonMap::new(&diffuse_selector, self, 100000, max_elements_per_leaf));
+    self.diffuse_photon_map = Some(PhotonMap::new(
+      &diffuse_selector,
+      self,
+      self.settings.photon_count,
+      max_elements_per_leaf,
+    ));
     let caustic_selector = CausticSelector::new();
-    self.caustic_photon_map = Some(PhotonMap::new(&caustic_selector, self, 10000, max_elements_per_leaf));
+    self.caustic_photon_map = Some(PhotonMap::new(&caustic_selector, self, 2000, max_elements_per_leaf));
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {
@@ -126,17 +166,18 @@ impl Scene {
         }
 
         let mut colour = Vec4d::new();
-        let ambient_colour = {
+        let ambient_light = {
           let diffuse = match &self.diffuse_photon_map {
             None => Colour::RGB(0.0, 0.0, 0.0),
-            Some(photon_map) => (photon_map.lighting(fragment.position, fragment.normal, photon_samples)),
+            Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
           };
-          let caustic = match &self.caustic_photon_map {
-            None => Colour::RGB(0.0, 0.0, 0.0),
-            Some(photon_map) => (photon_map.lighting(fragment.position, fragment.normal, photon_samples)),
-          };
-          (caustic)
+          // let caustic = match &self.caustic_photon_map {
+          //   None => Colour::RGB(0.0, 0.0, 0.0),
+          //   Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
+          // };
+          (diffuse) //+ caustic)
         };
+        return Vec4d::from(ambient_light);
         if true {
           let mut remaining_weight = 1.0;
           for (ray, secondary_colour, weight) in &surface.secondaries {
@@ -150,8 +191,8 @@ impl Scene {
               );
           }
           let diffuse_colour = diffuse_colour * remaining_weight;
-          colour = colour + Vec4d::from(surface.diffuse_colour * remaining_weight * ambient_colour);
-          if diffuse_colour.length() <= 0.01 {
+          colour = Vec4d::from(Colour::from(diffuse_colour) * ambient_light); //Vec4d::from(ambient_light); //colour + Vec4d::from(surface.diffuse_colour * remaining_weight * ambient_colour);
+          if true || diffuse_colour.length() <= 0.01 {
             return colour;
           }
           let light_samples = 8;
@@ -223,18 +264,19 @@ impl Scene {
         direction: None,
         diffuse: Vec4d::vector(1.0, 1.0, 1.0),
         specular: Vec4d::vector(1.0, 1.0, 1.0),
+        emission: Vec4d::vector(0.0, 10.0, 10.0),
         weight: 0.25,
       })
       .collect();
     };
   }
-  pub fn render<C: Camera>(&self, camera: &C, photon_samples: usize, size: usize) -> DynamicImage {
-    let mut result = image::RgbImage::new(size as u32, size as u32);
+  pub fn render<C: Camera>(&self, camera: &C, photon_samples: usize, width: usize, height: usize) -> DynamicImage {
+    let mut result = image::RgbImage::new(width as u32, height as u32);
     let mut buffer: Vec<Vec<Vec4d>> = vec![];
-    for _ in 0..(size * size) {
+    for _ in 0..(width * height) {
       buffer.push(vec![]);
     }
-    let rays = camera.get_rays(size, size);
+    let rays = camera.get_rays(width, height);
 
     let lights = self.get_light_samples(10000).iter().map(|l| l.position).collect();
     println!("photon samples: {}", photon_samples);
@@ -242,15 +284,15 @@ impl Scene {
     for _ in 0..iteration_count {
       for (x, y, pixel_contribution_weight, ray) in &rays {
         let colour = self.intersect_ray(ray, &lights, photon_samples, 0);
-        buffer[x + y * size].push(colour * (*pixel_contribution_weight / iteration_count as f64));
+        buffer[x + y * width].push(colour * (*pixel_contribution_weight / iteration_count as f64));
       }
     }
 
     for (x, y, _pixel) in result.enumerate_pixels_mut() {
-      let mut r = 0.0;
-      let mut g = 0.0;
-      let mut b = 0.0;
-      for v in &buffer[x as usize + y as usize * size] {
+      let mut r: f64 = 0.0;
+      let mut g: f64 = 0.0;
+      let mut b: f64 = 0.0;
+      for v in &buffer[x as usize + y as usize * width] {
         r += v.x;
         g += v.y;
         b += v.z;

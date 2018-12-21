@@ -10,6 +10,7 @@ pub struct LightSample {
   pub direction: Option<Vec4d>,
   pub diffuse: Vec4d,
   pub specular: Vec4d,
+  pub emission: Vec4d,
   pub weight: f64,
 }
 

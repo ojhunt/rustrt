@@ -1,3 +1,4 @@
+use scene::SceneSettings;
 use casefopen;
 use colour::Colour;
 use fragment::Fragment;
@@ -304,6 +305,7 @@ impl WFMaterial {
     let (ambient, f) = load_surface_colour(mat.ka, &mat.map_ka, texture_loader);
     let (diffuse, f1) = load_surface_colour(mat.kd, &mat.map_kd, f);
     let (specular, f2) = load_surface_colour(mat.ks, &mat.map_ks, f1);
+    println!("emmission: {:?}", mat.ke);
     let (emission, f3) = load_surface_colour(mat.ke, &mat.map_ke, f2);
     let (bump_map, _) = load_bumpmap(&mat.map_bump, f3);
 
@@ -331,10 +333,10 @@ fn vecf32_to_point(v: [f32; 3]) -> Vec4d {
   Vec4d::point(v[0] as f64, v[1] as f64, v[2] as f64)
 }
 
-pub fn load_scene(path: &str) -> Scene {
-  let mut scn = Scene::new(path);
+pub fn load_scene(settings: &SceneSettings) -> Scene {
+  let mut scn = Scene::new(settings);
 
-  let mut obj = Obj::<Polygon<IndexTuple>>::load(&Path::new(path)).unwrap();
+  let mut obj = Obj::<Polygon<IndexTuple>>::load(&Path::new(&settings.scene_file)).unwrap();
 
   obj.load_mtls().unwrap();
 

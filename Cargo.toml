@@ -12,6 +12,8 @@ obj = { version = "*", features = ["genmesh"]}
 
 [dependencies.clap]
 features = ["yaml"]
+git = "https://github.com/clap-rs/clap.git"
+branch = "master"
 
 [profile.release]
 debug = true
