@@ -80,7 +80,7 @@ fn random_in_hemisphere(normal: Vec4d) -> Vec4d {
       continue;
     }
     let result = Vec4d::vector(x, y, z);
-    if result.dot(normal) > 0.01 {
+    if result.dot(normal) > 0.1 {
       return result;
     }
   }
@@ -102,42 +102,58 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     let mut bounces: usize = 0;
     let mut max_bounces: usize = 0;
     let mut paths = 0;
+    let mut actual_paths = 0;
     let start = std::time::Instant::now();
     while paths < target_photon_count {
       'photon_loop: for sample in &virtual_lights {
-        paths += 1;
         let mut light_dir = {
-          let mut x;
-          let mut y;
-          let mut z;
+          if false {
+            let mut x;
+            let mut y;
+            let mut z;
 
-          loop {
-            x = random(-1.0, 1.0);
-            y = random(-1.0, 1.0);
-            z = random(-1.0, 1.0);
-            if (x * x + y * y + z * z) <= 1.0 {
-              break;
+            loop {
+              x = random(-1.0, 1.0);
+              y = random(-1.0, 1.0);
+              z = random(-1.0, 1.0);
+              if (x * x + y * y + z * z) <= 1.0 {
+                break;
+              }
             }
-          }
 
-          Vec4d::vector(x, y, z).normalize() // this is a super awful/biased random, but whatever
+            Vec4d::vector(x, y, z).normalize() // this is a super awful/biased random, but whatever
+          } else {
+            let u = random(0.0, 1.0);
+            let v = 2.0 * 3.14127 * random(0.0, 1.0);
+            Vec4d::vector(v.cos() * u.sqrt(), -(1.0 - u).sqrt(), v.sin() * u.sqrt())
+          }
         };
 
         if sample.direction.is_none() || light_dir.dot(sample.direction.unwrap()) < 0.01 {
           continue 'photon_loop;
         }
 
+        paths += 1;
+        actual_paths += 1;
+
         let mut throughput = Colour::RGB(1.0, 1.0, 1.0);
         let mut photon_ray = Ray::new(sample.position + light_dir * 0.01, light_dir, None);
-        let mut photon_colour = Colour::from(sample.emission) * Colour::from(sample.diffuse);
+        let mut photon_colour = Colour::from(sample.emission) * (5.);
+
         let mut path_length: usize = 0;
-        'photon_bounce_loop: while path_length < 16 {
+        let mut recorded = false;
+        'photon_bounce_loop: while path_length < 64 {
           let current_colour = photon_colour;
           bounces += 1;
           path_length += 1;
           max_bounces = max_bounces.max(path_length);
           let (c, shadable) = match scene.intersect(&photon_ray) {
-            None => continue 'photon_loop,
+            None => {
+              if !recorded {
+                actual_paths += 1;
+              }
+              continue 'photon_loop;
+            }
             Some(x) => x,
           };
 
@@ -196,24 +212,26 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
             ));
           };
           let (next_ray, next_colour) = next.unwrap();
-          let path_mode = selector.record_mode(&surface, bounces);
+          let path_mode = selector.record_mode(&surface, path_length);
           let recorded_photon = if path_mode.should_record() {
+            if !recorded {
+              actual_paths += 1;
+              recorded = true;
+            }
+
             photons.push(Photon {
               colour: current_colour,
               position: fragment.position,
-              direction: next_ray.direction,
+              direction: photon_ray.direction,
             });
             true
           } else {
             false
           };
           if path_mode.should_terminate() {
-            if recorded_photon == false {
-              // photon_count -= 1;
-            }
             continue 'photon_loop;
           }
-          if (recorded_photon == false) {
+          if true || !recorded_photon {
             // Now we know the colour and direction of the next bounce, let's decide if we're keeping it.
             throughput = throughput * next_colour;
             let p = random(0.0, 1.0);
@@ -229,7 +247,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
       }
     }
     for i in 0..photons.len() {
-      photons[i].colour = photons[i].colour * (1.0 / photons.len() as f64);
+      photons[i].colour = photons[i].colour * (1.0 / actual_paths as f64);
     }
     let end = std::time::Instant::now();
 
@@ -259,7 +277,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     let mut result = Vec4d::new();
     let (photons, radius) = self.tree.nearest(surface.position, photon_samples);
     let mut max_radius: f64 = 0.0;
-    let radius_cutoff = 0.1;
+    let radius_cutoff = 0.25;
     for (photon, distance) in &photons {
       if let Some(contribution) = self
         .selector
@@ -269,8 +287,8 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
           continue;
         }
         max_radius = max_radius.max(*distance);
-        result =
-          result + Vec4d::from(photon.colour) * contribution * ((radius_cutoff - distance).max(0.0) / radius_cutoff);
+        let weight = (-photon.direction.dot(surface.normal)).max(0.0); //* (radius_cutoff - distance).max(0.0) / radius_cutoff;
+        result = result + Vec4d::from(photon.colour) * contribution * weight;
       }
     }
     return Colour::from(result) * (1.0 / max_radius / max_radius / 3.1412);
@@ -278,11 +296,13 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
 }
 
 #[derive(Debug, Clone)]
-pub struct DiffuseSelector {}
+pub struct DiffuseSelector {
+  include_first_bounce: bool,
+}
 
 impl DiffuseSelector {
-  pub fn new() -> DiffuseSelector {
-    DiffuseSelector {}
+  pub fn new(include_first_bounce: bool) -> DiffuseSelector {
+    DiffuseSelector { include_first_bounce }
   }
 }
 
@@ -300,7 +320,11 @@ fn is_specular(surface: &MaterialCollisionInfo) -> bool {
 
 impl PhotonSelector for DiffuseSelector {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
-    if depth > 2 {
+    // if depth == 1 && is_specular(surface) {
+    //   return RecordMode::TerminatePath;
+    // }
+
+    if depth > 1 || self.include_first_bounce {
       if is_specular(surface) {
         return RecordMode::DontRecord;
       }

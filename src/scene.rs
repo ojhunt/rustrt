@@ -47,6 +47,7 @@ pub struct SceneSettings {
   pub height: usize,
   pub samples_per_pixel: usize,
   pub photon_count: usize,
+  pub use_direct_lighting: bool,
 }
 
 impl SceneSettings {
@@ -63,6 +64,7 @@ impl SceneSettings {
       photon_samples: 0,
       samples_per_pixel: 4,
       photon_count: 0,
+      use_direct_lighting: false,
     };
   }
 }
@@ -119,7 +121,7 @@ impl Scene {
   }
 
   fn rebuild_photon_map(&mut self, max_elements_per_leaf: usize) {
-    let diffuse_selector = DiffuseSelector::new();
+    let diffuse_selector = DiffuseSelector::new(!self.settings.use_direct_lighting);
     self.diffuse_photon_map = Some(PhotonMap::new(
       &diffuse_selector,
       self,
@@ -127,7 +129,12 @@ impl Scene {
       max_elements_per_leaf,
     ));
     let caustic_selector = CausticSelector::new();
-    self.caustic_photon_map = Some(PhotonMap::new(&caustic_selector, self, 2000, max_elements_per_leaf));
+    self.caustic_photon_map = Some(PhotonMap::new(
+      &caustic_selector,
+      self,
+      self.settings.photon_count / 2,
+      max_elements_per_leaf,
+    ));
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {
@@ -145,7 +152,7 @@ impl Scene {
     return &self.textures[idx];
   }
 
-  fn intersect_ray(&self, ray: &Ray, lights: &Vec<Vec4d>, photon_samples: usize, depth: usize) -> Vec4d {
+  fn intersect_ray(&self, ray: &Ray, lights: &Vec<LightSample>, photon_samples: usize, depth: usize) -> Vec4d {
     if depth > 10 {
       return Vec4d::vector(1.0, 1.0, 1.0);
     }
@@ -165,61 +172,64 @@ impl Scene {
           return Vec4d::from(c);
         }
 
-        let mut colour = Vec4d::new();
+        let mut colour;
         let ambient_light = {
           let diffuse = match &self.diffuse_photon_map {
             None => Colour::RGB(0.0, 0.0, 0.0),
             Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
           };
-          // let caustic = match &self.caustic_photon_map {
-          //   None => Colour::RGB(0.0, 0.0, 0.0),
-          //   Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
-          // };
-          (diffuse) //+ caustic)
+          let caustic = match &self.caustic_photon_map {
+            None => Colour::RGB(0.0, 0.0, 0.0),
+            Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
+          };
+          (diffuse + caustic)
         };
-        return Vec4d::from(ambient_light);
+
         if true {
           let mut remaining_weight = 1.0;
+          let mut secondaries_colour = Vec4d::new();
           for (ray, secondary_colour, weight) in &surface.secondaries {
             if remaining_weight <= 0.0 {
               break;
             }
             remaining_weight -= weight;
-            colour = colour
+            secondaries_colour = secondaries_colour
               + Vec4d::from(
                 Colour::from(self.intersect_ray(ray, lights, photon_samples, depth + 1)) * *secondary_colour * *weight,
               );
           }
-          let diffuse_colour = diffuse_colour * remaining_weight;
-          colour = Vec4d::from(Colour::from(diffuse_colour) * ambient_light); //Vec4d::from(ambient_light); //colour + Vec4d::from(surface.diffuse_colour * remaining_weight * ambient_colour);
-          if true || diffuse_colour.length() <= 0.01 {
+          colour = secondaries_colour;
+          let mut direct_lighting = Vec4d::new();
+          diffuse_colour = diffuse_colour * remaining_weight;
+          if diffuse_colour.length() <= 0.01 {
             return colour;
           }
-          let light_samples = 8;
-          let mut has_intersected = false;
-          for i in 0..light_samples {
-            let light = &lights[thread_rng().gen_range(0, lights.len())];
-            let mut ldir = *light - surface.position;
-            let ldir_len = ldir.dot(ldir).sqrt();
-            ldir = ldir.normalize();
-            if i * 2 < light_samples || has_intersected {
-              let shadow_test = Ray::new_bound(surface.position, ldir, 0.01 * ldir_len, ldir_len * 0.999, None);
 
-              if self.intersect(&shadow_test).is_some() {
-                has_intersected = true;
+          if self.settings.use_direct_lighting && false {
+            let light_samples = 8;
+            let mut has_intersected = false;
+            for i in 0..light_samples {
+              let light = &lights[thread_rng().gen_range(0, lights.len())];
+              let mut ldir = light.position - surface.position;
+              let ldir_len = ldir.dot(ldir).sqrt();
+              ldir = ldir.normalize();
+              if i * 2 < light_samples || has_intersected {
+                let shadow_test = Ray::new_bound(surface.position, ldir, 0.01 * ldir_len, ldir_len * 0.999, None);
+                if self.intersect(&shadow_test).is_some() {
+                  has_intersected = true;
+                  continue;
+                }
+              }
+              let diffuse_intensity = ldir.dot(surface.normal) / light_samples as f64;
+              if diffuse_intensity <= 0.0 {
                 continue;
               }
+              direct_lighting = direct_lighting + light.diffuse * diffuse_intensity;
             }
-            let diffuse_intensity = ldir.dot(surface.normal) / light_samples as f64;
-            if diffuse_intensity <= 0.0 || true {
-              continue;
-            }
-
-            colour = colour + diffuse_colour * diffuse_intensity;
           }
+          colour = colour + Vec4d::from(Colour::from(diffuse_colour) * (Colour::from(direct_lighting) + ambient_light));
         } else {
           colour = diffuse_colour;
-          // Vec4d::vector(diffuse_colour.x, 1. - c.distance.log10() / 2., 0.0); // ambient_colour + diffuse_colour;
         }
         return colour;
       }
@@ -278,7 +288,7 @@ impl Scene {
     }
     let rays = camera.get_rays(width, height);
 
-    let lights = self.get_light_samples(10000).iter().map(|l| l.position).collect();
+    let lights = self.get_light_samples(10000);
     println!("photon samples: {}", photon_samples);
     let iteration_count = 1;
     for _ in 0..iteration_count {

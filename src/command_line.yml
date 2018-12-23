@@ -52,6 +52,10 @@ args:
         help: Number of photons in the diffuse map
         long: photon-count
         takes_value: true
+    - use_direct_lighting:
+        help: Use direct lighting path
+        long: use-direct-lighting
+
 
 
 

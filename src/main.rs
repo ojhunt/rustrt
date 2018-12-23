@@ -114,6 +114,9 @@ fn load_settings() -> SceneSettings {
     }
     _ => {}
   }
+  if matches.is_present("use_direct_lighting") {
+    settings.use_direct_lighting = true;
+  }
   return settings;
 }
 
