@@ -102,13 +102,15 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
   }
 
   // Far from optimal -- the furthest node should start its calculation on top of the existing list
-  fn nearest(&self, nearest_elements: &mut PriorityHeap<(f64, T)>, position: Vec4d) {
+  fn nearest(&self, nearest_elements: &mut PriorityHeap<(f64, T)>, position: Vec4d, max_distance: f64) {
     let comparator = |a: &(f64, &T), b: &(f64, &T)| {};
     let node = match self {
       KDTreeNode::Leaf(elements, bounds) => {
         for element in elements {
           let distance = (position - element.get_position()).length();
-          nearest_elements.insert((distance, element.clone()));
+          if distance <= max_distance {
+            nearest_elements.insert((distance, element.clone()));
+          }
         }
         return;
       }
@@ -122,19 +124,21 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
         (&node.children[1], &node.children[0], false)
       }
     };
-    nearest_child.nearest(nearest_elements, position);
-    if let Some((distance, _)) = nearest_elements.top() {
-      if left_of_split {
-        if position[node.axis] + distance < node.value {
-          return;
-        }
-      } else {
-        if position[node.axis] - distance > node.value {
-          return;
+    nearest_child.nearest(nearest_elements, position, max_distance);
+    if nearest_elements.is_full() {
+      if let Some((distance, _)) = nearest_elements.top() {
+        if left_of_split {
+          if position[node.axis] + distance < node.value {
+            return;
+          }
+        } else {
+          if position[node.axis] - distance > node.value {
+            return;
+          }
         }
       }
     }
-    farthest_child.nearest(nearest_elements, position);
+    farthest_child.nearest(nearest_elements, position, max_distance);
   }
 }
 
@@ -205,10 +209,10 @@ impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
       root: build_tree(elements, bounds, max_children),
     };
   }
-  pub fn nearest(&self, position: Vec4d, count: usize) -> (Vec<(T, f64)>, f64) {
+  pub fn nearest(&self, position: Vec4d, count: usize, max_distance: f64) -> (Vec<(T, f64)>, f64) {
     let comparator = |a: &(f64, T), b: &(f64, T)| return a.0.partial_cmp(&b.0).unwrap();
     let mut queue: PriorityHeap<(f64, T)> = PriorityHeap::new(&comparator, count);
-    self.root.nearest(&mut queue, position);
+    self.root.nearest(&mut queue, position, max_distance);
     if queue.is_empty() {
       return (vec![], std::f64::INFINITY);
     }

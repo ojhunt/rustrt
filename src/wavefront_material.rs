@@ -135,9 +135,11 @@ impl Material for WFMaterial {
   fn is_light(&self) -> bool {
     match self.emissive_colour {
       WFSurfaceProperty::None => false,
+      WFSurfaceProperty::Single(value) => value.max_value() > 0.0,
       _ => true,
     }
   }
+
   fn compute_surface_properties(&self, s: &Scene, ray: &Ray, f: &Fragment) -> MaterialCollisionInfo {
     let normal = perturb_normal(self.bump_map, f, s);
     let mut result = MaterialCollisionInfo {
@@ -150,6 +152,7 @@ impl Material for WFMaterial {
       transparent_colour: None,
       secondaries: vec![],
     };
+
     if self.illumination_model < 5 {
       return result;
     }

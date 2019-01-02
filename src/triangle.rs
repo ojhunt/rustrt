@@ -191,17 +191,20 @@ impl Triangle {
     if a.abs() < 0.00001 {
       return None;
     }
+
     let f = 1.0 / a;
     let s = ray.origin - self.origin;
     let u = f * s.dot(h);
     if u < 0.0 || u > 1.0 {
       return None;
     }
+
     let q = s.cross(self.edges[0]);
     let v = f * ray.direction.dot(q);
     if v < 0.0 || (u + v) > 1. {
       return None;
     }
+
     let t = f * self.edges[1].dot(q);
     if t < min - 0.001 || t >= max {
       return None;

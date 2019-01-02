@@ -19,6 +19,9 @@ impl<'a, T: Clone> PriorityHeap<'a, T> {
   pub fn is_empty(&self) -> bool {
     return self.data.len() == 0;
   }
+  pub fn is_full(&self) -> bool {
+    return self.max_size == self.data.len();
+  }
   pub fn top(&self) -> Option<&T> {
     if self.data.len() == 0 {
       None

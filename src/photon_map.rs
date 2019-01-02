@@ -67,7 +67,7 @@ pub struct PhotonMap<Selector: PhotonSelector> {
   selector: Selector,
 }
 
-fn random(min: f64, max: f64) -> f64 {
+pub fn random(min: f64, max: f64) -> f64 {
   thread_rng().gen_range(min, max)
 }
 
@@ -138,7 +138,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
 
         let mut throughput = Colour::RGB(1.0, 1.0, 1.0);
         let mut photon_ray = Ray::new(sample.position + light_dir * 0.01, light_dir, None);
-        let mut photon_colour = Colour::from(sample.emission) * (5.);
+        let mut photon_colour = Colour::from(sample.emission) * (2.);
 
         let mut path_length: usize = 0;
         let mut recorded = false;
@@ -275,9 +275,9 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
       return Colour::RGB(0.0, 0.0, 0.0);
     }
     let mut result = Vec4d::new();
-    let (photons, radius) = self.tree.nearest(surface.position, photon_samples);
+    let radius_cutoff = 0.25 * 10.0;
+    let (photons, radius) = self.tree.nearest(surface.position, photon_samples, radius_cutoff);
     let mut max_radius: f64 = 0.0;
-    let radius_cutoff = 0.25;
     for (photon, distance) in &photons {
       if let Some(contribution) = self
         .selector
