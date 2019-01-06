@@ -182,7 +182,7 @@ impl Scene {
             None => Colour::RGB(0.0, 0.0, 0.0),
             Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
           };
-          (diffuse + caustic)
+          (diffuse) //+ caustic)
         };
 
         if true {
@@ -205,7 +205,7 @@ impl Scene {
             return colour;
           }
 
-          if self.settings.use_direct_lighting && false {
+          if self.settings.use_direct_lighting {
             let light_samples = 8;
             let mut has_intersected = false;
             for i in 0..light_samples {

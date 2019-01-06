@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-type Comparator<T> = Fn(&T, &T) -> Ordering;
+pub type Comparator<T> = Fn(&T, &T) -> Ordering;
 
 pub struct PriorityHeap<'a, T: Clone> {
   max_size: usize,
@@ -15,6 +15,10 @@ impl<'a, T: Clone> PriorityHeap<'a, T> {
       data: vec![],
       comparator,
     }
+  }
+  pub fn append_buffer(&mut self, buffer: &mut Vec<T>) {
+    buffer.sort_by(|a, b| (self.comparator)(a, b).reverse());
+    self.data.append(buffer);
   }
   pub fn is_empty(&self) -> bool {
     return self.data.len() == 0;

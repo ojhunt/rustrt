@@ -275,7 +275,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
       return Colour::RGB(0.0, 0.0, 0.0);
     }
     let mut result = Vec4d::new();
-    let radius_cutoff = 0.25 * 10.0;
+    let radius_cutoff = 0.25 * 3.0;
     let (photons, radius) = self.tree.nearest(surface.position, photon_samples, radius_cutoff);
     let mut max_radius: f64 = 0.0;
     for (photon, distance) in &photons {
@@ -287,11 +287,12 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
           continue;
         }
         max_radius = max_radius.max(*distance);
-        let weight = (-photon.direction.dot(surface.normal)).max(0.0); //* (radius_cutoff - distance).max(0.0) / radius_cutoff;
-        result = result + Vec4d::from(photon.colour) * contribution * weight;
+        let weight =
+          (-photon.direction.dot(surface.normal)).max(0.0) * (radius_cutoff - distance).max(0.0) / radius_cutoff;
+        result = result + Vec4d::from(photon.colour) * (contribution * weight).max(0.0);
       }
     }
-    return Colour::from(result) * (1.0 / max_radius / max_radius / 3.1412);
+    return Colour::from(result) * (1.0 / max_radius / max_radius / 3.1412).max(0.0);
   }
 }
 
@@ -324,9 +325,11 @@ impl PhotonSelector for DiffuseSelector {
     //   return RecordMode::TerminatePath;
     // }
 
-    if depth > 1 || self.include_first_bounce {
+    if depth > 1
+    /*|| self.include_first_bounce*/
+    {
       if is_specular(surface) {
-        return RecordMode::DontRecord;
+        return RecordMode::TerminatePath;
       }
       return RecordMode::Record;
     }
@@ -371,6 +374,6 @@ impl PhotonSelector for CausticSelector {
     photon_count: usize,
     sample_radius: f64,
   ) -> Option<f64> {
-    Some(0.0) // / photon_count as f64)
+    Some(1.0) // / photon_count as f64)
   }
 }

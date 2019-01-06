@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+use heap::Comparator;
 use vectors::Vec4d;
 use bounding_box::BoundingBox;
 use bounding_box::HasBoundingBox;
@@ -21,65 +23,67 @@ enum KDTreeNode<T> {
   Leaf(Vec<T>, BoundingBox),
 }
 
-fn shortest_distance(position: Vec4d, bounds: BoundingBox) -> f64 {
-  let min = bounds.min - position;
-  let max = position - bounds.max;
-  let nearest_vec = Vec4d::vector(
-    min.x.max(0.).max(max.x),
-    min.y.max(0.).max(max.y),
-    min.z.max(0.).max(max.z),
-  );
-  return nearest_vec.length();
-}
-
-fn merge_nearest<T: Clone + HasPosition>(
-  near: (&[T], BoundingBox),
-  far: Option<(&[T], BoundingBox)>,
-  position: Vec4d,
+struct ElementAccumulator<'a, T: Clone> {
+  heap: PriorityHeap<'a, T>,
+  data: Vec<T>,
+  max_count: usize,
   count: usize,
-) -> (Vec<T>, BoundingBox, f64) {
-  let mut result_bounds = BoundingBox::new();
-  let mut near_vec = near.0.to_vec();
-  assert!(near_vec.len() > 0);
-  let comparator = |l: &T, r: &T| {
-    let left_distance = (l.get_position() - position).length();
-    let right_distance = (r.get_position() - position).length();
-    left_distance.partial_cmp(&right_distance).unwrap()
-  };
-  near_vec.sort_by(comparator);
-  near_vec.truncate(count);
-  let near_bounds = {
-    let mut b = BoundingBox::new();
-    for elem in &near_vec {
-      b = b.merge_with_point(elem.get_position());
+  top: Option<usize>,
+  comparator: &'a Comparator<T>,
+}
+impl<'a, T: Clone> ElementAccumulator<'a, T> {
+  pub fn new(c: &'a Comparator<T>, max_count: usize) -> Self {
+    Self {
+      heap: PriorityHeap::new(c, max_count),
+      data: vec![],
+      max_count,
+      count: 0,
+      comparator: c,
+      top: None,
     }
-    b
-  };
-
-  let current_worst = (near_vec.last().unwrap().get_position() - position).length();
-
-  let (far_elements, far_bounds) = match far {
-    None => return (near_vec, near_bounds, current_worst),
-    Some(x) => x,
-  };
-
-  let far_nearest = shortest_distance(position, far_bounds);
-  if near_vec.len() == count && far_nearest > current_worst {
-    return (near_vec, near_bounds, current_worst);
   }
-  near_vec.extend_from_slice(far_elements);
-  near_vec.sort_by(comparator);
-  near_vec.truncate(count);
-
-  let current_worst = (near_vec.last().unwrap().get_position() - position).length();
-  let near_bounds = {
-    let mut b = BoundingBox::new();
-    for elem in &near_vec {
-      b = b.merge_with_point(elem.get_position());
+  pub fn is_empty(&self) -> bool {
+    return self.count == 0;
+  }
+  pub fn slice(&self) -> &[T] {
+    if self.count == self.max_count {
+      return self.heap.slice();
     }
-    b
-  };
-  return (near_vec, near_bounds, current_worst);
+    return &self.data;
+  }
+  pub fn top(&self) -> Option<&T> {
+    if self.count < self.max_count {
+      return match self.top {
+        Some(index) => Some(&self.data[index]),
+        None => None,
+      };
+    }
+    return self.heap.top();
+  }
+  pub fn is_full(&self) -> bool {
+    return self.count == self.max_count;
+  }
+  pub fn insert(&mut self, new_value: T) {
+    if self.count == self.max_count {
+      self.heap.insert(new_value);
+      return;
+    }
+
+    if let Some(other) = self.top {
+      if (self.comparator)(&new_value, &self.data[other]) == Ordering::Less {
+        self.top = Some(self.data.len());
+      }
+    } else {
+      self.top = Some(self.data.len());
+    }
+    assert!(self.top.is_some());
+    self.data.push(new_value);
+    self.count = self.data.len();
+
+    if self.count == self.max_count {
+      self.heap.append_buffer(&mut self.data);
+    }
+  }
 }
 
 impl<T: Clone + HasPosition> KDTreeNode<T> {
@@ -102,8 +106,7 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
   }
 
   // Far from optimal -- the furthest node should start its calculation on top of the existing list
-  fn nearest(&self, nearest_elements: &mut PriorityHeap<(f64, T)>, position: Vec4d, max_distance: f64) {
-    let comparator = |a: &(f64, &T), b: &(f64, &T)| {};
+  fn nearest(&self, nearest_elements: &mut ElementAccumulator<(f64, T)>, position: Vec4d, max_distance: f64) {
     let node = match self {
       KDTreeNode::Leaf(elements, bounds) => {
         for element in elements {
@@ -211,7 +214,7 @@ impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
   }
   pub fn nearest(&self, position: Vec4d, count: usize, max_distance: f64) -> (Vec<(T, f64)>, f64) {
     let comparator = |a: &(f64, T), b: &(f64, T)| return a.0.partial_cmp(&b.0).unwrap();
-    let mut queue: PriorityHeap<(f64, T)> = PriorityHeap::new(&comparator, count);
+    let mut queue: ElementAccumulator<(f64, T)> = ElementAccumulator::new(&comparator, count);
     self.root.nearest(&mut queue, position, max_distance);
     if queue.is_empty() {
       return (vec![], std::f64::INFINITY);
