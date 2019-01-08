@@ -2,10 +2,10 @@ use std::ops;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vec4d {
-  pub x: f64,
-  pub y: f64,
-  pub z: f64,
-  pub w: f64,
+  pub x: f32,
+  pub y: f32,
+  pub z: f32,
+  pub w: f32,
 }
 
 impl Vec4d {
@@ -19,17 +19,17 @@ impl Vec4d {
   }
   pub fn vector(x: f64, y: f64, z: f64) -> Vec4d {
     Vec4d {
-      x: x,
-      y: y,
-      z: z,
+      x: x as f32,
+      y: y as f32,
+      z: z as f32,
       w: 0.0,
     }
   }
   pub fn point(x: f64, y: f64, z: f64) -> Vec4d {
     Vec4d {
-      x: x,
-      y: y,
-      z: z,
+      x: x as f32,
+      y: y as f32,
+      z: z as f32,
       w: 1.0,
     }
   }
@@ -57,7 +57,7 @@ impl Vec4d {
   }
   pub fn dot(&self, rhs: Vec4d) -> f64 {
     assert!(self.w == 0. && rhs.w == 0.);
-    return self.x * rhs.x + self.y * rhs.y + self.z * rhs.z;
+    return (self.x * rhs.x + self.y * rhs.y + self.z * rhs.z) as f64;
   }
   pub fn normalize(&self) -> Vec4d {
     let scale = 1.0 / self.dot(*self).sqrt();
@@ -66,10 +66,10 @@ impl Vec4d {
 
   pub fn scale(self, scale: f64) -> Vec4d {
     Vec4d {
-      x: self.x * scale,
-      y: self.y * scale,
-      z: self.z * scale,
-      w: self.w * scale,
+      x: self.x * scale as f32,
+      y: self.y * scale as f32,
+      z: self.z * scale as f32,
+      w: self.w * scale as f32,
     }
   }
 
@@ -146,9 +146,9 @@ impl ops::Sub<Vec4d> for Vec4d {
 }
 
 impl ops::Index<usize> for Vec4d {
-  type Output = f64;
+  type Output = f32;
 
-  fn index(&self, index: usize) -> &f64 {
+  fn index(&self, index: usize) -> &f32 {
     match index {
       0 => &self.x,
       1 => &self.y,

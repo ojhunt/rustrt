@@ -3,11 +3,11 @@ use vectors::Vec4d;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Colour {
-  RGB(f64, f64, f64),
+  RGB(f32, f32, f32),
 }
 
 impl Colour {
-  pub fn scale(&self, scale: f64) -> Colour {
+  pub fn scale(&self, scale: f32) -> Colour {
     let Colour::RGB(r, g, b) = *self;
     return Colour::RGB(r * scale, g * scale, b * scale);
   }
@@ -18,13 +18,13 @@ impl Colour {
 
   pub fn max_value(&self) -> f64 {
     let Colour::RGB(r, g, b) = self;
-    return r.max(*g).max(*b);
+    return r.max(*g).max(*b) as f64;
   }
 }
 
 impl From<Colour> for Vec4d {
   fn from(Colour::RGB(x, y, z): Colour) -> Self {
-    Vec4d::vector(x, y, z)
+    Vec4d::vector(x as f64, y as f64, z as f64)
   }
 }
 
@@ -37,14 +37,14 @@ impl From<Vec4d> for Colour {
       w: _a,
     }: Vec4d
   ) -> Self {
-    Colour::RGB(r, g, b)
+    Colour::RGB(r as f32, g as f32, b as f32)
   }
 }
 
 impl ops::Mul<f64> for Colour {
   type Output = Colour;
   fn mul(self, rhs: f64) -> Colour {
-    return self.scale(rhs);
+    return self.scale(rhs as f32);
   }
 }
 impl ops::Mul<Colour> for Colour {
@@ -58,7 +58,7 @@ impl ops::Mul<Colour> for Colour {
 impl ops::Mul<Colour> for f64 {
   type Output = Colour;
   fn mul(self, rhs: Colour) -> Colour {
-    return rhs.scale(self);
+    return rhs.scale(self as f32);
   }
 }
 

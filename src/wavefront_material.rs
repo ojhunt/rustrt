@@ -1,25 +1,18 @@
 use scene::SceneSettings;
-use casefopen;
 use colour::Colour;
 use fragment::Fragment;
 use genmesh::*;
-use image;
-use image::*;
-use material;
 use material::MaterialCollisionInfo;
 use material::{Material, Transparency};
 use obj::{IndexTuple, Obj};
 use objects::Mesh;
 use ray::Ray;
 use ray::RayContext;
-use scene::MaterialIdx;
 use scene::NormalIdx;
 use scene::Scene;
 use scene::TextureIdx;
-use std::collections::HashMap;
 use std::path::Path;
-use std::path::PathBuf;
-use texture::{Texture, TextureCoordinateIdx};
+use texture::TextureCoordinateIdx;
 use triangle::Triangle;
 use vectors::Vec2d;
 use vectors::Vec4d;
@@ -251,7 +244,7 @@ impl Material for WFMaterial {
 fn colour_from_slice(colour: Option<[f32; 3]>) -> Option<Colour> {
   match colour {
     None => None,
-    Some([r, g, b]) => Some(Colour::RGB(r as f64, g as f64, b as f64)),
+    Some([r, g, b]) => Some(Colour::RGB(r, g, b)),
   }
 }
 
@@ -274,7 +267,7 @@ fn load_surface_colour<F: FnMut(&mut Scene, &str, bool) -> Option<TextureIdx>>(
 ) -> (WFSurfaceProperty<Colour, TextureIdx>, F) {
   let real_colour = match colour {
     None => None,
-    Some([r, g, b]) => Some(Colour::RGB(r as f64, g as f64, b as f64)),
+    Some([r, g, b]) => Some(Colour::RGB(r, g, b)),
   };
   let real_texture = match texture {
     None => None,

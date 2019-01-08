@@ -106,6 +106,9 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     let start = std::time::Instant::now();
     while paths < target_photon_count {
       'photon_loop: for sample in &virtual_lights {
+        if paths >= target_photon_count {
+          break;
+        }
         let mut light_dir = {
           if false {
             let mut x;

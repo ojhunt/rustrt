@@ -41,7 +41,7 @@ impl Lerpable for Vec4d {
 impl Lerpable for Colour {
   fn scale(&self, other: f64) -> Self {
     let Colour::RGB(r, g, b) = *self;
-    return Colour::RGB(r * other, g * other, b * other);
+    return Colour::RGB(r * other as f32, g * other as f32, b * other as f32);
   }
   fn add(&self, Colour::RGB(rr, rg, rb): &Self) -> Self {
     let Colour::RGB(r, g, b) = *self;
@@ -68,7 +68,7 @@ impl Texture {
     }
 
     for (x, y, pixel) in image.pixels() {
-      let c = Colour::RGB(pixel[0] as f64 / 255., pixel[1] as f64 / 255., pixel[2] as f64 / 255.);
+      let c = Colour::RGB(pixel[0] as f32 / 255., pixel[1] as f32 / 255., pixel[2] as f32 / 255.);
       buffer[(height - 1 - y as usize) * width + x as usize] = c;
     }
 
@@ -143,7 +143,7 @@ impl Texture {
       + self.get_pixel(&self.data, x - 1., y - 1.)
       + self.get_pixel(&self.data, x + 1., y - 1.);
     let Colour::RGB(fv, _, _) = top - bottom;
-    return (fu, fv);
+    return (fu as f64, fv as f64);
   }
 
   pub fn generate_derivate_maps(&mut self) {

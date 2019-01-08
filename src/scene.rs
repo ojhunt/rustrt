@@ -193,6 +193,7 @@ impl Scene {
   }
 
   fn rebuild_photon_map(&mut self, max_elements_per_leaf: usize) {
+    println!("Building photon maps with {} photons", self.settings.photon_count);
     let diffuse_selector = DiffuseSelector::new(!self.settings.use_direct_lighting);
     self.diffuse_photon_map = Some(PhotonMap::new(
       &diffuse_selector,
@@ -368,9 +369,9 @@ impl Scene {
     }
 
     for (x, y, _pixel) in result.enumerate_pixels_mut() {
-      let mut r: f64 = 0.0;
-      let mut g: f64 = 0.0;
-      let mut b: f64 = 0.0;
+      let mut r: f32 = 0.0;
+      let mut g: f32 = 0.0;
+      let mut b: f32 = 0.0;
       for v in &buffer[x as usize + y as usize * width] {
         r += v.x;
         g += v.y;

@@ -13,7 +13,7 @@ pub trait HasPosition {
 struct KDTreeInnerNode<T> {
   children: Box<[KDTreeNode<T>; 2]>,
   axis: usize,
-  value: f64,
+  value: f32,
   bounds: BoundingBox,
 }
 
@@ -131,11 +131,11 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
     if nearest_elements.is_full() {
       if let Some((distance, _)) = nearest_elements.top() {
         if left_of_split {
-          if position[node.axis] + distance < node.value {
+          if position[node.axis] + (*distance as f32) < node.value {
             return;
           }
         } else {
-          if position[node.axis] - distance > node.value {
+          if position[node.axis] - (*distance as f32) > node.value {
             return;
           }
         }

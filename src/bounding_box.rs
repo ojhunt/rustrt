@@ -14,7 +14,7 @@ impl BoundingBox {
 
   pub fn surface_area(&self) -> f64 {
     let size = self.max - self.min;
-    return 2. * (size.x * size.y + size.x * size.z + size.y * size.z);
+    return 2. * (size.x * size.y + size.x * size.z + size.y * size.z) as f64;
   }
 
   pub fn new() -> BoundingBox {
@@ -87,10 +87,10 @@ impl BoundingBox {
     let direction = ray.direction;
     let origin = ray.origin;
     for i in 0..3 {
-      let inverse_dir = 1.0 / direction[i];
+      let inverse_dir = 1.0 / direction[i] as f64;
 
-      let mut t1 = (self.min[i] - origin[i]) * inverse_dir;
-      let mut t2 = (self.max[i] - origin[i]) * inverse_dir;
+      let mut t1 = (self.min[i] - origin[i]) as f64 * inverse_dir;
+      let mut t2 = (self.max[i] - origin[i]) as f64 * inverse_dir;
 
       if t1 > t2 {
         let temp = t1;
