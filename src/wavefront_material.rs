@@ -255,17 +255,19 @@ fn colour_from_slice(colour: Option<[f32; 3]>) -> Option<Colour> {
   }
 }
 
-fn load_bumpmap<F: FnMut(&str, bool) -> Option<TextureIdx>>(
+fn load_bumpmap<F: FnMut(&mut Scene, &str, bool) -> Option<TextureIdx>>(
+  scene: &mut Scene,
   texture: &Option<String>,
   mut texture_loader: F,
 ) -> (Option<TextureIdx>, F) {
   return match texture {
     None => (None, texture_loader),
-    Some(texture_name) => (texture_loader(texture_name, true), texture_loader),
+    Some(texture_name) => (texture_loader(scene, texture_name, true), texture_loader),
   };
 }
 
-fn load_surface_colour<F: FnMut(&str, bool) -> Option<TextureIdx>>(
+fn load_surface_colour<F: FnMut(&mut Scene, &str, bool) -> Option<TextureIdx>>(
+  scene: &mut Scene,
   colour: Option<[f32; 3]>,
   texture: &Option<String>,
   mut texture_loader: F,
@@ -276,7 +278,7 @@ fn load_surface_colour<F: FnMut(&str, bool) -> Option<TextureIdx>>(
   };
   let real_texture = match texture {
     None => None,
-    Some(texture_name) => texture_loader(texture_name, false),
+    Some(texture_name) => texture_loader(scene, texture_name, false),
   };
 
   return (
@@ -296,7 +298,11 @@ fn load_surface_colour<F: FnMut(&str, bool) -> Option<TextureIdx>>(
 }
 
 impl WFMaterial {
-  pub fn new<F: FnMut(&str, bool) -> Option<TextureIdx>>(mat: &obj::Material, texture_loader: F) -> WFMaterial {
+  pub fn new<F: FnMut(&mut Scene, &str, bool) -> Option<TextureIdx>>(
+    scene: &mut Scene,
+    mat: &obj::Material,
+    texture_loader: F,
+  ) -> WFMaterial {
     let opt_f32_to_f64 = |o: Option<f32>| {
       if let Some(v) = o {
         Some(v as f64)
@@ -305,12 +311,12 @@ impl WFMaterial {
       }
     };
 
-    let (ambient, f) = load_surface_colour(mat.ka, &mat.map_ka, texture_loader);
-    let (diffuse, f1) = load_surface_colour(mat.kd, &mat.map_kd, f);
-    let (specular, f2) = load_surface_colour(mat.ks, &mat.map_ks, f1);
+    let (ambient, f) = load_surface_colour(scene, mat.ka, &mat.map_ka, texture_loader);
+    let (diffuse, f1) = load_surface_colour(scene, mat.kd, &mat.map_kd, f);
+    let (specular, f2) = load_surface_colour(scene, mat.ks, &mat.map_ks, f1);
     println!("emmission: {:?}", mat.ke);
-    let (emission, f3) = load_surface_colour(mat.ke, &mat.map_ke, f2);
-    let (bump_map, _) = load_bumpmap(&mat.map_bump, f3);
+    let (emission, f3) = load_surface_colour(scene, mat.ke, &mat.map_ke, f2);
+    let (bump_map, _) = load_bumpmap(scene, &mat.map_bump, f3);
 
     WFMaterial {
       ambient_colour: ambient,
@@ -343,54 +349,7 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
 
   obj.load_mtls().unwrap();
 
-  let mut texture_map: HashMap<PathBuf, TextureIdx> = HashMap::new();
-  let mut textures: Vec<Texture> = Vec::new();
   let directory = scn.directory.clone();
-  let mut load_texture = |textures: &mut Vec<Texture>, file: &str, need_bumpmap: bool| {
-    let resolved_path = directory.join(file);
-    if let Some(result) = texture_map.get(&resolved_path) {
-      if need_bumpmap {
-        let TextureIdx(idx) = result;
-        textures[*idx].generate_derivate_maps();
-      }
-      return Some(*result);
-    }
-
-    let format = if let Some(extension) = resolved_path.extension() {
-      match (extension.to_str().unwrap()).to_lowercase().as_str() {
-        "png" => ImageFormat::PNG,
-        "pnm" => ImageFormat::PNG,
-        "jpeg" => ImageFormat::JPEG,
-        "jpg" => ImageFormat::JPEG,
-        x => panic!("Extension {}", x),
-      }
-    } else {
-      panic!();
-    };
-
-    let image = match casefopen::open(&resolved_path) {
-      Ok(file) => {
-        let mut buffer = std::io::BufReader::new(file);
-        match image::load(buffer, format) {
-          Ok(image) => image,
-          Err(msg) => panic!("Failed to open {:?} with error: {}", resolved_path, msg),
-        }
-      }
-      Err(msg) => panic!("Fopen({:?}) failed with {}", resolved_path, msg),
-    };
-    let texture = Texture::new(resolved_path.to_str().unwrap(), &image);
-
-    let texture_idx = TextureIdx(textures.len());
-
-    textures.push(texture);
-    if need_bumpmap {
-      let TextureIdx(idx) = texture_idx;
-      textures[idx].generate_derivate_maps();
-    }
-    texture_map.insert(resolved_path, texture_idx);
-
-    return Some(texture_idx);
-  };
 
   for [x, y, z] in obj.position.iter() {
     scn.positions.push(Vec4d::point(*x as f64, *y as f64, *z as f64));
@@ -407,26 +366,24 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
     scn.texture_coords.push(Vec2d(*u as f64, *v as f64));
   }
   let max_tex: usize = scn.texture_coords.len();
-  let mut material_map: HashMap<String, (MaterialIdx, bool)> = HashMap::new();
-  let mut materials: Vec<Box<material::Material>> = Vec::new();
-
+  let default_material = scn.default_material();
   let object_count = obj.objects.len();
+  // let mut index_for_material = |mat: &obj::Material| -> (MaterialIdx, bool) {
+  //   let name = &mat.name;
+  //   if let Some(existing) = material_map.get(name) {
+  //     return *existing;
+  //   }
+  //   let material: Box<material::Material> = Box::new(WFMaterial::new(mat, |file, need_bumpmap| {
+  //     load_texture(&mut textures, file, need_bumpmap)
+  //   }));
+  //   let is_light = material.is_light();
+  //   let index = scn.add_material(material);
+
+  //   material_map.insert(name.clone(), (MaterialIdx(materials.len() - 1), is_light));
+  //   return (index, is_light);
+  // };
+
   for object_index in 0..object_count {
-    let mut index_for_material = |mat: &obj::Material| -> (MaterialIdx, bool) {
-      let name = &mat.name;
-      if let Some(existing) = material_map.get(name) {
-        return *existing;
-      }
-      let material: Box<material::Material> = Box::new(WFMaterial::new(mat, |file, need_bumpmap| {
-        load_texture(&mut textures, file, need_bumpmap)
-      }));
-      let is_light = material.is_light();
-      materials.push(material);
-
-      material_map.insert(name.clone(), (MaterialIdx(materials.len() - 1), is_light));
-      return (MaterialIdx(materials.len() - 1), is_light);
-    };
-
     let object = &obj.objects[object_index];
     let mut object_triangles: Vec<Triangle> = vec![];
 
@@ -434,13 +391,16 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
     let mut lights: Vec<(usize, usize)> = vec![];
     for group_index in 0..group_count {
       let ref group = &object.groups[group_index];
-      let mut is_light = false;
-      let (material_index, is_light) = if let Some(ref mat) = group.material {
+      let material_index = if let Some(ref mat) = group.material {
         let material: &obj::Material = &**mat;
-        let (mat, is_light) = index_for_material(material);
-        (Some(mat), is_light)
+        let mat = scn.get_or_create_material(&material.name, |scene| {
+          return Some(Box::new(WFMaterial::new(scene, mat, |scene, file, need_bumpmap| {
+            scene.load_texture(file, need_bumpmap)
+          })));
+        });
+        Some(mat.0)
       } else {
-        (None, false)
+        None
       };
       let mut triangles: Vec<Triangle> = group
         .polys
@@ -481,8 +441,7 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
             let n = nidx.get(&scn);
             assert!(n.dot(n) != 0.0);
           };
-          assert!(material_index.is_some());
-          Triangle::new(material_index, x, y, z)
+          Triangle::new(material_index.unwrap_or(default_material), x, y, z)
         })
         .collect();
       object_triangles.append(&mut triangles);
@@ -491,8 +450,6 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
     let new_object = Box::new(Mesh::new(&object_triangles));
     scn.add_object(new_object);
   }
-  scn.materials.append(&mut materials);
-  scn.textures.append(&mut textures);
 
   return scn;
 }

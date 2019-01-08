@@ -14,7 +14,7 @@ use vectors::{Vec2d, Vec4d};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Triangle {
-  pub material: Option<MaterialIdx>,
+  pub material: MaterialIdx,
   pub origin: Vec4d,
   pub edges: [Vec4d; 2],
   pub normals: [Option<NormalIdx>; 3],
@@ -53,10 +53,7 @@ impl Light for Triangle {
       let (collision, _) = self.intersect(&ray, 0.0, std::f64::INFINITY).unwrap();
       let fragment = self.compute_fragment(scene, &ray, &collision);
 
-      let material = match fragment.material {
-        Some(inner) => scene.get_material(inner),
-        None => panic!(),
-      };
+      let material = scene.get_material(fragment.material);
       let surface = material.compute_surface_properties(scene, &ray, &fragment);
 
       let sample = LightSample {
@@ -161,12 +158,7 @@ impl Shadable for Triangle {
 }
 
 impl Triangle {
-  pub fn new(
-    material: Option<MaterialIdx>,
-    (v0, t0, n0): Vertex,
-    (v1, t1, n1): Vertex,
-    (v2, t2, n2): Vertex,
-  ) -> Triangle {
+  pub fn new(material: MaterialIdx, (v0, t0, n0): Vertex, (v1, t1, n1): Vertex, (v2, t2, n2): Vertex) -> Triangle {
     let edge0 = v1 - v0;
     let edge1 = v2 - v0;
     Triangle {
@@ -243,10 +235,10 @@ impl HasBoundingBox for Triangle {
 
 impl Intersectable for Triangle {
   fn get_lights<'a>(&'a self, s: &Scene) -> Vec<&'a Light> {
-    match self.material {
-      Some(mat) if s.get_material(mat).is_light() => vec![self],
-      _ => vec![],
+    if s.get_material(self.material).is_light() {
+      return vec![self];
     }
+    return vec![];
   }
   fn intersect<'a>(&'a self, ray: &Ray, min: f64, max: f64) -> Option<(Collision, &'a Shadable)> {
     return self.intersects(ray, min, max);

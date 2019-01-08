@@ -1,5 +1,9 @@
+use std::collections::HashMap;
+use material::Material;
+use material::DefaultMaterial;
 use camera::Camera;
 use collision::Collision;
+use casefopen;
 use colour::Colour;
 use compound_object::CompoundObject;
 use image::*;
@@ -79,6 +83,8 @@ pub struct Scene {
   pub materials: Vec<Box<material::Material>>,
   pub texture_coords: Vec<Vec2d>,
   pub textures: Vec<Texture>,
+  material_map: HashMap<String, (MaterialIdx, bool)>,
+  texture_map: HashMap<PathBuf, TextureIdx>,
   _scene: CompoundObject,
   diffuse_photon_map: Option<PhotonMap<DiffuseSelector>>,
   caustic_photon_map: Option<PhotonMap<CausticSelector>>,
@@ -93,18 +99,84 @@ impl Scene {
       directory: real_path.parent().unwrap().to_owned(),
       normals: Vec::new(),
       positions: Vec::new(),
-      materials: Vec::new(),
+      materials: vec![Box::new(DefaultMaterial::new(Colour::RGB(0.7, 0.7, 0.7)))],
       texture_coords: Vec::new(),
       textures: Vec::new(),
       _scene: CompoundObject::new(),
+      material_map: HashMap::new(),
+      texture_map: HashMap::new(),
       diffuse_photon_map: None,
       caustic_photon_map: None,
     }
   }
+
+  pub fn load_texture(&mut self, file: &str, need_bumpmap: bool) -> Option<TextureIdx> {
+    let resolved_path = self.directory.clone().join(file.replace("\\", "/"));
+    if let Some(result) = self.texture_map.get(&resolved_path) {
+      if need_bumpmap {
+        let TextureIdx(idx) = result;
+        self.textures[*idx].generate_derivate_maps();
+      }
+      return Some(*result);
+    }
+
+    let format = if let Some(extension) = resolved_path.extension() {
+      match (extension.to_str().unwrap()).to_lowercase().as_str() {
+        "png" => ImageFormat::PNG,
+        "pnm" => ImageFormat::PNG,
+        "jpeg" => ImageFormat::JPEG,
+        "jpg" => ImageFormat::JPEG,
+        x => panic!("Extension {}", x),
+      }
+    } else {
+      panic!();
+    };
+
+    let image = match casefopen::open(&resolved_path) {
+      Ok(file) => {
+        let mut buffer = std::io::BufReader::new(file);
+        match image::load(buffer, format) {
+          Ok(image) => image,
+          Err(msg) => panic!("Failed to open {:?} with error: {}", resolved_path, msg),
+        }
+      }
+      Err(msg) => panic!("Fopen({:?}) failed with {}", resolved_path, msg),
+    };
+    let texture = Texture::new(resolved_path.to_str().unwrap(), &image);
+
+    let texture_idx = TextureIdx(self.textures.len());
+    self.textures.push(texture);
+    if need_bumpmap {
+      let TextureIdx(idx) = texture_idx;
+      self.textures[idx].generate_derivate_maps();
+    }
+    self.texture_map.insert(resolved_path, texture_idx);
+    return Some(texture_idx);
+  }
+
+  pub fn get_or_create_material<Loader: Fn(&mut Scene) -> Option<Box<Material>>>(
+    &mut self,
+    name: &str,
+    loader: Loader,
+  ) -> (MaterialIdx, bool) {
+    if let Some(value) = self.material_map.get(name) {
+      return *value;
+    }
+    if let Some(material) = loader(self) {
+      let index = MaterialIdx(self.materials.len());
+      let is_light = material.is_light();
+      self.materials.push(material);
+      self.material_map.insert(name.to_string(), (index, is_light));
+      return (index, is_light);
+    }
+    return (MaterialIdx(0), false);
+  }
   pub fn add_object(&mut self, object: Box<Intersectable>) {
     self._scene.add_object(object)
   }
-
+  pub fn default_material(&self) -> MaterialIdx {
+    MaterialIdx(0)
+  }
   pub fn intersect<'a>(&'a self, ray: &Ray) -> Option<(Collision, &'a Shadable)> {
     return self._scene.intersect(ray, ray.min, ray.max);
   }
@@ -132,7 +204,7 @@ impl Scene {
     self.caustic_photon_map = Some(PhotonMap::new(
       &caustic_selector,
       self,
-      self.settings.photon_count / 2,
+      self.settings.photon_count,
       max_elements_per_leaf,
     ));
   }
@@ -161,10 +233,7 @@ impl Scene {
       Some((c, shadable)) => {
         let fragment = shadable.compute_fragment(self, ray, &c);
 
-        let material = match fragment.material {
-          Some(inner) => self.get_material(inner),
-          None => return Vec4d::new(),
-        };
+        let material = self.get_material(fragment.material);
         let surface = material.compute_surface_properties(self, ray, &fragment);
         // let ambient_colour = Vec4d::from(surface.ambient_colour);
         let mut diffuse_colour = Vec4d::from(surface.diffuse_colour);
@@ -182,7 +251,7 @@ impl Scene {
             None => Colour::RGB(0.0, 0.0, 0.0),
             Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
           };
-          (diffuse) //+ caustic)
+          (diffuse + caustic * 0.5 + Colour::RGB(0.2, 0.2, 0.2))
         };
 
         if true {

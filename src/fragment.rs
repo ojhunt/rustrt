@@ -18,5 +18,5 @@ pub struct Fragment {
 
   pub view: Vec4d, // Camera -> Point
 
-  pub material: Option<MaterialIdx>,
+  pub material: MaterialIdx,
 }

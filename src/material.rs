@@ -28,3 +28,32 @@ pub trait Material: Debug {
   fn is_light(&self) -> bool;
   fn compute_surface_properties(&self, s: &Scene, ray: &Ray, f: &Fragment) -> MaterialCollisionInfo;
 }
+
+#[derive(Debug)]
+pub struct DefaultMaterial {
+  colour: Colour,
+}
+
+impl DefaultMaterial {
+  pub fn new(colour: Colour) -> DefaultMaterial {
+    DefaultMaterial { colour }
+  }
+}
+impl Material for DefaultMaterial {
+  fn is_light(&self) -> bool {
+    false
+  }
+
+  fn compute_surface_properties(&self, s: &Scene, ray: &Ray, f: &Fragment) -> MaterialCollisionInfo {
+    MaterialCollisionInfo {
+      ambient_colour: self.colour,
+      diffuse_colour: self.colour,
+      specular_colour: self.colour,
+      emissive_colour: None,
+      transparent_colour: None,
+      position: f.position,
+      normal: f.normal,
+      secondaries: vec![],
+    }
+  }
+}

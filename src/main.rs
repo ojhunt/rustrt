@@ -116,6 +116,11 @@ fn load_settings() -> SceneSettings {
   }
   if matches.is_present("use_direct_lighting") {
     settings.use_direct_lighting = true;
+  } else {
+    println!("photon samples2: {}", settings.photon_samples);
+    if settings.photon_samples == 0 {
+      settings.use_direct_lighting = true;
+    }
   }
   return settings;
 }

@@ -158,10 +158,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
           };
 
           let fragment: Fragment = shadable.compute_fragment(scene, &photon_ray, &c);
-          let material = match fragment.material {
-            Some(inner) => scene.get_material(inner),
-            None => continue 'photon_loop,
-          };
+          let material = scene.get_material(fragment.material);
 
           let surface: MaterialCollisionInfo = material.compute_surface_properties(scene, &photon_ray, &fragment);
           let mut remaining_weight = 1.0;
@@ -287,8 +284,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
           continue;
         }
         max_radius = max_radius.max(*distance);
-        let weight =
-          (-photon.direction.dot(surface.normal)).max(0.0) * (radius_cutoff - distance).max(0.0) / radius_cutoff;
+        let weight = (-photon.direction.dot(surface.normal)).max(0.0); //* (radius_cutoff - distance).max(0.0) / radius_cutoff;
         result = result + Vec4d::from(photon.colour) * (contribution * weight).max(0.0);
       }
     }
@@ -321,13 +317,11 @@ fn is_specular(surface: &MaterialCollisionInfo) -> bool {
 
 impl PhotonSelector for DiffuseSelector {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
-    // if depth == 1 && is_specular(surface) {
-    //   return RecordMode::TerminatePath;
-    // }
+    if depth == 1 && is_specular(surface) {
+      return RecordMode::TerminatePath;
+    }
 
-    if depth > 1
-    /*|| self.include_first_bounce*/
-    {
+    if depth > 1 || self.include_first_bounce {
       if is_specular(surface) {
         return RecordMode::TerminatePath;
       }
