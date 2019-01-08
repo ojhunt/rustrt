@@ -2,51 +2,51 @@ use std::ops;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vec4d {
-  pub x: f32,
-  pub y: f32,
-  pub z: f32,
-  pub w: f32,
+  pub data: [f32; 4],
 }
 
 impl Vec4d {
+  pub fn x(&self) -> f32 {
+    self.data[0]
+  }
+  pub fn y(&self) -> f32 {
+    self.data[1]
+  }
+  pub fn z(&self) -> f32 {
+    self.data[2]
+  }
+  pub fn w(&self) -> f32 {
+    self.data[3]
+  }
   pub fn new() -> Vec4d {
-    Vec4d {
-      x: 0.,
-      y: 0.,
-      z: 0.,
-      w: 0.,
-    }
+    Vec4d { data: [0.0; 4] }
   }
   pub fn vector(x: f64, y: f64, z: f64) -> Vec4d {
     Vec4d {
-      x: x as f32,
-      y: y as f32,
-      z: z as f32,
-      w: 0.0,
+      data: [x as f32, y as f32, z as f32, 0.0],
     }
   }
   pub fn point(x: f64, y: f64, z: f64) -> Vec4d {
     Vec4d {
-      x: x as f32,
-      y: y as f32,
-      z: z as f32,
-      w: 1.0,
+      data: [x as f32, y as f32, z as f32, 1.0],
     }
   }
 
   pub fn reflect(&self, normal: Vec4d) -> Vec4d {
-    assert!(self.w == 0. && normal.w == 0.);
+    assert!(self.data[3] == 0. && normal.data[3] == 0.);
     assert!(self.dot(normal) <= 0.0);
     (-2.0 * self.dot(normal) * normal + *self).normalize()
   }
 
   pub fn cross(&self, rhs: Vec4d) -> Vec4d {
-    assert!(self.w == 0. && rhs.w == 0.);
+    assert!(self.data[3] == 0. && rhs.data[3] == 0.);
     Vec4d {
-      x: self.y * rhs.z - self.z * rhs.y,
-      y: self.z * rhs.x - self.x * rhs.z,
-      z: self.x * rhs.y - self.y * rhs.x,
-      w: 0.,
+      data: [
+        self.data[1] * rhs.data[2] - self.data[2] * rhs.data[1],
+        self.data[2] * rhs.data[0] - self.data[0] * rhs.data[2],
+        self.data[0] * rhs.data[1] - self.data[1] * rhs.data[0],
+        0.0,
+      ],
     }
   }
   pub fn square_length(&self) -> f64 {
@@ -56,8 +56,8 @@ impl Vec4d {
     return self.square_length().sqrt();
   }
   pub fn dot(&self, rhs: Vec4d) -> f64 {
-    assert!(self.w == 0. && rhs.w == 0.);
-    return (self.x * rhs.x + self.y * rhs.y + self.z * rhs.z) as f64;
+    assert!(self.data[3] == 0. && rhs.data[3] == 0.);
+    return (self.data[0] * rhs.data[0] + self.data[1] * rhs.data[1] + self.data[2] * rhs.data[2]) as f64;
   }
   pub fn normalize(&self) -> Vec4d {
     let scale = 1.0 / self.dot(*self).sqrt();
@@ -66,37 +66,45 @@ impl Vec4d {
 
   pub fn scale(self, scale: f64) -> Vec4d {
     Vec4d {
-      x: self.x * scale as f32,
-      y: self.y * scale as f32,
-      z: self.z * scale as f32,
-      w: self.w * scale as f32,
+      data: [
+        self.data[0] * scale as f32,
+        self.data[1] * scale as f32,
+        self.data[2] * scale as f32,
+        self.data[3] * scale as f32,
+      ],
     }
   }
 
   pub fn add_elements(self, _rhs: Vec4d) -> Vec4d {
     Vec4d {
-      x: self.x + _rhs.x,
-      y: self.y + _rhs.y,
-      z: self.z + _rhs.z,
-      w: self.w + _rhs.w,
+      data: [
+        self.data[0] + _rhs.data[0],
+        self.data[1] + _rhs.data[1],
+        self.data[2] + _rhs.data[2],
+        self.data[3] + _rhs.data[3],
+      ],
     }
   }
   pub fn min(self, rhs: Vec4d) -> Vec4d {
-    assert!(self.w == rhs.w);
+    assert!(self.data[3] == rhs.data[3]);
     Vec4d {
-      x: self.x.min(rhs.x),
-      y: self.y.min(rhs.y),
-      z: self.z.min(rhs.z),
-      w: self.w,
+      data: [
+        self.data[0].min(rhs.data[0]),
+        self.data[1].min(rhs.data[1]),
+        self.data[2].min(rhs.data[2]),
+        self.data[3],
+      ],
     }
   }
   pub fn max(self, rhs: Vec4d) -> Vec4d {
-    assert!(self.w == rhs.w);
+    assert!(self.data[3] == rhs.data[3]);
     Vec4d {
-      x: self.x.max(rhs.x),
-      y: self.y.max(rhs.y),
-      z: self.z.max(rhs.z),
-      w: self.w,
+      data: [
+        self.data[0].max(rhs.data[0]),
+        self.data[1].max(rhs.data[1]),
+        self.data[2].max(rhs.data[2]),
+        self.data[3],
+      ],
     }
   }
 }
@@ -126,7 +134,7 @@ impl ops::Add<Vec4d> for Vec4d {
   type Output = Vec4d;
 
   fn add(self, _rhs: Vec4d) -> Vec4d {
-    assert!(self.w == 0. || _rhs.w == 0.);
+    assert!(self.data[3] == 0. || _rhs.data[3] == 0.);
     return self.add_elements(_rhs);
   }
 }
@@ -135,26 +143,14 @@ impl ops::Sub<Vec4d> for Vec4d {
   type Output = Vec4d;
 
   fn sub(self, _rhs: Vec4d) -> Vec4d {
-    assert!(self.w == 1. || _rhs.w == 0.);
+    assert!(self.data[3] == 1. || _rhs.data[3] == 0.);
     Vec4d {
-      x: self.x - _rhs.x,
-      y: self.y - _rhs.y,
-      z: self.z - _rhs.z,
-      w: self.w - _rhs.w,
-    }
-  }
-}
-
-impl ops::Index<usize> for Vec4d {
-  type Output = f32;
-
-  fn index(&self, index: usize) -> &f32 {
-    match index {
-      0 => &self.x,
-      1 => &self.y,
-      2 => &self.z,
-      3 => &self.w,
-      _ => panic!("invalid vector index"),
+      data: [
+        self.data[0] - _rhs.data[0],
+        self.data[1] - _rhs.data[1],
+        self.data[2] - _rhs.data[2],
+        self.data[3] - _rhs.data[3],
+      ],
     }
   }
 }

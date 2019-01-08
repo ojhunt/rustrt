@@ -188,7 +188,7 @@ impl Scene {
 
   pub fn get_normal(&self, idx: usize) -> Vec4d {
     let n = self.normals[idx];
-    assert!(n.w == 0.0);
+    assert!(n.w() == 0.0);
     return n;
   }
 
@@ -373,9 +373,9 @@ impl Scene {
       let mut g: f32 = 0.0;
       let mut b: f32 = 0.0;
       for v in &buffer[x as usize + y as usize * width] {
-        r += v.x;
-        g += v.y;
-        b += v.z;
+        r += v.x();
+        g += v.y();
+        b += v.z();
       }
       *_pixel = image::Rgb([
         (r * 255.).max(0.).min(255.) as u8,

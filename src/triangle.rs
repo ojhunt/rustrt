@@ -47,7 +47,7 @@ impl Light for Triangle {
         .scale(1.0 - r1_root)
         .add_elements(b.scale(r1_root * (1.0 - r2)))
         .add_elements(c.scale(r1_root * r2));
-      point.w = 1.0;
+      point.data[3] = 1.0;
       let normal = self.true_normal();
       let ray = Ray::new(point + normal, normal * -1.0, None);
       let (collision, _) = self.intersect(&ray, 0.0, std::f64::INFINITY).unwrap();

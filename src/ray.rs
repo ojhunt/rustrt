@@ -44,8 +44,8 @@ fn clone_context(ctx: Option<RayContext>) -> RayContext {
 
 impl Ray {
   pub fn new(origin: Vec4d, direction: Vec4d, ctx: Option<RayContext>) -> Ray {
-    assert!(origin.w == 1.0);
-    assert!(direction.w == 0.0);
+    assert!(origin.w() == 1.0);
+    assert!(direction.w() == 0.0);
     Ray {
       origin: origin,
       direction: direction,
@@ -56,8 +56,8 @@ impl Ray {
   }
 
   pub fn new_bound(origin: Vec4d, direction: Vec4d, min: f64, max: f64, ctx: Option<RayContext>) -> Ray {
-    assert!(origin.w == 1.0);
-    assert!(direction.w == 0.0);
+    assert!(origin.w() == 1.0);
+    assert!(direction.w() == 0.0);
     Ray {
       origin: origin,
       direction: direction,

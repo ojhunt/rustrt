@@ -14,7 +14,7 @@ impl BoundingBox {
 
   pub fn surface_area(&self) -> f64 {
     let size = self.max - self.min;
-    return 2. * (size.x * size.y + size.x * size.z + size.y * size.z) as f64;
+    return 2. * (size.x() * size.y() + size.x() * size.z() + size.y() * size.z()) as f64;
   }
 
   pub fn new() -> BoundingBox {
@@ -28,25 +28,25 @@ impl BoundingBox {
     let min = self.min;
     let max = self.max;
 
-    let valid_values = min.x <= max.x && min.y <= max.y && min.z <= max.z;
+    let valid_values = min.x() <= max.x() && min.y() <= max.y() && min.z() <= max.z();
     if !valid_values {
       return false;
     }
-    return min.x.is_finite()
-      && min.y.is_finite()
-      && min.z.is_finite()
-      && max.x.is_finite()
-      && max.y.is_finite()
-      && max.z.is_finite();
+    return min.x().is_finite()
+      && min.y().is_finite()
+      && min.z().is_finite()
+      && max.x().is_finite()
+      && max.y().is_finite()
+      && max.z().is_finite();
   }
 
   pub fn new_from_point(v: Vec4d) -> BoundingBox {
-    assert!(v.w == 1.);
+    assert!(v.w() == 1.);
     BoundingBox { min: v, max: v }
   }
 
   pub fn merge_with_point(&self, v: Vec4d) -> BoundingBox {
-    assert!(v.w == 1.);
+    assert!(v.w() == 1.);
     return self.merge_with_bbox(BoundingBox { min: v, max: v });
   }
   pub fn merge_with_bbox(&self, other: BoundingBox) -> BoundingBox {
@@ -58,10 +58,10 @@ impl BoundingBox {
 
   pub fn max_axis(&self) -> usize {
     let diff = self.max - self.min;
-    if diff.x > diff.y && diff.x > diff.z {
+    if diff.x() > diff.y() && diff.x() > diff.z() {
       return 0;
     }
-    if diff.y > diff.z {
+    if diff.y() > diff.z() {
       return 1;
     }
     return 2;
@@ -69,14 +69,14 @@ impl BoundingBox {
 
   pub fn offset(&self, point: Vec4d) -> Vec4d {
     let mut o = point - self.min;
-    if self.max.x > self.min.x {
-      o.x /= self.max.x - self.min.x;
+    if self.max.x() > self.min.x() {
+      o.data[0] /= self.max.x() - self.min.x();
     }
-    if self.max.y > self.min.y {
-      o.y /= self.max.y - self.min.y;
+    if self.max.y() > self.min.y() {
+      o.data[1] /= self.max.y() - self.min.y();
     }
-    if self.max.z > self.min.z {
-      o.z /= self.max.z - self.min.z;
+    if self.max.z() > self.min.z() {
+      o.data[2] /= self.max.z() - self.min.z();
     }
     return o;
   }
@@ -87,10 +87,10 @@ impl BoundingBox {
     let direction = ray.direction;
     let origin = ray.origin;
     for i in 0..3 {
-      let inverse_dir = 1.0 / direction[i] as f64;
+      let inverse_dir = 1.0 / direction.data[i] as f64;
 
-      let mut t1 = (self.min[i] - origin[i]) as f64 * inverse_dir;
-      let mut t2 = (self.max[i] - origin[i]) as f64 * inverse_dir;
+      let mut t1 = (self.min.data[i] - origin.data[i]) as f64 * inverse_dir;
+      let mut t2 = (self.max.data[i] - origin.data[i]) as f64 * inverse_dir;
 
       if t1 > t2 {
         let temp = t1;

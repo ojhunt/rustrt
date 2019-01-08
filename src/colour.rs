@@ -29,14 +29,7 @@ impl From<Colour> for Vec4d {
 }
 
 impl From<Vec4d> for Colour {
-  fn from(
-    Vec4d {
-      x: r,
-      y: g,
-      z: b,
-      w: _a,
-    }: Vec4d
-  ) -> Self {
+  fn from(Vec4d { data: [r, g, b, _a] }: Vec4d) -> Self {
     Colour::RGB(r as f32, g as f32, b as f32)
   }
 }
