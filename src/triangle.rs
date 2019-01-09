@@ -1,6 +1,5 @@
 use bounding_box::*;
 use collision::Collision;
-use colour::Colour;
 use fragment::Fragment;
 use intersectable::*;
 use rand::{thread_rng, Rng};
@@ -203,23 +202,6 @@ impl Triangle {
     }
 
     return Some((Collision::new(t, Vec2d(u, v)), self));
-  }
-
-  pub fn barycentric_for_point(&self, position: Vec4d) -> (f64, f64, f64) {
-    // From https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
-    let v0 = self.edges[0];
-    let v1 = self.edges[1];
-    let v2 = position - self.origin;
-    let d00 = v0.dot(v0);
-    let d01 = v0.dot(v1);
-    let d11 = v1.dot(v1);
-    let d20 = v2.dot(v0);
-    let d21 = v2.dot(v1);
-    let denom = d00 * d11 - d01 * d01;
-    let v = (d11 * d20 - d01 * d21) / denom;
-    let w = (d00 * d21 - d01 * d20) / denom;
-    let u = 1.0 - v - w;
-    return (u, v, w);
   }
 
   fn true_normal(&self) -> Vec4d {

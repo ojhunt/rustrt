@@ -10,13 +10,11 @@ impl RayContext {
     RayContext { ior: vec![] }
   }
 
-  pub fn enter_material(&self, ior: f64) -> RayContext {
-    let mut result = self.clone();
-
-    return result;
+  pub fn enter_material(&self, _ior: f64) -> RayContext {
+    self.clone()
   }
 
-  pub fn current_ior_or(&self, or: f64) -> f64 {
+  pub fn current_ior_or(&self, _or: f64) -> f64 {
     *self.ior.last().unwrap_or(&1.0)
   }
   pub fn exit_material(&self) -> RayContext {

@@ -8,6 +8,7 @@ image = "*"
 genmesh = "*"
 itertools = "*"
 rand = "*"
+stdsimd = "*"
 obj = { version = "*", features = ["genmesh"]}
 
 [dependencies.clap]

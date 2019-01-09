@@ -34,7 +34,6 @@ impl HasPosition for Photon {
 pub enum RecordMode {
   TerminatePath,
   DontRecord,
-  RecordAndTerminate,
   Record,
 }
 
@@ -49,7 +48,6 @@ impl RecordMode {
   pub fn should_terminate(&self) -> bool {
     match self {
       RecordMode::TerminatePath => true,
-      RecordMode::RecordAndTerminate => true,
       _ => false,
     }
   }
@@ -188,12 +186,12 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
             let prob_diffuse = (surface.diffuse_colour * photon_colour).max_value() / photon_colour.max_value();
             let prob_specular = (surface.specular_colour * photon_colour).max_value() / photon_colour.max_value();
             let p = random(0.0, 1.0);
-            let (new_direction, new_colour) = if p < prob_diffuse {
+            let (new_direction, new_colour) = if p * remaining_weight < prob_diffuse {
               (
                 random_in_hemisphere(surface.normal),
                 surface.diffuse_colour * photon_colour * (1.0 / prob_diffuse),
               )
-            } else if p < (prob_diffuse + prob_specular) {
+            } else if p * remaining_weight < (prob_diffuse + prob_specular) {
               (
                 fragment.view.reflect(surface.normal),
                 surface.specular_colour * photon_colour * (1.0 / prob_specular),
@@ -310,7 +308,6 @@ fn is_specular(surface: &MaterialCollisionInfo) -> bool {
   let mut secondary_weight = 0.0;
   for secondary in &surface.secondaries {
     secondary_weight += secondary.2;
-    return true;
   }
   if random(0.0, 1.0) < secondary_weight {
     return true;
@@ -335,12 +332,11 @@ impl PhotonSelector for DiffuseSelector {
 
   fn weight_for_sample(
     &self,
-    position: Vec4d,
-    photon: &Photon,
-    photon_count: usize,
-    sample_radius: f64,
+    _position: Vec4d,
+    _photon: &Photon,
+    _photon_count: usize,
+    _sample_radius: f64,
   ) -> Option<f64> {
-    let photon_distance = (photon.position - position).length();
     Some(1.0)
   }
 }
@@ -366,10 +362,10 @@ impl PhotonSelector for CausticSelector {
   }
   fn weight_for_sample(
     &self,
-    position: Vec4d,
-    photon: &Photon,
-    photon_count: usize,
-    sample_radius: f64,
+    _position: Vec4d,
+    _photon: &Photon,
+    _photon_count: usize,
+    _sample_radius: f64,
   ) -> Option<f64> {
     Some(1.0) // / photon_count as f64)
   }

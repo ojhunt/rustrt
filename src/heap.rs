@@ -20,12 +20,6 @@ impl<'a, T: Clone> PriorityHeap<'a, T> {
     buffer.sort_by(|a, b| (self.comparator)(a, b).reverse());
     self.data.append(buffer);
   }
-  pub fn is_empty(&self) -> bool {
-    return self.data.len() == 0;
-  }
-  pub fn is_full(&self) -> bool {
-    return self.max_size == self.data.len();
-  }
   pub fn top(&self) -> Option<&T> {
     if self.data.len() == 0 {
       None

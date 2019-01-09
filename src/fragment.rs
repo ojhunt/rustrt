@@ -2,11 +2,6 @@ use scene::MaterialIdx;
 use vectors::Vec2d;
 use vectors::Vec4d;
 
-pub struct FragmentDifferentials {
-  pub dpdx: Vec4d,
-  pub dpdy: Vec4d,
-}
-
 pub struct Fragment {
   pub position: Vec4d,
   pub normal: Vec4d,

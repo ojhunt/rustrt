@@ -1,6 +1,5 @@
 use collision::Collision;
 use fragment::Fragment;
-use material::MaterialCollisionInfo;
 use ray::Ray;
 use scene::Scene;
 use vectors::Vec4d;

@@ -1,3 +1,5 @@
+#![feature(stdsimd)]
+
 extern crate clap;
 extern crate genmesh;
 extern crate image;
@@ -128,7 +130,6 @@ fn load_settings() -> SceneSettings {
 fn main() {
   let settings = load_settings();
 
-  const SIZE: usize = 100;
   let mut scn = load_scene(&settings);
   scn.finalize(settings.max_leaf_photons);
   let camera = PerspectiveCamera::new(

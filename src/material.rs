@@ -9,7 +9,7 @@ use vectors::Vec4d;
 pub enum Transparency {
   Opaque,
   Constant(f64),
-  Halo(f64), // 1.0 - (N*v)(1.0-factor)
+  // Halo(f64), // 1.0 - (N*v)(1.0-factor)
 }
 
 #[derive(Clone)]
@@ -44,7 +44,7 @@ impl Material for DefaultMaterial {
     false
   }
 
-  fn compute_surface_properties(&self, s: &Scene, ray: &Ray, f: &Fragment) -> MaterialCollisionInfo {
+  fn compute_surface_properties(&self, _s: &Scene, _ray: &Ray, f: &Fragment) -> MaterialCollisionInfo {
     MaterialCollisionInfo {
       ambient_colour: self.colour,
       diffuse_colour: self.colour,

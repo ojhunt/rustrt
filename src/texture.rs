@@ -1,8 +1,6 @@
 use colour::Colour;
 use image::*;
 use scene::Scene;
-use std::cell::*;
-use std::ops::Deref;
 use vectors::{Vec2d, Vec4d};
 
 #[derive(Debug, Copy, Clone)]

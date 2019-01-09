@@ -64,22 +64,18 @@ impl MergeValues for Colour {
 impl<Raw: Copy + RawSurfaceValue + MergeValues, Texture: Copy + TextureSurfaceValue<Raw>>
   WFSurfaceProperty<Raw, Texture>
 {
-  pub fn new() -> WFSurfaceProperty<Raw, Texture> {
-    WFSurfaceProperty::None
-  }
   pub fn raw_for_fragment(&self, scene: &Scene, fragment: &Fragment) -> Raw {
     return match self {
       WFSurfaceProperty::None => Raw::empty(),
       WFSurfaceProperty::Single(v) => *v,
       WFSurfaceProperty::Texture(t) => t.raw_for_fragment(scene, fragment),
       WFSurfaceProperty::Complex(c, t) => c.merge(t.raw_for_fragment(scene, fragment)),
-      _ => panic!(),
     };
   }
   pub fn option_for_fragment(&self, scene: &Scene, fragment: &Fragment) -> Option<Raw> {
     return match self {
       WFSurfaceProperty::None => None,
-      raw => Some(self.raw_for_fragment(scene, fragment)),
+      _raw => Some(self.raw_for_fragment(scene, fragment)),
     };
   }
 }
@@ -167,7 +163,7 @@ impl Material for WFMaterial {
       return result;
     }
 
-    let mut transparent_colour = if let Some(transparent_colour) = result.transparent_colour {
+    let transparent_colour = if let Some(transparent_colour) = result.transparent_colour {
       transparent_colour
     } else {
       Colour::RGB(1.0, 1.0, 1.0) //return result;
@@ -176,8 +172,8 @@ impl Material for WFMaterial {
     let (refracted_vector, new_context): (Vec4d, RayContext) = match self.index_of_refraction {
       None => (f.view, ray.ray_context.clone()),
       Some(ior) => {
-        let V = f.view * -1.0;
-        let in_object = V.dot(f.true_normal) > 0.0;
+        let view = f.view * -1.0;
+        let in_object = view.dot(f.true_normal) > 0.0;
         let (ni, nt, new_context) = if in_object {
           let new_context = ray.ray_context.exit_material();
           (
@@ -191,7 +187,7 @@ impl Material for WFMaterial {
         };
         let mut nr = ni / nt;
 
-        let n_dot_v = normal.dot(V);
+        let n_dot_v = normal.dot(view);
 
         let inner = 1.0 - nr * nr * (1.0 - n_dot_v * n_dot_v);
         if inner < 0.0 {
@@ -221,7 +217,7 @@ impl Material for WFMaterial {
             refraction_weight -= fresnel_weight;
           }
           (
-            ((nr * n_dot_v - inner.sqrt()) * normal - nr * V).normalize(),
+            ((nr * n_dot_v - inner.sqrt()) * normal - nr * view).normalize(),
             new_context,
           )
         }
@@ -342,8 +338,6 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
 
   obj.load_mtls().unwrap();
 
-  let directory = scn.directory.clone();
-
   for [x, y, z] in obj.position.iter() {
     scn.positions.push(Vec4d::point(*x as f64, *y as f64, *z as f64));
   }
@@ -381,7 +375,6 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
     let mut object_triangles: Vec<Triangle> = vec![];
 
     let group_count = object.groups.len();
-    let mut lights: Vec<(usize, usize)> = vec![];
     for group_index in 0..group_count {
       let ref group = &object.groups[group_index];
       let material_index = if let Some(ref mat) = group.material {

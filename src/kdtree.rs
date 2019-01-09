@@ -98,17 +98,10 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
     }
   }
 
-  fn bounds(&self) -> BoundingBox {
-    match self {
-      KDTreeNode::Node(n) => n.bounds,
-      KDTreeNode::Leaf(_, b) => *b,
-    }
-  }
-
   // Far from optimal -- the furthest node should start its calculation on top of the existing list
   fn nearest(&self, nearest_elements: &mut ElementAccumulator<(f64, T)>, position: Vec4d, max_distance: f64) {
     let node = match self {
-      KDTreeNode::Leaf(elements, bounds) => {
+      KDTreeNode::Leaf(elements, _bounds) => {
         for element in elements {
           let distance = (position - element.get_position()).length();
           if distance <= max_distance {

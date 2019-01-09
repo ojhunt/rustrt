@@ -3,22 +3,19 @@ use vectors::Vec4d;
 
 pub trait Camera {
   fn get_rays(&self, width: usize, height: usize) -> Vec<(usize, usize, f64, Ray)>;
-  fn get_differentials(&self, r: &Ray) -> (Ray, Ray);
 }
 
 pub struct PerspectiveCamera {
-  width: usize,
-  height: usize,
+  _width: usize,
+  _height: usize,
   position: Vec4d,
-  direction: Vec4d,
-  up: Vec4d,
-  fov: f64,
+  _direction: Vec4d,
+  _up: Vec4d,
+  _fov: f64,
   x_delta: Vec4d,
   y_delta: Vec4d,
   samples_per_pixel: usize,
   view_origin: Vec4d,
-  dxDifferential: Ray,
-  dyDifferential: Ray,
 }
 
 impl PerspectiveCamera {
@@ -51,18 +48,16 @@ impl PerspectiveCamera {
     let y_delta = (up * 2. * half_height) * (1. / height as f64);
 
     return PerspectiveCamera {
-      width,
-      height,
+      _width: width,
+      _height: height,
       position,
-      direction,
+      _direction: direction,
       view_origin,
-      up,
-      fov,
+      _up: up,
+      _fov: fov,
       x_delta,
       y_delta,
       samples_per_pixel,
-      dxDifferential: Ray::new(position, x_delta, None),
-      dyDifferential: Ray::new(position, y_delta, None),
     };
   }
 }
@@ -83,8 +78,5 @@ impl Camera for PerspectiveCamera {
       }
     }
     return result;
-  }
-  fn get_differentials(&self, _r: &Ray) -> (Ray, Ray) {
-    return (self.dxDifferential.clone(), self.dyDifferential.clone());
   }
 }
