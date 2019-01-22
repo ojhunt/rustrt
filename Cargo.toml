@@ -1,19 +1,23 @@
 [package]
 name = "myrt"
 version = "0.1.0"
-authors = ["Oliver Hunt <oliver@apple.com>"]
+authors = ["Oliver Hunt <github@nerget.com>"]
 
 [dependencies]
 image = "*"
 genmesh = "*"
 itertools = "*"
 rand = "*"
-stdsimd = "*"
+packed_simd = "*"
 obj = { version = "*", features = ["genmesh"]}
 
 [dependencies.clap]
 features = ["yaml"]
 git = "https://github.com/clap-rs/clap.git"
+branch = "master"
+
+[dependencies.faster]
+git = "https://github.com/AdamNiederer/faster.git"
 branch = "master"
 
 [profile.release]

@@ -16,10 +16,12 @@ impl<'a, T: Clone> PriorityHeap<'a, T> {
       comparator,
     }
   }
+
   pub fn append_buffer(&mut self, buffer: &mut Vec<T>) {
     buffer.sort_by(|a, b| (self.comparator)(a, b).reverse());
     self.data.append(buffer);
   }
+
   pub fn top(&self) -> Option<&T> {
     if self.data.len() == 0 {
       None
@@ -27,6 +29,7 @@ impl<'a, T: Clone> PriorityHeap<'a, T> {
       Some(&self.data[0])
     }
   }
+
   pub fn pop(&mut self) -> Option<T> {
     if self.data.len() == 0 {
       return None;

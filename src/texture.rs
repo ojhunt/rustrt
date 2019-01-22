@@ -22,6 +22,7 @@ impl Lerpable for f64 {
   fn scale(&self, other: f64) -> Self {
     return *self * other;
   }
+
   fn add(&self, other: &Self) -> Self {
     return *self + other;
   }

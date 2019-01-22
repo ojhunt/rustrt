@@ -114,7 +114,7 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
     };
 
     let (nearest_child, farthest_child, left_of_split) = {
-      if position.data[node.axis] < node.value {
+      if position.data.extract(node.axis) < node.value {
         (&node.children[0], &node.children[1], true)
       } else {
         (&node.children[1], &node.children[0], false)
@@ -124,11 +124,11 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
     if nearest_elements.is_full() {
       if let Some((distance, _)) = nearest_elements.top() {
         if left_of_split {
-          if position.data[node.axis] + (*distance as f32) < node.value {
+          if position.data.extract(node.axis) + (*distance as f32) < node.value {
             return;
           }
         } else {
-          if position.data[node.axis] - (*distance as f32) > node.value {
+          if position.data.extract(node.axis) - (*distance as f32) > node.value {
             return;
           }
         }
@@ -161,11 +161,11 @@ fn build_tree<T: Clone + HasBoundingBox + HasPosition>(
 
   let mut copy = elements.to_vec();
   copy.sort_by(|l, r| {
-    let left = l.get_position().data[max_axis];
-    let right = r.get_position().data[max_axis];
+    let left = l.get_position().data.extract(max_axis);
+    let right = r.get_position().data.extract(max_axis);
     return left.partial_cmp(&right).unwrap();
   });
-  let split_point = copy[copy.len() / 2].get_position().data[max_axis];
+  let split_point = copy[copy.len() / 2].get_position().data.extract(max_axis);
 
   let (left, right) = copy.split_at(copy.len() / 2);
 

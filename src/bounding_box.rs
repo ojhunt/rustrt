@@ -1,5 +1,6 @@
 use ray::Ray;
 use vectors::Vec4d;
+use faster::arch::x86::vecs::f32x4;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BoundingBox {
@@ -32,6 +33,7 @@ impl BoundingBox {
     if !valid_values {
       return false;
     }
+
     return min.x().is_finite()
       && min.y().is_finite()
       && min.z().is_finite()
@@ -68,42 +70,34 @@ impl BoundingBox {
   }
 
   pub fn offset(&self, point: Vec4d) -> Vec4d {
-    let mut o = point - self.min;
-    if self.max.x() > self.min.x() {
-      o.data[0] /= self.max.x() - self.min.x();
-    }
-    if self.max.y() > self.min.y() {
-      o.data[1] /= self.max.y() - self.min.y();
-    }
-    if self.max.z() > self.min.z() {
-      o.data[2] /= self.max.z() - self.min.z();
-    }
-    return o;
+    let o = point - self.min;
+    let mask = self.max.data.gt(self.min.data);
+    let scale_factor = self.max.data - self.min.data;
+    return Vec4d {
+      data: mask.select(o.data / scale_factor, o.data),
+    };
   }
 
   pub fn intersect(&self, ray: &Ray, min: f64, max: f64) -> Option<(f64, f64)> {
-    let mut tmin = min;
-    let mut tmax = max;
+    let mut tmin = f32x4::splat(min as f32);
+    let mut tmax = f32x4::splat(max as f32);
+
     let direction = ray.direction;
     let origin = ray.origin;
-    for i in 0..3 {
-      let inverse_dir = 1.0 / direction.data[i] as f64;
 
-      let mut t1 = (self.min.data[i] - origin.data[i]) as f64 * inverse_dir;
-      let mut t2 = (self.max.data[i] - origin.data[i]) as f64 * inverse_dir;
+    let inverse_dir = f32x4::splat(1.0) / direction.data;
+    let unnormalized_t1 = (self.min.data - origin.data) * inverse_dir;
+    let unnormalized_t2 = (self.max.data - origin.data) * inverse_dir;
+    let compare_mask = unnormalized_t1.gt(unnormalized_t2);
+    let t1 = compare_mask.select(unnormalized_t2, unnormalized_t1);
+    let t2 = compare_mask.select(unnormalized_t1, unnormalized_t2);
+    tmin = tmin.max(t1);
+    tmax = tmax.min(t2);
 
-      if t1 > t2 {
-        let temp = t1;
-        t1 = t2;
-        t2 = temp;
-      }
-      tmin = tmin.max(t1);
-      tmax = tmax.min(t2);
-      if tmin > tmax {
-        return None;
-      }
+    if tmin.gt(tmax).any() {
+      return None;
     }
-    return Some((tmin, tmax + 0.001));
+    return Some((tmin.max_element() as f64, (tmax.min_element() + 0.01) as f64));
   }
 }
 

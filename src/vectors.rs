@@ -1,52 +1,56 @@
 use std::ops;
+use packed_simd::shuffle;
+use faster::arch::x86::vecs::f32x4;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vec4d {
-  pub data: [f32; 4],
+  pub data: f32x4,
 }
 
 impl Vec4d {
   pub fn x(&self) -> f32 {
-    self.data[0]
+    self.data.extract(0)
   }
   pub fn y(&self) -> f32 {
-    self.data[1]
+    self.data.extract(1)
   }
   pub fn z(&self) -> f32 {
-    self.data[2]
+    self.data.extract(2)
   }
   pub fn w(&self) -> f32 {
-    self.data[3]
+    self.data.extract(3)
   }
   pub fn new() -> Vec4d {
-    Vec4d { data: [0.0; 4] }
-  }
-  pub fn vector(x: f64, y: f64, z: f64) -> Vec4d {
     Vec4d {
-      data: [x as f32, y as f32, z as f32, 0.0],
+      data: f32x4::splat(0.0),
     }
   }
+
+  pub fn vector(x: f64, y: f64, z: f64) -> Vec4d {
+    Vec4d {
+      data: f32x4::new(x as f32, y as f32, z as f32, 0.0),
+    }
+  }
+
   pub fn point(x: f64, y: f64, z: f64) -> Vec4d {
     Vec4d {
-      data: [x as f32, y as f32, z as f32, 1.0],
+      data: f32x4::new(x as f32, y as f32, z as f32, 1.0),
     }
   }
 
   pub fn reflect(&self, normal: Vec4d) -> Vec4d {
-    assert!(self.data[3] == 0. && normal.data[3] == 0.);
     assert!(self.dot(normal) <= 0.0);
     (-2.0 * self.dot(normal) * normal + *self).normalize()
   }
 
   pub fn cross(&self, rhs: Vec4d) -> Vec4d {
-    assert!(self.data[3] == 0. && rhs.data[3] == 0.);
+    let rhs201: f32x4 = shuffle!(rhs.data, [2, 0, 1, 0]);
+    let rhs120: f32x4 = shuffle!(rhs.data, [1, 2, 0, 0]);
+    let lhs120: f32x4 = shuffle!(self.data, [1, 2, 0, 0]);
+    let lhs201: f32x4 = shuffle!(self.data, [2, 0, 1, 0]);
+
     Vec4d {
-      data: [
-        self.data[1] * rhs.data[2] - self.data[2] * rhs.data[1],
-        self.data[2] * rhs.data[0] - self.data[0] * rhs.data[2],
-        self.data[0] * rhs.data[1] - self.data[1] * rhs.data[0],
-        0.0,
-      ],
+      data: lhs120 * rhs201 - lhs201 * rhs120,
     }
   }
   pub fn square_length(&self) -> f64 {
@@ -56,8 +60,8 @@ impl Vec4d {
     return self.square_length().sqrt();
   }
   pub fn dot(&self, rhs: Vec4d) -> f64 {
-    assert!(self.data[3] == 0. && rhs.data[3] == 0.);
-    return (self.data[0] * rhs.data[0] + self.data[1] * rhs.data[1] + self.data[2] * rhs.data[2]) as f64;
+    let scaled = self.data * rhs.data;
+    return scaled.sum() as f64;
   }
   pub fn normalize(&self) -> Vec4d {
     let scale = 1.0 / self.dot(*self).sqrt();
@@ -66,45 +70,23 @@ impl Vec4d {
 
   pub fn scale(self, scale: f64) -> Vec4d {
     Vec4d {
-      data: [
-        self.data[0] * scale as f32,
-        self.data[1] * scale as f32,
-        self.data[2] * scale as f32,
-        self.data[3] * scale as f32,
-      ],
+      data: self.data * scale as f32,
     }
   }
 
   pub fn add_elements(self, _rhs: Vec4d) -> Vec4d {
     Vec4d {
-      data: [
-        self.data[0] + _rhs.data[0],
-        self.data[1] + _rhs.data[1],
-        self.data[2] + _rhs.data[2],
-        self.data[3] + _rhs.data[3],
-      ],
+      data: self.data + _rhs.data,
     }
   }
   pub fn min(self, rhs: Vec4d) -> Vec4d {
-    assert!(self.data[3] == rhs.data[3]);
     Vec4d {
-      data: [
-        self.data[0].min(rhs.data[0]),
-        self.data[1].min(rhs.data[1]),
-        self.data[2].min(rhs.data[2]),
-        self.data[3],
-      ],
+      data: self.data.min(rhs.data),
     }
   }
   pub fn max(self, rhs: Vec4d) -> Vec4d {
-    assert!(self.data[3] == rhs.data[3]);
     Vec4d {
-      data: [
-        self.data[0].max(rhs.data[0]),
-        self.data[1].max(rhs.data[1]),
-        self.data[2].max(rhs.data[2]),
-        self.data[3],
-      ],
+      data: self.data.max(rhs.data),
     }
   }
 }
@@ -134,8 +116,9 @@ impl ops::Add<Vec4d> for Vec4d {
   type Output = Vec4d;
 
   fn add(self, _rhs: Vec4d) -> Vec4d {
-    assert!(self.data[3] == 0. || _rhs.data[3] == 0.);
-    return self.add_elements(_rhs);
+    return Vec4d {
+      data: self.data + _rhs.data,
+    };
   }
 }
 
@@ -143,14 +126,8 @@ impl ops::Sub<Vec4d> for Vec4d {
   type Output = Vec4d;
 
   fn sub(self, _rhs: Vec4d) -> Vec4d {
-    assert!(self.data[3] == 1. || _rhs.data[3] == 0.);
     Vec4d {
-      data: [
-        self.data[0] - _rhs.data[0],
-        self.data[1] - _rhs.data[1],
-        self.data[2] - _rhs.data[2],
-        self.data[3] - _rhs.data[3],
-      ],
+      data: self.data - _rhs.data,
     }
   }
 }

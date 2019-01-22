@@ -21,10 +21,12 @@ impl CompoundObject {
       bvh_tree: None,
     }
   }
+
   pub fn add_object(&mut self, object: Box<Intersectable>) {
     self.bbox = self.bbox.merge_with_bbox(object.bounds());
     self.elements.push(object);
   }
+
   pub fn finalize(&mut self) {
     self.bvh_tree = Some(Box::new(BVH::new(&self.elements)))
   }

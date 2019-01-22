@@ -29,8 +29,10 @@ impl From<Colour> for Vec4d {
 }
 
 impl From<Vec4d> for Colour {
-  fn from(Vec4d { data: [r, g, b, _a] }: Vec4d) -> Self {
-    Colour::RGB(r as f32, g as f32, b as f32)
+  fn from(Vec4d { data }: Vec4d) -> Self {
+    let mut value = [0.0; 4];
+    data.write_to_slice_unaligned(&mut value);
+    Colour::RGB(value[0], value[1], value[2])
   }
 }
 

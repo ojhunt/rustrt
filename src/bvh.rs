@@ -197,7 +197,7 @@ fn recursive_build(depth: usize, primitives: &mut [BVHPrimitiveInfo]) -> BVHNode
   }
 
   let max_axis = centroid_bounds.max_axis();
-  if centroid_bounds.max.data[max_axis] == centroid_bounds.min.data[max_axis] {
+  if centroid_bounds.max.data.extract(max_axis) == centroid_bounds.min.data.extract(max_axis) {
     return make_leaf(primitives);
   }
 
@@ -207,8 +207,8 @@ fn recursive_build(depth: usize, primitives: &mut [BVHPrimitiveInfo]) -> BVHNode
   }; NUM_BUCKETS];
 
   for primitive in primitives.iter() {
-    let b =
-      ((NUM_BUCKETS as f32 * centroid_bounds.offset(primitive.centroid).data[max_axis]) as usize).min(NUM_BUCKETS - 1);
+    let b = ((NUM_BUCKETS as f32 * centroid_bounds.offset(primitive.centroid).data.extract(max_axis)) as usize)
+      .min(NUM_BUCKETS - 1);
     assert!(b < NUM_BUCKETS);
     buckets[b].count += 1;
     buckets[b].bounds = buckets[b].bounds.merge_with_bbox(primitive.bounds);
@@ -251,12 +251,12 @@ fn recursive_build(depth: usize, primitives: &mut [BVHPrimitiveInfo]) -> BVHNode
 
   let mut left_primitives: Vec<BVHPrimitiveInfo> = Vec::new();
   let mut right_primitives: Vec<BVHPrimitiveInfo> = Vec::new();
-  let centroid_split = centroid_bounds.min.data[max_axis]
-    + (centroid_bounds.max - centroid_bounds.min).data[max_axis] * split_bucket as f32 / NUM_BUCKETS as f32;
+  let centroid_split = centroid_bounds.min.data.extract(max_axis)
+    + (centroid_bounds.max - centroid_bounds.min).data.extract(max_axis) * split_bucket as f32 / NUM_BUCKETS as f32;
   let mut inner_bounds = BoundingBox::new();
   for primitive in primitives.iter() {
     inner_bounds = inner_bounds.merge_with_bbox(primitive.bounds);
-    if primitive.centroid.data[max_axis] <= centroid_split {
+    if primitive.centroid.data.extract(max_axis) <= centroid_split {
       left_primitives.push(*primitive);
     } else {
       right_primitives.push(*primitive);

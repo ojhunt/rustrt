@@ -6,6 +6,8 @@ extern crate image;
 extern crate itertools;
 extern crate obj;
 extern crate rand;
+extern crate faster;
+extern crate packed_simd;
 
 mod bounding_box;
 mod bvh;
