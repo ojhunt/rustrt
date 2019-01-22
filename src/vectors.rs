@@ -1,10 +1,27 @@
 use std::ops;
 use packed_simd::shuffle;
-use faster::arch::x86::vecs::f32x4;
+use packed_simd::f32x4;
+use packed_simd::m32x4;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vec4d {
   pub data: f32x4,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Vec4Mask {
+  pub data: m32x4,
+}
+
+impl Vec4Mask {
+  pub fn select(self, left: Vec4d, right: Vec4d) -> Vec4d {
+    Vec4d {
+      data: self.data.select(left.data, right.data),
+    }
+  }
+  pub fn any(self) -> bool {
+    self.data.any()
+  }
 }
 
 impl Vec4d {
@@ -23,6 +40,12 @@ impl Vec4d {
   pub fn new() -> Vec4d {
     Vec4d {
       data: f32x4::splat(0.0),
+    }
+  }
+
+  pub fn splat(value: f32) -> Vec4d {
+    Vec4d {
+      data: f32x4::splat(value),
     }
   }
 
@@ -67,10 +90,36 @@ impl Vec4d {
     let scale = 1.0 / self.dot(*self).sqrt();
     return *self * scale;
   }
-
+  fn fdiv(&self, divisor: f32) -> Vec4d {
+    Vec4d {
+      data: self.data / divisor,
+    }
+  }
   pub fn scale(self, scale: f64) -> Vec4d {
     Vec4d {
       data: self.data * scale as f32,
+    }
+  }
+  pub fn divide_elements(self, _rhs: Vec4d) -> Vec4d {
+    Vec4d {
+      data: self.data / _rhs.data,
+    }
+  }
+
+  pub fn multiply_elements(self, _rhs: Vec4d) -> Vec4d {
+    Vec4d {
+      data: self.data * _rhs.data,
+    }
+  }
+
+  pub fn gt(&self, other: Vec4d) -> Vec4Mask {
+    Vec4Mask {
+      data: self.data.gt(other.data),
+    }
+  }
+  pub fn lt(&self, other: Vec4d) -> Vec4Mask {
+    Vec4Mask {
+      data: self.data.lt(other.data),
     }
   }
 
@@ -88,6 +137,12 @@ impl Vec4d {
     Vec4d {
       data: self.data.max(rhs.data),
     }
+  }
+  pub fn max_element(self) -> f32 {
+    self.data.max_element()
+  }
+  pub fn min_element(self) -> f32 {
+    self.data.min_element()
   }
 }
 
@@ -109,6 +164,33 @@ impl ops::Mul<Vec4d> for f64 {
   type Output = Vec4d;
   fn mul(self, rhs: Vec4d) -> Vec4d {
     return rhs.scale(self);
+  }
+}
+
+impl ops::Div<f64> for Vec4d {
+  type Output = Vec4d;
+  fn div(self, rhs: f64) -> Vec4d {
+    return self.fdiv(rhs as f32);
+  }
+}
+
+impl ops::Div<f32> for Vec4d {
+  type Output = Vec4d;
+  fn div(self, rhs: f32) -> Vec4d {
+    return self.fdiv(rhs);
+  }
+}
+
+impl ops::Div<Vec4d> for Vec4d {
+  type Output = Vec4d;
+  fn div(self, rhs: Vec4d) -> Vec4d {
+    return self.divide_elements(rhs);
+  }
+}
+impl ops::Mul<Vec4d> for Vec4d {
+  type Output = Vec4d;
+  fn mul(self, rhs: Vec4d) -> Vec4d {
+    return self.multiply_elements(rhs);
   }
 }
 

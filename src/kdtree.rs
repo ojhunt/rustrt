@@ -4,7 +4,6 @@ use vectors::Vec4d;
 use bounding_box::BoundingBox;
 use bounding_box::HasBoundingBox;
 use heap::PriorityHeap;
-use faster::arch::x86::vecs::f32x4;
 
 pub trait HasPosition {
   fn get_position(&self) -> Vec4d;
@@ -104,10 +103,10 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
     let node = match self {
       KDTreeNode::Leaf(elements, bounds) => {
         if nearest_elements.is_full() {
-          let distance = f32x4::splat(nearest_elements.top().unwrap().0 as f32);
-          let min = bounds.min.data - distance;
-          let max = bounds.max.data + distance;
-          if position.data.lt(min).any() || position.data.gt(max).any() {
+          let distance = Vec4d::splat(nearest_elements.top().unwrap().0 as f32);
+          let min = bounds.min - distance;
+          let max = bounds.max + distance;
+          if position.lt(min).any() || position.gt(max).any() {
             return;
           }
         }

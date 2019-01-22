@@ -1,6 +1,5 @@
 use ray::Ray;
 use vectors::Vec4d;
-use faster::arch::x86::vecs::f32x4;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BoundingBox {
@@ -71,23 +70,21 @@ impl BoundingBox {
 
   pub fn offset(&self, point: Vec4d) -> Vec4d {
     let o = point - self.min;
-    let mask = self.max.data.gt(self.min.data);
-    let scale_factor = self.max.data - self.min.data;
-    return Vec4d {
-      data: mask.select(o.data / scale_factor, o.data),
-    };
+    let mask = self.max.gt(self.min);
+    let scale_factor = self.max - self.min;
+    return mask.select(o / scale_factor, o);
   }
 
   pub fn intersect(&self, ray: &Ray, min: f64, max: f64) -> Option<(f64, f64)> {
-    let mut tmin = f32x4::splat(min as f32);
-    let mut tmax = f32x4::splat(max as f32);
+    let mut tmin = Vec4d::splat(min as f32);
+    let mut tmax = Vec4d::splat(max as f32);
 
     let direction = ray.direction;
     let origin = ray.origin;
 
-    let inverse_dir = f32x4::splat(1.0) / direction.data;
-    let unnormalized_t1 = (self.min.data - origin.data) * inverse_dir;
-    let unnormalized_t2 = (self.max.data - origin.data) * inverse_dir;
+    let inverse_dir = Vec4d::splat(1.0) / direction;
+    let unnormalized_t1 = (self.min - origin) * inverse_dir;
+    let unnormalized_t2 = (self.max - origin) * inverse_dir;
     let compare_mask = unnormalized_t1.gt(unnormalized_t2);
     let t1 = compare_mask.select(unnormalized_t2, unnormalized_t1);
     let t2 = compare_mask.select(unnormalized_t1, unnormalized_t2);
