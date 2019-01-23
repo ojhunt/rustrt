@@ -67,7 +67,7 @@ impl Camera for PerspectiveCamera {
     let mut result: Vec<(usize, usize, f64, Ray)> = Vec::new();
     for y in 0..height {
       for x in 0..width {
-        if self.samples_per_pixel < 4 || true {
+        if self.samples_per_pixel < 4 {
           result.push((x, y, 1.0, self.ray_for_coordinate(x as f64, y as f64)));
         } else {
           result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 - 0.25, y as f64 - 0.25)));
