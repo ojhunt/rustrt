@@ -118,6 +118,13 @@ fn load_settings() -> SceneSettings {
     }
     _ => {}
   }
+
+  match value_t!(matches, "samples_per_pixel", usize) {
+    Ok(value) => {
+      settings.samples_per_pixel = value.max(1);
+    }
+    _ => {}
+  }
   if matches.is_present("use_direct_lighting") {
     settings.use_direct_lighting = true;
   } else {

@@ -65,7 +65,15 @@ pub struct PhotonMap<Selector: PhotonSelector> {
   selector: Selector,
 }
 
+static mut seed_value: usize = 0;
 pub fn random(min: f64, max: f64) -> f64 {
+  if false {
+    unsafe {
+      seed_value = (seed_value * 1023 + 713) % (1usize << 32);
+      let value = (seed_value as u32) as f64 / (std::u32::MAX as f64);
+      return min + value * (max - min);
+    }
+  }
   thread_rng().gen_range(min, max)
 }
 

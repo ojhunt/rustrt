@@ -1,3 +1,4 @@
+use photon_map::random;
 use std::collections::HashMap;
 use material::Material;
 use material::DefaultMaterial;
@@ -279,7 +280,7 @@ impl Scene {
             let light_samples = 8;
             let mut has_intersected = false;
             for i in 0..light_samples {
-              let light = &lights[thread_rng().gen_range(0, lights.len())];
+              let light = &lights[random(0.0, lights.len() as f64) as usize];
               let mut ldir = light.position - surface.position;
               let ldir_len = ldir.dot(ldir).sqrt();
               ldir = ldir.normalize();

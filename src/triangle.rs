@@ -1,3 +1,4 @@
+use photon_map::random;
 use bounding_box::*;
 use collision::Collision;
 use fragment::Fragment;
@@ -36,9 +37,9 @@ impl Light for Triangle {
   fn get_samples(&self, count: usize, scene: &Scene) -> Vec<LightSample> {
     let mut lights: Vec<LightSample> = vec![];
     while lights.len() < count {
-      let r1: f64 = thread_rng().gen_range(0.0, 1.0);
+      let r1: f64 = random(0.0, 1.0);
       let r1_root = r1.sqrt();
-      let r2 = thread_rng().gen_range(0.0, 1.0);
+      let r2 = random(0.0, 1.0);
       let a = self.origin;
       let b = self.origin + self.edges[0];
       let c = self.origin + self.edges[1];

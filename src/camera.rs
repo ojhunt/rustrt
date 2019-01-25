@@ -1,8 +1,15 @@
+use photon_map::random;
 use ray::Ray;
 use vectors::Vec4d;
 
 pub trait Camera {
   fn get_rays(&self, width: usize, height: usize) -> Vec<(usize, usize, f64, Ray)>;
+  fn get_followup_rays(
+    &self,
+    width: usize,
+    height: usize,
+    locations: Vec<((f64, f64), f64)>,
+  ) -> Vec<(usize, usize, f64, Ray)>;
 }
 
 pub struct PerspectiveCamera {
@@ -65,18 +72,54 @@ impl PerspectiveCamera {
 impl Camera for PerspectiveCamera {
   fn get_rays(&self, width: usize, height: usize) -> Vec<(usize, usize, f64, Ray)> {
     let mut result: Vec<(usize, usize, f64, Ray)> = Vec::new();
+    let ns = (self.samples_per_pixel as f64).sqrt().ceil() as usize;
+    let samples_per_pixel = ns * ns;
+    let half_width = ns as f64 / 2.0;
+    println!("Generating {} samples per pixel", samples_per_pixel);
     for y in 0..height {
       for x in 0..width {
-        if self.samples_per_pixel < 4 {
+        if samples_per_pixel <= 1 {
           result.push((x, y, 1.0, self.ray_for_coordinate(x as f64, y as f64)));
         } else {
-          result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 - 0.25, y as f64 - 0.25)));
-          result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 + 0.25, y as f64 - 0.25)));
-          result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 - 0.25, y as f64 + 0.25)));
-          result.push((x, y, 0.25, self.ray_for_coordinate(x as f64 + 0.25, y as f64 + 0.25)));
+          let weight = 0.5 / (1 + samples_per_pixel) as f64;
+          result.push((x, y, 0.5, self.ray_for_coordinate(x as f64, y as f64)));
+          for dy in 0..ns {
+            let yoffset = (dy as f64 - half_width) / ns as f64;
+            for dx in 0..ns {
+              let xoffset = (dx as f64 - half_width) / ns as f64;
+              let random_diameter = half_width / 4.0;
+              let xr = {
+                let r = random(0.0, 1.0);
+                r * r
+              } * random_diameter
+                - random_diameter / 2.0;
+              let yr = {
+                let r = random(0.0, 1.0);
+                r * r
+              } * random_diameter
+                - random_diameter / 2.0;
+
+              result.push((
+                x,
+                y,
+                weight,
+                self.ray_for_coordinate(x as f64 + xoffset, y as f64 + yoffset),
+              ));
+            }
+          }
         }
       }
     }
+    return result;
+  }
+  fn get_followup_rays(
+    &self,
+    width: usize,
+    height: usize,
+    locations: Vec<((f64, f64), f64)>,
+  ) -> Vec<(usize, usize, f64, Ray)> {
+    let mut result = Vec::new();
+    for ((x, y), radius) in locations {}
     return result;
   }
 }
