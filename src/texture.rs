@@ -1,7 +1,7 @@
 use colour::Colour;
 use image::*;
 use scene::Scene;
-use vectors::{Vec2d, Vec4d};
+use vectors::{Vec2d, Vec4d,VectorType};
 
 #[derive(Debug, Copy, Clone)]
 pub struct TextureCoordinateIdx(pub usize);
@@ -30,7 +30,7 @@ impl Lerpable for f64 {
 
 impl Lerpable for Vec4d {
   fn scale(&self, other: f64) -> Self {
-    return Vec4d::scale(*self, other);
+    return *self * other;
   }
   fn add(&self, other: &Self) -> Self {
     return *self + *other;

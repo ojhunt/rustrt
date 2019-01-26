@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use heap::Comparator;
-use vectors::Vec4d;
+use vectors::{Vec4d, VectorType};
 use bounding_box::BoundingBox;
 use bounding_box::HasBoundingBox;
 use heap::PriorityHeap;

@@ -9,18 +9,69 @@ pub struct Vec4d {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct Vec4Mask {
-  pub data: m32x4,
+pub struct Vec4Mask(m32x4);
+
+pub trait VectorType: Sized + Copy {
+  fn data(self) -> f32x4;
+  fn new(data: f32x4) -> Self;
+
+  fn splat(value: f32) -> Self {
+    Self::new(f32x4::splat(value))
+  }
+
+  fn fdiv(self, divisor: f32) -> Self {
+    Self::new(self.data() / divisor)
+  }
+  fn scale(self, scale: f64) -> Self {
+    Self::new(self.data() * scale as f32)
+  }
+  fn divide_elements(self, _rhs: Self) -> Self {
+    Self::new(self.data() / _rhs.data())
+  }
+
+  fn multiply_elements(self, _rhs: Self) -> Self {
+    Self::new(self.data() * _rhs.data())
+  }
+
+  fn gt(self, other: Self) -> Vec4Mask {
+    Vec4Mask(self.data().gt(other.data()))
+  }
+  fn lt(self, other: Vec4d) -> Vec4Mask {
+    Vec4Mask(self.data().lt(other.data()))
+  }
+
+  fn add_elements(self, _rhs: Vec4d) -> Self {
+    Self::new(self.data() + _rhs.data())
+  }
+  fn min(self, rhs: Self) -> Self {
+    Self::new(self.data().min(rhs.data()))
+  }
+  fn max(self, rhs: Self) -> Self {
+    Self::new(self.data().max(rhs.data()))
+  }
+  fn max_element(self) -> f32 {
+    self.data().max_element()
+  }
+  fn min_element(self) -> f32 {
+    self.data().min_element()
+  }
 }
 
 impl Vec4Mask {
-  pub fn select(self, left: Vec4d, right: Vec4d) -> Vec4d {
-    Vec4d {
-      data: self.data.select(left.data, right.data),
-    }
+  pub fn select<T: VectorType>(self, left: T, right: T) -> T {
+    T::new(self.0.select(left.data(), right.data()))
   }
   pub fn any(self) -> bool {
-    self.data.any()
+    self.0.any()
+  }
+}
+
+impl VectorType for Vec4d {
+  fn data(self) -> f32x4 {
+    return self.data;
+  }
+  fn new(data: f32x4) -> Self {
+    return Vec4d { data };
   }
 }
 
@@ -40,12 +91,6 @@ impl Vec4d {
   pub fn new() -> Vec4d {
     Vec4d {
       data: f32x4::splat(0.0),
-    }
-  }
-
-  pub fn splat(value: f32) -> Vec4d {
-    Vec4d {
-      data: f32x4::splat(value),
     }
   }
 
@@ -89,60 +134,6 @@ impl Vec4d {
   pub fn normalize(&self) -> Vec4d {
     let scale = 1.0 / self.dot(*self).sqrt();
     return *self * scale;
-  }
-  fn fdiv(&self, divisor: f32) -> Vec4d {
-    Vec4d {
-      data: self.data / divisor,
-    }
-  }
-  pub fn scale(self, scale: f64) -> Vec4d {
-    Vec4d {
-      data: self.data * scale as f32,
-    }
-  }
-  pub fn divide_elements(self, _rhs: Vec4d) -> Vec4d {
-    Vec4d {
-      data: self.data / _rhs.data,
-    }
-  }
-
-  pub fn multiply_elements(self, _rhs: Vec4d) -> Vec4d {
-    Vec4d {
-      data: self.data * _rhs.data,
-    }
-  }
-
-  pub fn gt(&self, other: Vec4d) -> Vec4Mask {
-    Vec4Mask {
-      data: self.data.gt(other.data),
-    }
-  }
-  pub fn lt(&self, other: Vec4d) -> Vec4Mask {
-    Vec4Mask {
-      data: self.data.lt(other.data),
-    }
-  }
-
-  pub fn add_elements(self, _rhs: Vec4d) -> Vec4d {
-    Vec4d {
-      data: self.data + _rhs.data,
-    }
-  }
-  pub fn min(self, rhs: Vec4d) -> Vec4d {
-    Vec4d {
-      data: self.data.min(rhs.data),
-    }
-  }
-  pub fn max(self, rhs: Vec4d) -> Vec4d {
-    Vec4d {
-      data: self.data.max(rhs.data),
-    }
-  }
-  pub fn max_element(self) -> f32 {
-    self.data.max_element()
-  }
-  pub fn min_element(self) -> f32 {
-    self.data.min_element()
   }
 }
 

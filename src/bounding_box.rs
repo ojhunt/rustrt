@@ -1,5 +1,5 @@
 use ray::Ray;
-use vectors::Vec4d;
+use vectors::{Vec4d, VectorType};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BoundingBox {
