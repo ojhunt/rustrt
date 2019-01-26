@@ -20,7 +20,7 @@ pub struct MaterialCollisionInfo {
   pub emissive_colour: Option<Colour>,
   pub transparent_colour: Option<Colour>,
   pub position: Point,
-  pub normal: Vec4d,
+  pub normal: Vector,
   pub secondaries: Vec<(Ray, Colour, f64)>,
 }
 

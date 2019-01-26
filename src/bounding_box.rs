@@ -1,5 +1,5 @@
 use ray::Ray;
-use vectors::{Point, Vec4d, VectorType};
+use vectors::{Point, Vector, VectorType};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BoundingBox {
@@ -19,8 +19,8 @@ impl BoundingBox {
 
   pub fn new() -> BoundingBox {
     BoundingBox {
-      min: Vec4d::point(std::f64::INFINITY, std::f64::INFINITY, std::f64::INFINITY),
-      max: Vec4d::point(-std::f64::INFINITY, -std::f64::INFINITY, -std::f64::INFINITY),
+      min: Vector::point(std::f64::INFINITY, std::f64::INFINITY, std::f64::INFINITY),
+      max: Vector::point(-std::f64::INFINITY, -std::f64::INFINITY, -std::f64::INFINITY),
     }
   }
 
@@ -68,7 +68,7 @@ impl BoundingBox {
     return 2;
   }
 
-  pub fn offset(&self, point: Point) -> Vec4d {
+  pub fn offset(&self, point: Point) -> Vector {
     let o = point - self.min;
     let mask = self.max.gt(self.min);
     let scale_factor = self.max - self.min;
@@ -76,13 +76,13 @@ impl BoundingBox {
   }
 
   pub fn intersect(&self, ray: &Ray, min: f64, max: f64) -> Option<(f64, f64)> {
-    let mut tmin = Vec4d::splat(min as f32);
-    let mut tmax = Vec4d::splat(max as f32);
+    let mut tmin = Vector::splat(min as f32);
+    let mut tmax = Vector::splat(max as f32);
 
     let direction = ray.direction;
     let origin = ray.origin;
 
-    let inverse_dir = Vec4d::splat(1.0) / direction;
+    let inverse_dir = Vector::splat(1.0) / direction;
     let unnormalized_t1 = (self.min - origin) * inverse_dir;
     let unnormalized_t2 = (self.max - origin) * inverse_dir;
     let compare_mask = unnormalized_t1.gt(unnormalized_t2);

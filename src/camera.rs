@@ -1,6 +1,6 @@
 use photon_map::random;
 use ray::Ray;
-use vectors::{Point, Vec4d, VectorType};
+use vectors::{Point, Vector, VectorType};
 
 pub trait Camera {
   fn get_rays(&self, width: usize, height: usize) -> Vec<(usize, usize, f64, Ray)>;
@@ -16,11 +16,11 @@ pub struct PerspectiveCamera {
   _width: usize,
   _height: usize,
   position: Point,
-  _direction: Vec4d,
-  _up: Vec4d,
+  _direction: Vector,
+  _up: Vector,
   _fov: f64,
-  x_delta: Vec4d,
-  y_delta: Vec4d,
+  x_delta: Vector,
+  y_delta: Vector,
   samples_per_pixel: usize,
   view_origin: Point,
 }
@@ -35,7 +35,7 @@ impl PerspectiveCamera {
     height: usize,
     position: Point,
     target: Point,
-    up: Vec4d,
+    up: Vector,
     fov: f64,
     samples_per_pixel: usize,
   ) -> PerspectiveCamera {

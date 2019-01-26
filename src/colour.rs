@@ -1,5 +1,5 @@
 use std::ops;
-use vectors::Vec4d;
+use vectors::Vector;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Colour {
@@ -22,14 +22,14 @@ impl Colour {
   }
 }
 
-impl From<Colour> for Vec4d {
+impl From<Colour> for Vector {
   fn from(Colour::RGB(x, y, z): Colour) -> Self {
-    Vec4d::vector(x as f64, y as f64, z as f64)
+    Vector::vector(x as f64, y as f64, z as f64)
   }
 }
 
-impl From<Vec4d> for Colour {
-  fn from(Vec4d { data }: Vec4d) -> Self {
+impl From<Vector> for Colour {
+  fn from(Vector { data }: Vector) -> Self {
     let mut value = [0.0; 4];
     data.write_to_slice_unaligned(&mut value);
     Colour::RGB(value[0], value[1], value[2])

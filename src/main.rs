@@ -47,11 +47,11 @@ struct VecArg {
 }
 impl VecArg {
   #[allow(dead_code)]
-  pub fn as_vector(&self) -> Vec4d {
-    Vec4d::vector(self.x, self.y, self.z)
+  pub fn as_vector(&self) -> Vector {
+    Vector::vector(self.x, self.y, self.z)
   }
   pub fn as_point(&self) -> Point {
-    Vec4d::point(self.x, self.y, self.z)
+    Vector::point(self.x, self.y, self.z)
   }
 }
 

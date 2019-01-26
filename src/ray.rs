@@ -27,7 +27,7 @@ impl RayContext {
 #[derive(Debug, Clone)]
 pub struct Ray {
   pub origin: Point,
-  pub direction: Vec4d,
+  pub direction: Vector,
   pub min: f64,
   pub max: f64,
   pub ray_context: RayContext,
@@ -41,7 +41,7 @@ fn clone_context(ctx: Option<RayContext>) -> RayContext {
 }
 
 impl Ray {
-  pub fn new(origin: Point, direction: Vec4d, ctx: Option<RayContext>) -> Ray {
+  pub fn new(origin: Point, direction: Vector, ctx: Option<RayContext>) -> Ray {
     Ray {
       origin: origin,
       direction: direction,
@@ -51,7 +51,7 @@ impl Ray {
     }
   }
 
-  pub fn new_bound(origin: Point, direction: Vec4d, min: f64, max: f64, ctx: Option<RayContext>) -> Ray {
+  pub fn new_bound(origin: Point, direction: Vector, min: f64, max: f64, ctx: Option<RayContext>) -> Ray {
     Ray {
       origin: origin,
       direction: direction,

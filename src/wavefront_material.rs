@@ -95,7 +95,7 @@ pub struct WFMaterial {
   illumination_model: usize,
 }
 
-fn perturb_normal(bump: Option<TextureIdx>, f: &Fragment, s: &Scene) -> Vec4d {
+fn perturb_normal(bump: Option<TextureIdx>, f: &Fragment, s: &Scene) -> Vector {
   if bump.is_none() {
     return f.normal;
   }
@@ -112,7 +112,7 @@ fn perturb_normal(bump: Option<TextureIdx>, f: &Fragment, s: &Scene) -> Vec4d {
     perturbed_normal = normal;
   }
   // new_info.ambient_colour = Colour::from(
-  //     (n + fu * ndpdv - fv * ndpdu).normalize() * 0.5 + Vec4d::vector(0.5, 0.5, 0.5),
+  //     (n + fu * ndpdv - fv * ndpdu).normalize() * 0.5 + Vector::vector(0.5, 0.5, 0.5),
   // );
   // new_info.diffuse_colour = Colour::from(temp);
   // new_info.diffuse_colour = new_info.ambient_colour; //Colour::RGB(0.5, f.uv.0.fract(), f.uv.1.fract());
@@ -168,7 +168,7 @@ impl Material for WFMaterial {
       Colour::RGB(1.0, 1.0, 1.0) //return result;
     };
     let mut refraction_weight = 1.0;
-    let (refracted_vector, new_context): (Vec4d, RayContext) = match self.index_of_refraction {
+    let (refracted_vector, new_context): (Vector, RayContext) = match self.index_of_refraction {
       None => (f.view, ray.ray_context.clone()),
       Some(ior) => {
         let view = f.view * -1.0;
@@ -327,7 +327,7 @@ impl WFMaterial {
 }
 
 fn vecf32_to_point(v: [f32; 3]) -> Point {
-  Vec4d::point(v[0] as f64, v[1] as f64, v[2] as f64)
+  Vector::point(v[0] as f64, v[1] as f64, v[2] as f64)
 }
 
 pub fn load_scene(settings: &SceneSettings) -> Scene {
@@ -338,12 +338,12 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
   obj.load_mtls().unwrap();
 
   for [x, y, z] in obj.position.iter() {
-    scn.positions.push(Vec4d::point(*x as f64, *y as f64, *z as f64));
+    scn.positions.push(Vector::point(*x as f64, *y as f64, *z as f64));
   }
   for [x, y, z] in obj.normal.iter() {
-    let n = Vec4d::vector(*x as f64, *y as f64, *z as f64);
+    let n = Vector::vector(*x as f64, *y as f64, *z as f64);
     if n.dot(n) == 0.0 {
-      scn.normals.push(Vec4d::vector(0.0, 0.0, 0.0));
+      scn.normals.push(Vector::vector(0.0, 0.0, 0.0));
     } else {
       scn.normals.push(n);
     }

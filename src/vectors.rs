@@ -4,7 +4,7 @@ use packed_simd::f32x4;
 use packed_simd::m32x4;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Vec4d {
+pub struct Vector {
   pub data: f32x4,
 }
 
@@ -83,24 +83,24 @@ impl Vec4Mask {
   }
 }
 
-impl VectorType for Vec4d {
+impl VectorType for Vector {
   fn data(self) -> f32x4 {
     return self.data;
   }
   fn new(data: f32x4) -> Self {
-    return Vec4d { data };
+    return Vector { data };
   }
 }
 
-impl Vec4d {
-  pub fn new() -> Vec4d {
-    Vec4d {
+impl Vector {
+  pub fn new() -> Vector {
+    Vector {
       data: f32x4::splat(0.0),
     }
   }
 
-  pub fn vector(x: f64, y: f64, z: f64) -> Vec4d {
-    Vec4d {
+  pub fn vector(x: f64, y: f64, z: f64) -> Vector {
+    Vector {
       data: f32x4::new(x as f32, y as f32, z as f32, 0.0),
     }
   }
@@ -111,18 +111,18 @@ impl Vec4d {
     }
   }
 
-  pub fn reflect(&self, normal: Vec4d) -> Vec4d {
+  pub fn reflect(&self, normal: Vector) -> Vector {
     assert!(self.dot(normal) <= 0.0);
     (-2.0 * self.dot(normal) * normal + *self).normalize()
   }
 
-  pub fn cross(&self, rhs: Vec4d) -> Vec4d {
+  pub fn cross(&self, rhs: Vector) -> Vector {
     let rhs201: f32x4 = shuffle!(rhs.data, [2, 0, 1, 0]);
     let rhs120: f32x4 = shuffle!(rhs.data, [1, 2, 0, 0]);
     let lhs120: f32x4 = shuffle!(self.data, [1, 2, 0, 0]);
     let lhs201: f32x4 = shuffle!(self.data, [2, 0, 1, 0]);
 
-    Vec4d {
+    Vector {
       data: lhs120 * rhs201 - lhs201 * rhs120,
     }
   }
@@ -132,94 +132,94 @@ impl Vec4d {
   pub fn length(&self) -> f64 {
     return self.square_length().sqrt();
   }
-  pub fn dot(&self, rhs: Vec4d) -> f64 {
+  pub fn dot(&self, rhs: Vector) -> f64 {
     let scaled = self.data * rhs.data;
     return scaled.sum() as f64;
   }
-  pub fn normalize(&self) -> Vec4d {
+  pub fn normalize(&self) -> Vector {
     let scale = 1.0 / self.dot(*self).sqrt();
     return *self * scale;
   }
 }
 
-impl ops::Neg for Vec4d {
-  type Output = Vec4d;
-  fn neg(self) -> Vec4d {
+impl ops::Neg for Vector {
+  type Output = Vector;
+  fn neg(self) -> Vector {
     return self.scale(-1.0);
   }
 }
 
-impl ops::Mul<f64> for Vec4d {
-  type Output = Vec4d;
-  fn mul(self, rhs: f64) -> Vec4d {
+impl ops::Mul<f64> for Vector {
+  type Output = Vector;
+  fn mul(self, rhs: f64) -> Vector {
     return self.scale(rhs);
   }
 }
 
-impl ops::Mul<Vec4d> for f64 {
-  type Output = Vec4d;
-  fn mul(self, rhs: Vec4d) -> Vec4d {
+impl ops::Mul<Vector> for f64 {
+  type Output = Vector;
+  fn mul(self, rhs: Vector) -> Vector {
     return rhs.scale(self);
   }
 }
 
-impl ops::Div<f64> for Vec4d {
-  type Output = Vec4d;
-  fn div(self, rhs: f64) -> Vec4d {
+impl ops::Div<f64> for Vector {
+  type Output = Vector;
+  fn div(self, rhs: f64) -> Vector {
     return self.fdiv(rhs as f32);
   }
 }
 
-impl ops::Div<f32> for Vec4d {
-  type Output = Vec4d;
-  fn div(self, rhs: f32) -> Vec4d {
+impl ops::Div<f32> for Vector {
+  type Output = Vector;
+  fn div(self, rhs: f32) -> Vector {
     return self.fdiv(rhs);
   }
 }
 
-impl ops::Div<Vec4d> for Vec4d {
-  type Output = Vec4d;
-  fn div(self, rhs: Vec4d) -> Vec4d {
+impl ops::Div<Vector> for Vector {
+  type Output = Vector;
+  fn div(self, rhs: Vector) -> Vector {
     return self.divide_elements(rhs);
   }
 }
-impl ops::Mul<Vec4d> for Vec4d {
-  type Output = Vec4d;
-  fn mul(self, rhs: Vec4d) -> Vec4d {
+impl ops::Mul<Vector> for Vector {
+  type Output = Vector;
+  fn mul(self, rhs: Vector) -> Vector {
     return self.multiply_elements(rhs);
   }
 }
 
-impl ops::Add<Vec4d> for Vec4d {
-  type Output = Vec4d;
+impl ops::Add<Vector> for Vector {
+  type Output = Vector;
 
-  fn add(self, _rhs: Vec4d) -> Vec4d {
-    return Vec4d {
+  fn add(self, _rhs: Vector) -> Vector {
+    return Vector {
       data: self.data + _rhs.data,
     };
   }
 }
 
-impl ops::Sub<Vec4d> for Vec4d {
-  type Output = Vec4d;
+impl ops::Sub<Vector> for Vector {
+  type Output = Vector;
 
-  fn sub(self, _rhs: Vec4d) -> Vec4d {
-    Vec4d {
+  fn sub(self, _rhs: Vector) -> Vector {
+    Vector {
       data: self.data - _rhs.data,
     }
   }
 }
 
-impl ops::Add<Vec4d> for Point {
+impl ops::Add<Vector> for Point {
   type Output = Point;
 
-  fn add(self, _rhs: Vec4d) -> Point {
+  fn add(self, _rhs: Vector) -> Point {
     return Point {
       data: self.data + _rhs.data,
     };
   }
 }
-impl ops::Add<Point> for Vec4d {
+impl ops::Add<Point> for Vector {
   type Output = Point;
 
   fn add(self, _rhs: Point) -> Point {
@@ -229,10 +229,10 @@ impl ops::Add<Point> for Vec4d {
   }
 }
 
-impl ops::Sub<Vec4d> for Point {
+impl ops::Sub<Vector> for Point {
   type Output = Point;
 
-  fn sub(self, _rhs: Vec4d) -> Point {
+  fn sub(self, _rhs: Vector) -> Point {
     Point {
       data: self.data - _rhs.data,
     }
@@ -240,10 +240,10 @@ impl ops::Sub<Vec4d> for Point {
 }
 
 impl ops::Sub<Point> for Point {
-  type Output = Vec4d;
+  type Output = Vector;
 
-  fn sub(self, _rhs: Point) -> Vec4d {
-    Vec4d {
+  fn sub(self, _rhs: Point) -> Vector {
+    Vector {
       data: self.data - _rhs.data,
     }
   }
@@ -294,21 +294,21 @@ impl ops::Sub<Vec2d> for Vec2d {
 
 #[test]
 fn test_dot() {
-  assert_eq!(Vec4d::vector(0., 1., 0.).dot(Vec4d::vector(1., 0., 0.)), 0.);
+  assert_eq!(Vector::vector(0., 1., 0.).dot(Vector::vector(1., 0., 0.)), 0.);
 }
 #[test]
 fn test_cross() {
   assert_eq!(
-    Vec4d::vector(2., 1., -1.).cross(Vec4d::vector(-3., 4., 1.)),
-    Vec4d::vector(5., 1., 11.)
+    Vector::vector(2., 1., -1.).cross(Vector::vector(-3., 4., 1.)),
+    Vector::vector(5., 1., 11.)
   );
   assert_eq!(
-    Vec4d::vector(-3., 4., 1.).cross(Vec4d::vector(2., 1., -1.)),
-    Vec4d::vector(-5., -1., -11.)
+    Vector::vector(-3., 4., 1.).cross(Vector::vector(2., 1., -1.)),
+    Vector::vector(-5., -1., -11.)
   );
 }
 
 #[test]
 fn test_normalize() {
-  assert_eq!(Vec4d::vector(2., 0., 0.).normalize(), Vec4d::vector(1., 0., 0.));
+  assert_eq!(Vector::vector(2., 0., 0.).normalize(), Vector::vector(1., 0., 0.));
 }

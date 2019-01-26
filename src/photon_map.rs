@@ -10,13 +10,13 @@ use rand::{thread_rng, Rng};
 use ray::Ray;
 use scene::Scene;
 use shader::LightSample;
-use vectors::{Point, Vec4d};
+use vectors::{Point, Vector};
 
 #[derive(Clone, Debug)]
 pub struct Photon {
   colour: Colour,
   position: Point,
-  direction: Vec4d,
+  direction: Vector,
 }
 
 impl HasBoundingBox for Photon {
@@ -69,7 +69,7 @@ pub fn random(min: f64, max: f64) -> f64 {
   thread_rng().gen_range(min, max)
 }
 
-fn random_in_hemisphere(normal: Vec4d) -> Vec4d {
+fn random_in_hemisphere(normal: Vector) -> Vector {
   loop {
     let x = random(-1.0, 1.0);
     let y = random(-1.0, 1.0);
@@ -77,7 +77,7 @@ fn random_in_hemisphere(normal: Vec4d) -> Vec4d {
     if (x * x + y * y + z * z) > 1.0 {
       continue;
     }
-    let result = Vec4d::vector(x, y, z);
+    let result = Vector::vector(x, y, z);
     if result.dot(normal) > 0.1 {
       return result;
     }
@@ -122,11 +122,11 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
               }
             }
 
-            Vec4d::vector(x, y, z).normalize() // this is a super awful/biased random, but whatever
+            Vector::vector(x, y, z).normalize() // this is a super awful/biased random, but whatever
           } else {
             let u = random(0.0, 1.0);
             let v = 2.0 * 3.14127 * random(0.0, 1.0);
-            Vec4d::vector(v.cos() * u.sqrt(), -(1.0 - u).sqrt(), v.sin() * u.sqrt())
+            Vector::vector(v.cos() * u.sqrt(), -(1.0 - u).sqrt(), v.sin() * u.sqrt())
           }
         };
 
@@ -272,7 +272,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     if photon_samples == 0 {
       return Colour::RGB(0.0, 0.0, 0.0);
     }
-    let mut result = Vec4d::new();
+    let mut result = Vector::new();
     let radius_cutoff = 0.25 * 3.0;
     let (photons, radius) = self.tree.nearest(surface.position, photon_samples, radius_cutoff);
     let mut max_radius: f64 = 0.0;
@@ -286,7 +286,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
         }
         max_radius = max_radius.max(*distance);
         let weight = (-photon.direction.dot(surface.normal)).max(0.0); //* (radius_cutoff - distance).max(0.0) / radius_cutoff;
-        result = result + Vec4d::from(photon.colour) * (contribution * weight).max(0.0);
+        result = result + Vector::from(photon.colour) * (contribution * weight).max(0.0);
       }
     }
     return Colour::from(result) * (1.0 / max_radius / max_radius / 3.1412).max(0.0);

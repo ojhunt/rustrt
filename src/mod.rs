@@ -7,4 +7,4 @@ mod objects;
 mod ray;
 mod scene;
 mod triangle;
-mod vec4d;
+mod Vector;

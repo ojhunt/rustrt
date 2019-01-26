@@ -103,7 +103,7 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
     let node = match self {
       KDTreeNode::Leaf(elements, bounds) => {
         if nearest_elements.is_full() {
-          let distance = Vec4d::splat(nearest_elements.top().unwrap().0 as f32);
+          let distance = Vector::splat(nearest_elements.top().unwrap().0 as f32);
           let min = bounds.min - distance;
           let max = bounds.max + distance;
           if position.lt(min).any() || position.gt(max).any() {

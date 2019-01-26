@@ -9,19 +9,19 @@ use scene::NormalIdx;
 use scene::Scene;
 use shader::*;
 use texture::TextureCoordinateIdx;
-use vectors::{Point, Vec2d, Vec4d, VectorType};
+use vectors::{Point, Vec2d, Vector, VectorType};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Triangle {
   pub material: MaterialIdx,
   pub origin: Point,
-  pub edges: [Vec4d; 2],
+  pub edges: [Vector; 2],
   pub normals: [Option<NormalIdx>; 3],
   pub texture_coords: [Option<TextureCoordinateIdx>; 3],
 }
 type Vertex = (Point, Option<TextureCoordinateIdx>, Option<NormalIdx>);
 
-fn orient_normal(normal: Vec4d, ray_direction: Vec4d) -> Vec4d {
+fn orient_normal(normal: Vector, ray_direction: Vector) -> Vector {
   if normal.dot(ray_direction) > 0.0 {
     -normal
   } else {
@@ -57,9 +57,9 @@ impl Light for Triangle {
       let sample = LightSample {
         position: point,
         direction: Some(fragment.normal),
-        specular: Vec4d::from(surface.specular_colour),
-        diffuse: Vec4d::from(surface.diffuse_colour),
-        emission: Vec4d::from(surface.emissive_colour.unwrap()),
+        specular: Vector::from(surface.specular_colour),
+        diffuse: Vector::from(surface.diffuse_colour),
+        emission: Vector::from(surface.emissive_colour.unwrap()),
         weight: 1.0 / (count as f64),
       };
       lights.push(sample);
@@ -73,7 +73,7 @@ impl Shadable for Triangle {
     let u = collision.uv.0;
     let v = collision.uv.1;
     let w = 1.0 - u - v;
-    let true_normal: Vec4d = match (self.normals[0], self.normals[1], self.normals[2]) {
+    let true_normal: Vector = match (self.normals[0], self.normals[1], self.normals[2]) {
       (Some(n_idx0), Some(n_idx1), Some(n_idx2)) => {
         let true_normal = self.edges[0].normalize().cross(self.edges[1].normalize()).normalize();
         let normal0 = orient_normal(n_idx0.get(s), true_normal);
@@ -90,8 +90,8 @@ impl Shadable for Triangle {
       _ => self.edges[0].normalize().cross(self.edges[1].normalize()).normalize(),
     };
     let normal = orient_normal(true_normal, r.direction);
-    let mut dpdu = Vec4d::new();
-    let mut dpdv = Vec4d::new();
+    let mut dpdu = Vector::new();
+    let mut dpdv = Vector::new();
     let mut texture_coords = Vec2d(0.0, 0.0);
     match (self.texture_coords[0], self.texture_coords[1], self.texture_coords[2]) {
       (Some(n_idx0), Some(n_idx1), Some(n_idx2)) => {
@@ -203,7 +203,7 @@ impl Triangle {
     return Some((Collision::new(t, Vec2d(u, v)), self));
   }
 
-  fn true_normal(&self) -> Vec4d {
+  fn true_normal(&self) -> Vector {
     self.edges[0].normalize().cross(self.edges[1].normalize()).normalize()
   }
 }

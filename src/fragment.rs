@@ -4,14 +4,14 @@ use vectors::*;
 
 pub struct Fragment {
   pub position: Point,
-  pub normal: Vec4d,
-  pub true_normal: Vec4d,
+  pub normal: Vector,
+  pub true_normal: Vector,
   pub uv: Vec2d,
 
-  pub dpdu: Vec4d,
-  pub dpdv: Vec4d,
+  pub dpdu: Vector,
+  pub dpdv: Vector,
 
-  pub view: Vec4d, // Camera -> Point
+  pub view: Vector, // Camera -> Point
 
   pub material: MaterialIdx,
 }
