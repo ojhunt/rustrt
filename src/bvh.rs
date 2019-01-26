@@ -3,7 +3,7 @@ use collision::Collision;
 use intersectable::Intersectable;
 use ray::Ray;
 use shader::Shadable;
-use vectors::Vec4d;
+use vectors::{Point, VectorType};
 
 #[derive(Debug)]
 enum BVHNode {
@@ -20,7 +20,7 @@ pub struct BVH {
 struct BVHPrimitiveInfo {
   pub primitive_number: usize,
   pub bounds: BoundingBox,
-  pub centroid: Vec4d,
+  pub centroid: Point,
 }
 
 impl BVHPrimitiveInfo {

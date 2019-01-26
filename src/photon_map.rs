@@ -10,12 +10,12 @@ use rand::{thread_rng, Rng};
 use ray::Ray;
 use scene::Scene;
 use shader::LightSample;
-use vectors::Vec4d;
+use vectors::{Point, Vec4d};
 
 #[derive(Clone, Debug)]
 pub struct Photon {
   colour: Colour,
-  position: Vec4d,
+  position: Point,
   direction: Vec4d,
 }
 
@@ -25,7 +25,7 @@ impl HasBoundingBox for Photon {
   }
 }
 impl HasPosition for Photon {
-  fn get_position(&self) -> Vec4d {
+  fn get_position(&self) -> Point {
     return self.position;
   }
 }
@@ -55,7 +55,7 @@ impl RecordMode {
 
 pub trait PhotonSelector: Debug + Clone {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode;
-  fn weight_for_sample(&self, position: Vec4d, photon: &Photon, photon_count: usize, sample_radius: f64)
+  fn weight_for_sample(&self, position: Point, photon: &Photon, photon_count: usize, sample_radius: f64)
     -> Option<f64>;
 }
 
@@ -65,15 +65,7 @@ pub struct PhotonMap<Selector: PhotonSelector> {
   selector: Selector,
 }
 
-static mut seed_value: usize = 0;
 pub fn random(min: f64, max: f64) -> f64 {
-  if false {
-    unsafe {
-      seed_value = (seed_value * 1023 + 713) % (1usize << 32);
-      let value = (seed_value as u32) as f64 / (std::u32::MAX as f64);
-      return min + value * (max - min);
-    }
-  }
   thread_rng().gen_range(min, max)
 }
 
@@ -340,7 +332,7 @@ impl PhotonSelector for DiffuseSelector {
 
   fn weight_for_sample(
     &self,
-    _position: Vec4d,
+    _position: Point,
     _photon: &Photon,
     _photon_count: usize,
     _sample_radius: f64,
@@ -370,7 +362,7 @@ impl PhotonSelector for CausticSelector {
   }
   fn weight_for_sample(
     &self,
-    _position: Vec4d,
+    _position: Point,
     _photon: &Photon,
     _photon_count: usize,
     _sample_radius: f64,

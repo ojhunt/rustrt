@@ -13,7 +13,6 @@ use material;
 use photon_map::CausticSelector;
 use photon_map::DiffuseSelector;
 use photon_map::PhotonMap;
-use rand::{thread_rng, Rng};
 use ray::Ray;
 use shader::Light;
 use shader::LightSample;
@@ -21,7 +20,7 @@ use shader::Shadable;
 use std::path::Path;
 use std::path::PathBuf;
 use texture::Texture;
-use vectors::{Vec2d, Vec4d};
+use vectors::*;
 
 #[derive(Debug, Copy, Clone)]
 pub struct MaterialIdx(pub usize);
@@ -43,8 +42,8 @@ impl NormalIdx {
 pub struct SceneSettings {
   pub output_file: String,
   pub scene_file: String,
-  pub camera_position: Vec4d,
-  pub camera_target: Vec4d,
+  pub camera_position: Point,
+  pub camera_target: Point,
   pub camera_up: Vec4d,
   pub max_leaf_photons: usize,
   pub photon_samples: usize,
@@ -80,7 +79,7 @@ pub struct Scene {
   path: PathBuf,
   pub directory: PathBuf,
   pub normals: Vec<Vec4d>,
-  pub positions: Vec<Vec4d>,
+  pub positions: Vec<Point>,
   pub materials: Vec<Box<material::Material>>,
   pub texture_coords: Vec<Vec2d>,
   pub textures: Vec<Texture>,

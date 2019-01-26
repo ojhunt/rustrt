@@ -1,7 +1,7 @@
 use colour::Colour;
 use image::*;
 use scene::Scene;
-use vectors::{Vec2d, Vec4d,VectorType};
+use vectors::{Vec2d, Vec4d};
 
 #[derive(Debug, Copy, Clone)]
 pub struct TextureCoordinateIdx(pub usize);

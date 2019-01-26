@@ -1,9 +1,9 @@
 use scene::MaterialIdx;
 use vectors::Vec2d;
-use vectors::Vec4d;
+use vectors::*;
 
 pub struct Fragment {
-  pub position: Vec4d,
+  pub position: Point,
   pub normal: Vec4d,
   pub true_normal: Vec4d,
   pub uv: Vec2d,

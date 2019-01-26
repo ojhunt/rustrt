@@ -3,7 +3,7 @@ use fragment::Fragment;
 use ray::Ray;
 use scene::Scene;
 use std::fmt::Debug;
-use vectors::Vec4d;
+use vectors::*;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Transparency {
@@ -19,7 +19,7 @@ pub struct MaterialCollisionInfo {
   pub specular_colour: Colour,
   pub emissive_colour: Option<Colour>,
   pub transparent_colour: Option<Colour>,
-  pub position: Vec4d,
+  pub position: Point,
   pub normal: Vec4d,
   pub secondaries: Vec<(Ray, Colour, f64)>,
 }

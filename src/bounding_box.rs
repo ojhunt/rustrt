@@ -1,14 +1,14 @@
 use ray::Ray;
-use vectors::{Vec4d, VectorType};
+use vectors::{Point, Vec4d, VectorType};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BoundingBox {
-  pub min: Vec4d,
-  pub max: Vec4d,
+  pub min: Point,
+  pub max: Point,
 }
 
 impl BoundingBox {
-  pub fn centroid(&self) -> Vec4d {
+  pub fn centroid(&self) -> Point {
     return self.min.add_elements(self.max).scale(0.5);
   }
 
@@ -41,12 +41,12 @@ impl BoundingBox {
       && max.z().is_finite();
   }
 
-  pub fn new_from_point(v: Vec4d) -> BoundingBox {
+  pub fn new_from_point(v: Point) -> BoundingBox {
     assert!(v.w() == 1.);
     BoundingBox { min: v, max: v }
   }
 
-  pub fn merge_with_point(&self, v: Vec4d) -> BoundingBox {
+  pub fn merge_with_point(&self, v: Point) -> BoundingBox {
     assert!(v.w() == 1.);
     return self.merge_with_bbox(BoundingBox { min: v, max: v });
   }
@@ -68,7 +68,7 @@ impl BoundingBox {
     return 2;
   }
 
-  pub fn offset(&self, point: Vec4d) -> Vec4d {
+  pub fn offset(&self, point: Point) -> Vec4d {
     let o = point - self.min;
     let mask = self.max.gt(self.min);
     let scale_factor = self.max - self.min;

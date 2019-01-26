@@ -2,25 +2,24 @@ use photon_map::random;
 use bounding_box::*;
 use collision::Collision;
 use fragment::Fragment;
-use intersectable::*;
-use rand::{thread_rng, Rng};
+use intersectable::Intersectable;
 use ray::Ray;
 use scene::MaterialIdx;
 use scene::NormalIdx;
 use scene::Scene;
 use shader::*;
 use texture::TextureCoordinateIdx;
-use vectors::{Vec2d, Vec4d};
+use vectors::{Point, Vec2d, Vec4d, VectorType};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Triangle {
   pub material: MaterialIdx,
-  pub origin: Vec4d,
+  pub origin: Point,
   pub edges: [Vec4d; 2],
   pub normals: [Option<NormalIdx>; 3],
   pub texture_coords: [Option<TextureCoordinateIdx>; 3],
 }
-type Vertex = (Vec4d, Option<TextureCoordinateIdx>, Option<NormalIdx>);
+type Vertex = (Point, Option<TextureCoordinateIdx>, Option<NormalIdx>);
 
 fn orient_normal(normal: Vec4d, ray_direction: Vec4d) -> Vec4d {
   if normal.dot(ray_direction) > 0.0 {
@@ -43,7 +42,7 @@ impl Light for Triangle {
       let a = self.origin;
       let b = self.origin + self.edges[0];
       let c = self.origin + self.edges[1];
-      let mut point = a
+      let point = a
         .scale(1.0 - r1_root)
         .add_elements(b.scale(r1_root * (1.0 - r2)))
         .add_elements(c.scale(r1_root * r2));

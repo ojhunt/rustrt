@@ -14,8 +14,7 @@ use scene::TextureIdx;
 use std::path::Path;
 use texture::TextureCoordinateIdx;
 use triangle::Triangle;
-use vectors::Vec2d;
-use vectors::Vec4d;
+use vectors::*;
 
 trait RawSurfaceValue: Clone + Clone + Copy {
   fn empty() -> Self;
@@ -152,7 +151,7 @@ impl Material for WFMaterial {
     if self.illumination_model == 5 {
       result.secondaries.push((
         Ray::new(
-          f.position + reflected_ray * 0.01,
+          f.position + (reflected_ray * 0.01),
           reflected_ray,
           Some(ray.ray_context.clone()),
         ),
@@ -327,7 +326,7 @@ impl WFMaterial {
   }
 }
 
-fn vecf32_to_point(v: [f32; 3]) -> Vec4d {
+fn vecf32_to_point(v: [f32; 3]) -> Point {
   Vec4d::point(v[0] as f64, v[1] as f64, v[2] as f64)
 }
 

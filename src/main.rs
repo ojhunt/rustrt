@@ -36,7 +36,7 @@ use scene::SceneSettings;
 use camera::*;
 use clap::*;
 use std::str::FromStr;
-use vectors::Vec4d;
+use vectors::*;
 use wavefront_material::load_scene;
 
 #[derive(Debug)]
@@ -50,7 +50,7 @@ impl VecArg {
   pub fn as_vector(&self) -> Vec4d {
     Vec4d::vector(self.x, self.y, self.z)
   }
-  pub fn as_point(&self) -> Vec4d {
+  pub fn as_point(&self) -> Point {
     Vec4d::point(self.x, self.y, self.z)
   }
 }

@@ -2,10 +2,10 @@ use collision::Collision;
 use fragment::Fragment;
 use ray::Ray;
 use scene::Scene;
-use vectors::Vec4d;
+use vectors::{Point, Vec4d};
 
 pub struct LightSample {
-  pub position: Vec4d,
+  pub position: Point,
   pub direction: Option<Vec4d>,
   pub diffuse: Vec4d,
   pub specular: Vec4d,

@@ -8,6 +8,11 @@ pub struct Vec4d {
   pub data: f32x4,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Point {
+  pub data: f32x4,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Vec4Mask(m32x4);
 
@@ -15,6 +20,18 @@ pub trait VectorType: Sized + Copy {
   fn data(self) -> f32x4;
   fn new(data: f32x4) -> Self;
 
+  fn x(&self) -> f32 {
+    self.data().extract(0)
+  }
+  fn y(&self) -> f32 {
+    self.data().extract(1)
+  }
+  fn z(&self) -> f32 {
+    self.data().extract(2)
+  }
+  fn w(&self) -> f32 {
+    self.data().extract(3)
+  }
   fn splat(value: f32) -> Self {
     Self::new(f32x4::splat(value))
   }
@@ -36,11 +53,11 @@ pub trait VectorType: Sized + Copy {
   fn gt(self, other: Self) -> Vec4Mask {
     Vec4Mask(self.data().gt(other.data()))
   }
-  fn lt(self, other: Vec4d) -> Vec4Mask {
+  fn lt(self, other: Self) -> Vec4Mask {
     Vec4Mask(self.data().lt(other.data()))
   }
 
-  fn add_elements(self, _rhs: Vec4d) -> Self {
+  fn add_elements(self, _rhs: Self) -> Self {
     Self::new(self.data() + _rhs.data())
   }
   fn min(self, rhs: Self) -> Self {
@@ -76,18 +93,6 @@ impl VectorType for Vec4d {
 }
 
 impl Vec4d {
-  pub fn x(&self) -> f32 {
-    self.data.extract(0)
-  }
-  pub fn y(&self) -> f32 {
-    self.data.extract(1)
-  }
-  pub fn z(&self) -> f32 {
-    self.data.extract(2)
-  }
-  pub fn w(&self) -> f32 {
-    self.data.extract(3)
-  }
   pub fn new() -> Vec4d {
     Vec4d {
       data: f32x4::splat(0.0),
@@ -100,8 +105,8 @@ impl Vec4d {
     }
   }
 
-  pub fn point(x: f64, y: f64, z: f64) -> Vec4d {
-    Vec4d {
+  pub fn point(x: f64, y: f64, z: f64) -> Point {
+    Point {
       data: f32x4::new(x as f32, y as f32, z as f32, 1.0),
     }
   }
@@ -202,6 +207,54 @@ impl ops::Sub<Vec4d> for Vec4d {
     Vec4d {
       data: self.data - _rhs.data,
     }
+  }
+}
+
+impl ops::Add<Vec4d> for Point {
+  type Output = Point;
+
+  fn add(self, _rhs: Vec4d) -> Point {
+    return Point {
+      data: self.data + _rhs.data,
+    };
+  }
+}
+impl ops::Add<Point> for Vec4d {
+  type Output = Point;
+
+  fn add(self, _rhs: Point) -> Point {
+    return Point {
+      data: self.data + _rhs.data,
+    };
+  }
+}
+
+impl ops::Sub<Vec4d> for Point {
+  type Output = Point;
+
+  fn sub(self, _rhs: Vec4d) -> Point {
+    Point {
+      data: self.data - _rhs.data,
+    }
+  }
+}
+
+impl ops::Sub<Point> for Point {
+  type Output = Vec4d;
+
+  fn sub(self, _rhs: Point) -> Vec4d {
+    Vec4d {
+      data: self.data - _rhs.data,
+    }
+  }
+}
+
+impl VectorType for Point {
+  fn new(data: f32x4) -> Self {
+    Point { data }
+  }
+  fn data(self) -> f32x4 {
+    self.data
   }
 }
 

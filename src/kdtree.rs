@@ -1,12 +1,12 @@
 use std::cmp::Ordering;
 use heap::Comparator;
-use vectors::{Vec4d, VectorType};
+use vectors::*;
 use bounding_box::BoundingBox;
 use bounding_box::HasBoundingBox;
 use heap::PriorityHeap;
 
 pub trait HasPosition {
-  fn get_position(&self) -> Vec4d;
+  fn get_position(&self) -> Point;
 }
 
 #[derive(Debug)]
@@ -99,7 +99,7 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
   }
 
   // Far from optimal -- the furthest node should start its calculation on top of the existing list
-  fn nearest(&self, nearest_elements: &mut ElementAccumulator<(f64, T)>, position: Vec4d, max_distance: f64) {
+  fn nearest(&self, nearest_elements: &mut ElementAccumulator<(f64, T)>, position: Point, max_distance: f64) {
     let node = match self {
       KDTreeNode::Leaf(elements, bounds) => {
         if nearest_elements.is_full() {
@@ -214,7 +214,7 @@ impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
       root: build_tree(elements, bounds, max_children),
     };
   }
-  pub fn nearest(&self, position: Vec4d, count: usize, max_distance: f64) -> (Vec<(T, f64)>, f64) {
+  pub fn nearest(&self, position: Point, count: usize, max_distance: f64) -> (Vec<(T, f64)>, f64) {
     let comparator = |a: &(f64, T), b: &(f64, T)| return a.0.partial_cmp(&b.0).unwrap();
     let mut queue: ElementAccumulator<(f64, T)> = ElementAccumulator::new(&comparator, count);
     self.root.nearest(&mut queue, position, max_distance);
