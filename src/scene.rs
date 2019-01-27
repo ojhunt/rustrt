@@ -2,7 +2,6 @@ use photon_map::random;
 use std::collections::HashMap;
 use material::Material;
 use material::DefaultMaterial;
-use camera::Camera;
 use collision::Collision;
 use casefopen;
 use colour::Colour;

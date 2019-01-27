@@ -161,7 +161,7 @@ impl Camera for PerspectiveCamera {
     let mut buffer = RenderBuffer::new(self._width, self._height);
 
     for x in 0..self._width {
-      for y in 0..self._width {
+      for y in 0..self._height {
         let ray = self.ray_for_coordinate(x as f64, y as f64);
         buffer.set(x, y, scene.colour_and_depth_for_ray(&ray, photon_samples));
       }

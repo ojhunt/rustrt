@@ -24,7 +24,7 @@ pub struct MaterialCollisionInfo {
   pub secondaries: Vec<(Ray, Colour, f64)>,
 }
 
-pub trait Material: Debug {
+pub trait Material: Debug + Sync {
   fn is_light(&self) -> bool;
   fn compute_surface_properties(&self, s: &Scene, ray: &Ray, f: &Fragment) -> MaterialCollisionInfo;
 }
