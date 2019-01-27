@@ -88,6 +88,7 @@ pub struct Scene {
   _scene: CompoundObject,
   diffuse_photon_map: Option<PhotonMap<DiffuseSelector>>,
   caustic_photon_map: Option<PhotonMap<CausticSelector>>,
+  light_samples: Vec<LightSample>,
 }
 
 impl Scene {
@@ -107,6 +108,7 @@ impl Scene {
       texture_map: HashMap::new(),
       diffuse_photon_map: None,
       caustic_photon_map: None,
+      light_samples: vec![],
     }
   }
 
@@ -208,6 +210,7 @@ impl Scene {
       self.settings.photon_count,
       max_elements_per_leaf,
     ));
+    self.light_samples = self.get_light_samples(10000);
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {
@@ -225,7 +228,12 @@ impl Scene {
     return &self.textures[idx];
   }
 
-  fn intersect_ray(&self, ray: &Ray, lights: &Vec<LightSample>, photon_samples: usize, depth: usize) -> Vector {
+  pub fn colour_for_ray(&self, ray: &Ray, photon_samples: usize) -> Vector {
+    let lights = &self.light_samples;
+    return self.intersect_ray(ray, lights, photon_samples, 0);
+  }
+
+  fn intersect_ray(&self, ray: &Ray, lights: &[LightSample], photon_samples: usize, depth: usize) -> Vector {
     if depth > 10 {
       return Vector::vector(1.0, 1.0, 1.0);
     }
@@ -306,6 +314,7 @@ impl Scene {
       }
     }
   }
+
   pub fn get_light_samples(&self, max_samples: usize) -> Vec<LightSample> {
     let light_objects = &self._scene.get_lights(self);
     let light_areas: &Vec<f64> = &light_objects.iter().map(|l| l.get_area()).collect();
@@ -350,41 +359,5 @@ impl Scene {
       })
       .collect();
     };
-  }
-  pub fn render<C: Camera>(&self, camera: &C, photon_samples: usize, width: usize, height: usize) -> DynamicImage {
-    let mut result = image::RgbImage::new(width as u32, height as u32);
-    let mut buffer: Vec<Vec<Vector>> = vec![];
-    for _ in 0..(width * height) {
-      buffer.push(vec![]);
-    }
-    let rays = camera.get_rays(width, height);
-
-    let lights = self.get_light_samples(10000);
-    println!("photon samples: {}", photon_samples);
-    let iteration_count = 1;
-    for _ in 0..iteration_count {
-      for (x, y, pixel_contribution_weight, ray) in &rays {
-        let colour = self.intersect_ray(ray, &lights, photon_samples, 0);
-        buffer[x + y * width].push(colour * (*pixel_contribution_weight / iteration_count as f64));
-      }
-    }
-
-    for (x, y, _pixel) in result.enumerate_pixels_mut() {
-      let mut r: f32 = 0.0;
-      let mut g: f32 = 0.0;
-      let mut b: f32 = 0.0;
-      for v in &buffer[x as usize + y as usize * width] {
-        r += v.x();
-        g += v.y();
-        b += v.z();
-      }
-      *_pixel = image::Rgb([
-        (r * 255.).max(0.).min(255.) as u8,
-        (g * 255.).max(0.).min(255.) as u8,
-        (b * 255.).max(0.).min(255.) as u8,
-      ]);
-    }
-
-    return ImageRgb8(result);
   }
 }

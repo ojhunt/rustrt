@@ -1,15 +1,19 @@
+use image::DynamicImage;
+use image::ImageRgb8;
+use scene::Scene;
+use colour::Colour;
 use photon_map::random;
 use ray::Ray;
 use vectors::{Point, Vector, VectorType};
 
+struct RenderedImage {
+  data: Vec<Colour>,
+  width: usize,
+  height: usize,
+}
+
 pub trait Camera {
-  fn get_rays(&self, width: usize, height: usize) -> Vec<(usize, usize, f64, Ray)>;
-  fn get_followup_rays(
-    &self,
-    width: usize,
-    height: usize,
-    locations: Vec<((f64, f64), f64)>,
-  ) -> Vec<(usize, usize, f64, Ray)>;
+  fn render(&self, scene: &Scene, photon_samples: usize) -> DynamicImage;
 }
 
 pub struct PerspectiveCamera {
@@ -25,11 +29,62 @@ pub struct PerspectiveCamera {
   view_origin: Point,
 }
 
+const DELTA: f64 = 0.1;
+
 impl PerspectiveCamera {
   fn ray_for_coordinate(&self, x: f64, y: f64) -> Ray {
     let view_target = self.view_origin + (self.x_delta * x) - (self.y_delta * y);
     Ray::new(self.position, (view_target - self.position).normalize(), None)
   }
+  fn multisample(
+    &self,
+    scene: &Scene,
+    photon_samples: usize,
+    x: f64,
+    y: f64,
+    radius: f64,
+    depth: u32,
+  ) -> (Vector, usize) {
+    let noise_radius = if radius > 0.9 { 0.01 } else { radius / 2.0 };
+    let positions = [
+      (x - 0.25 * radius, y - 0.25 * radius),
+      (x - 0.25 * radius, y + 0.25 * radius),
+      (x + 0.25 * radius, y - 0.25 * radius),
+      (x + 0.25 * radius, y + 0.25 * radius),
+    ];
+    let rays: Vec<((f64, f64), Ray)> = positions
+      .iter()
+      .map(|(x, y)| {
+        (
+          (*x, *y),
+          self.ray_for_coordinate(
+            x + random(-noise_radius, noise_radius),
+            y + random(-noise_radius, noise_radius),
+          ),
+        )
+      })
+      .collect();
+
+    let samples: Vec<((f64, f64), Vector)> = rays
+      .iter()
+      .map(|((x, y), r)| ((*x, *y), scene.colour_for_ray(r, photon_samples)))
+      .collect();
+    let average: Vector = samples.iter().fold(Vector::new(), |a, (_, b)| a + *b * 0.25);
+    return samples
+      .iter()
+      .fold((Vector::new(), 0), |(current_value, current_count), ((x, y), a)| {
+        let (value, count) = if (*a - average).length() > DELTA && depth < 2 {
+          let (v, count) = self.multisample(scene, photon_samples, *x, *y, radius / 2.0, depth + 1);
+          let one = Vector::splat(1.0);
+          let mask = v.lt(one);
+          (mask.select(v, one), count)
+        } else {
+          (*a, 4)
+        };
+        return (current_value + value * 0.25, current_count + count);
+      });
+  }
+
   pub fn new(
     width: usize,
     height: usize,
@@ -69,57 +124,82 @@ impl PerspectiveCamera {
   }
 }
 
-impl Camera for PerspectiveCamera {
-  fn get_rays(&self, width: usize, height: usize) -> Vec<(usize, usize, f64, Ray)> {
-    let mut result: Vec<(usize, usize, f64, Ray)> = Vec::new();
-    let ns = (self.samples_per_pixel as f64).sqrt().ceil() as usize;
-    let samples_per_pixel = ns * ns;
-    let half_width = ns as f64 / 2.0;
-    println!("Generating {} samples per pixel", samples_per_pixel);
-    for y in 0..height {
-      for x in 0..width {
-        if samples_per_pixel <= 1 {
-          result.push((x, y, 1.0, self.ray_for_coordinate(x as f64, y as f64)));
-        } else {
-          let weight = 0.5 / (1 + samples_per_pixel) as f64;
-          result.push((x, y, 0.5, self.ray_for_coordinate(x as f64, y as f64)));
-          for dy in 0..ns {
-            let yoffset = (dy as f64 - half_width) / ns as f64;
-            for dx in 0..ns {
-              let xoffset = (dx as f64 - half_width) / ns as f64;
-              let random_diameter = half_width / 4.0;
-              let xr = {
-                let r = random(0.0, 1.0);
-                r * r
-              } * random_diameter
-                - random_diameter / 2.0;
-              let yr = {
-                let r = random(0.0, 1.0);
-                r * r
-              } * random_diameter
-                - random_diameter / 2.0;
+struct RenderBuffer {
+  data: Vec<Vector>,
+  width: usize,
+}
 
-              result.push((
-                x,
-                y,
-                weight,
-                self.ray_for_coordinate(x as f64 + xoffset, y as f64 + yoffset),
-              ));
+impl RenderBuffer {
+  pub fn new(width: usize, height: usize) -> Self {
+    let mut data = Vec::with_capacity(width * height);
+    for i in 0..width * height {
+      data.push(Vector::new());
+    }
+    return RenderBuffer { width, data };
+  }
+  pub fn get(&self, x: usize, y: usize) -> Vector {
+    return self.data[y * self.width + x];
+  }
+  pub fn set(&mut self, x: usize, y: usize, sample: Vector) {
+    self.data[y * self.width + x] = sample;
+  }
+}
+
+impl Camera for PerspectiveCamera {
+  fn render(&self, scene: &Scene, photon_samples: usize) -> DynamicImage {
+    let mut buffer = RenderBuffer::new(self._width, self._height);
+
+    for x in 0..self._width {
+      for y in 0..self._width {
+        let ray = self.ray_for_coordinate(x as f64, y as f64);
+        buffer.set(x, y, scene.colour_for_ray(&ray, photon_samples));
+      }
+    }
+
+    let mut future_samples = vec![];
+
+    for x in 0..self._width {
+      let minx = if x > 0 { -1i32 } else { 0 };
+      let maxx = if x < self._width - 1 { 1 } else { 0 };
+      'inner_loop: for y in 0..self._width {
+        let miny = if y > 0 { -1i32 } else { 0 };
+        let maxy = if y < self._height - 1 { 1 } else { 0 };
+        let value = buffer.get(x, y);
+        for i in minx..maxx {
+          for j in miny..maxy {
+            if i == 0 && j == 0 {
+              continue;
+            }
+            if (buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize) - value).length() > DELTA {
+              future_samples.push((x, y));
+              continue 'inner_loop;
             }
           }
         }
       }
     }
-    return result;
-  }
-  fn get_followup_rays(
-    &self,
-    width: usize,
-    height: usize,
-    locations: Vec<((f64, f64), f64)>,
-  ) -> Vec<(usize, usize, f64, Ray)> {
-    let mut result = Vec::new();
-    for ((x, y), radius) in locations {}
-    return result;
+
+    println!("Resample count: {}", future_samples.len());
+    let mut resample_count = 0;
+    for (x, y) in future_samples {
+      let (value, sample_count) = self.multisample(scene, photon_samples, x as f64, y as f64, 1.0, 0);
+      buffer.set(x, y, value);
+      resample_count += sample_count;
+    }
+
+    println!("initial samples: {}", self._width * self._height);
+    println!("resample count: {}", resample_count);
+
+    let mut result = image::RgbImage::new(self._width as u32, self._height as u32);
+    for (x, y, _pixel) in result.enumerate_pixels_mut() {
+      let value = buffer.data[x as usize + y as usize * self._width];
+      *_pixel = image::Rgb([
+        (value.x() * 255.).max(0.).min(255.) as u8,
+        (value.y() * 255.).max(0.).min(255.) as u8,
+        (value.z() * 255.).max(0.).min(255.) as u8,
+      ]);
+    }
+
+    return ImageRgb8(result);
   }
 }

@@ -152,7 +152,7 @@ fn main() {
   );
 
   let start = std::time::Instant::now();
-  let output = scn.render(&camera, settings.photon_samples, settings.width, settings.height);
+  let output = camera.render(&scn, settings.photon_samples);
   let end = std::time::Instant::now();
   let delta = end - start;
   let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;
