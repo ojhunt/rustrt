@@ -228,91 +228,89 @@ impl Scene {
     return &self.textures[idx];
   }
 
-  pub fn colour_for_ray(&self, ray: &Ray, photon_samples: usize) -> Vector {
+  pub fn colour_and_depth_for_ray(&self, ray: &Ray, photon_samples: usize) -> (Vector, f64) {
     let lights = &self.light_samples;
     return self.intersect_ray(ray, lights, photon_samples, 0);
   }
 
-  fn intersect_ray(&self, ray: &Ray, lights: &[LightSample], photon_samples: usize, depth: usize) -> Vector {
+  fn intersect_ray(&self, ray: &Ray, lights: &[LightSample], photon_samples: usize, depth: usize) -> (Vector, f64) {
     if depth > 10 {
-      return Vector::vector(1.0, 1.0, 1.0);
+      return (Vector::vector(1.0, 1.0, 1.0), 0.0);
     }
-    match self.intersect(ray) {
-      None => return Vector::new(),
-      Some((c, shadable)) => {
-        let fragment = shadable.compute_fragment(self, ray, &c);
+    let (collision, shadable) = match self.intersect(ray) {
+      None => return (Vector::new(), std::f64::INFINITY),
+      Some(collision) => collision,
+    };
 
-        let material = self.get_material(fragment.material);
-        let surface = material.compute_surface_properties(self, ray, &fragment);
-        // let ambient_colour = Vector::from(surface.ambient_colour);
-        let mut diffuse_colour = Vector::from(surface.diffuse_colour);
-        if let Some(c) = surface.emissive_colour {
-          return Vector::from(c);
+    let fragment = shadable.compute_fragment(self, ray, &collision);
+
+    let material = self.get_material(fragment.material);
+    let surface = material.compute_surface_properties(self, ray, &fragment);
+    // let ambient_colour = Vector::from(surface.ambient_colour);
+    let mut diffuse_colour = Vector::from(surface.diffuse_colour);
+    if let Some(colour) = surface.emissive_colour {
+      return (Vector::from(colour), collision.distance);
+    }
+
+    let mut colour;
+    let ambient_light = {
+      let diffuse = match &self.diffuse_photon_map {
+        None => Colour::RGB(0.0, 0.0, 0.0),
+        Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
+      };
+      let caustic = match &self.caustic_photon_map {
+        None => Colour::RGB(0.0, 0.0, 0.0),
+        Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
+      };
+      (diffuse + caustic * 0.5 + Colour::RGB(0.2, 0.2, 0.2))
+    };
+
+    let mut max_secondary_distance = 0.0f64;
+    let mut remaining_weight = 1.0;
+    let mut secondaries_colour = Vector::new();
+    for (ray, secondary_colour, weight) in &surface.secondaries {
+      if remaining_weight <= 0.0 {
+        break;
+      }
+      remaining_weight -= weight;
+      let (secondary_intersection_colour, secondary_distance) =
+        self.intersect_ray(ray, lights, photon_samples, depth + 1);
+      secondaries_colour =
+        secondaries_colour + Vector::from(Colour::from(secondary_intersection_colour) * *secondary_colour * *weight);
+      max_secondary_distance = max_secondary_distance.max(secondary_distance);
+    }
+    colour = secondaries_colour;
+    let mut direct_lighting = Vector::new();
+    diffuse_colour = diffuse_colour * remaining_weight;
+    if diffuse_colour.length() <= 0.01 {
+      return (colour, collision.distance + max_secondary_distance);
+    }
+
+    if self.settings.use_direct_lighting {
+      let light_samples = 8;
+      let mut has_intersected = false;
+      for i in 0..light_samples {
+        let light = &lights[random(0.0, lights.len() as f64) as usize];
+        let mut ldir = light.position - surface.position;
+        let ldir_len = ldir.dot(ldir).sqrt();
+        ldir = ldir.normalize();
+        if i * 2 < light_samples || has_intersected {
+          let shadow_test = Ray::new_bound(surface.position, ldir, 0.01 * ldir_len, ldir_len * 0.999, None);
+          if self.intersect(&shadow_test).is_some() {
+            has_intersected = true;
+            continue;
+          }
         }
-
-        let mut colour;
-        let ambient_light = {
-          let diffuse = match &self.diffuse_photon_map {
-            None => Colour::RGB(0.0, 0.0, 0.0),
-            Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
-          };
-          let caustic = match &self.caustic_photon_map {
-            None => Colour::RGB(0.0, 0.0, 0.0),
-            Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
-          };
-          (diffuse + caustic * 0.5 + Colour::RGB(0.2, 0.2, 0.2))
-        };
-
-        if true {
-          let mut remaining_weight = 1.0;
-          let mut secondaries_colour = Vector::new();
-          for (ray, secondary_colour, weight) in &surface.secondaries {
-            if remaining_weight <= 0.0 {
-              break;
-            }
-            remaining_weight -= weight;
-            secondaries_colour = secondaries_colour
-              + Vector::from(
-                Colour::from(self.intersect_ray(ray, lights, photon_samples, depth + 1)) * *secondary_colour * *weight,
-              );
-          }
-          colour = secondaries_colour;
-          let mut direct_lighting = Vector::new();
-          diffuse_colour = diffuse_colour * remaining_weight;
-          if diffuse_colour.length() <= 0.01 {
-            return colour;
-          }
-
-          if self.settings.use_direct_lighting {
-            let light_samples = 8;
-            let mut has_intersected = false;
-            for i in 0..light_samples {
-              let light = &lights[random(0.0, lights.len() as f64) as usize];
-              let mut ldir = light.position - surface.position;
-              let ldir_len = ldir.dot(ldir).sqrt();
-              ldir = ldir.normalize();
-              if i * 2 < light_samples || has_intersected {
-                let shadow_test = Ray::new_bound(surface.position, ldir, 0.01 * ldir_len, ldir_len * 0.999, None);
-                if self.intersect(&shadow_test).is_some() {
-                  has_intersected = true;
-                  continue;
-                }
-              }
-              let diffuse_intensity = ldir.dot(surface.normal) / light_samples as f64;
-              if diffuse_intensity <= 0.0 {
-                continue;
-              }
-              direct_lighting = direct_lighting + light.diffuse * diffuse_intensity;
-            }
-          }
-          colour =
-            colour + Vector::from(Colour::from(diffuse_colour) * (Colour::from(direct_lighting) + ambient_light));
-        } else {
-          colour = diffuse_colour;
+        let diffuse_intensity = ldir.dot(surface.normal) / light_samples as f64;
+        if diffuse_intensity <= 0.0 {
+          continue;
         }
-        return colour;
+        direct_lighting = direct_lighting + light.diffuse * diffuse_intensity;
       }
     }
+    colour = colour + Vector::from(Colour::from(diffuse_colour) * (Colour::from(direct_lighting) + ambient_light));
+
+    return (colour, collision.distance + max_secondary_distance);
   }
 
   pub fn get_light_samples(&self, max_samples: usize) -> Vec<LightSample> {

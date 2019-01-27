@@ -44,7 +44,7 @@ impl PerspectiveCamera {
     y: f64,
     radius: f64,
     depth: u32,
-  ) -> (Vector, usize) {
+  ) -> (Vector, f64, usize) {
     let noise_radius = if radius > 0.9 { 0.01 } else { radius / 2.0 };
     let positions = [
       (x - 0.25 * radius, y - 0.25 * radius),
@@ -52,6 +52,7 @@ impl PerspectiveCamera {
       (x + 0.25 * radius, y - 0.25 * radius),
       (x + 0.25 * radius, y + 0.25 * radius),
     ];
+    let mut max_distance = 0.0f64;
     let rays: Vec<((f64, f64), Ray)> = positions
       .iter()
       .map(|(x, y)| {
@@ -65,24 +66,34 @@ impl PerspectiveCamera {
       })
       .collect();
 
-    let samples: Vec<((f64, f64), Vector)> = rays
+    let samples: Vec<((f64, f64), (Vector, f64))> = rays
       .iter()
-      .map(|((x, y), r)| ((*x, *y), scene.colour_for_ray(r, photon_samples)))
+      .map(|((x, y), r)| ((*x, *y), scene.colour_and_depth_for_ray(r, photon_samples)))
       .collect();
-    let average: Vector = samples.iter().fold(Vector::new(), |a, (_, b)| a + *b * 0.25);
-    return samples
-      .iter()
-      .fold((Vector::new(), 0), |(current_value, current_count), ((x, y), a)| {
-        let (value, count) = if (*a - average).length() > DELTA && depth < 2 {
-          let (v, count) = self.multisample(scene, photon_samples, *x, *y, radius / 2.0, depth + 1);
-          let one = Vector::splat(1.0);
-          let mask = v.lt(one);
-          (mask.select(v, one), count)
-        } else {
-          (*a, 4)
-        };
-        return (current_value + value * 0.25, current_count + count);
-      });
+    let (average_colour, average_distance): (Vector, f64) = samples.iter().fold(
+      (Vector::new(), 0.0),
+      |(average_colour, average_distance), (_, (sample_colour, sample_distance))| {
+        (
+          average_colour + *sample_colour * 0.25,
+          average_distance + sample_distance * 0.25,
+        )
+      },
+    );
+    return samples.iter().fold(
+      (Vector::new(), 0.0f64, 0),
+      |(current_value, current_max_distance, current_count), ((x, y), (a, distance))| {
+        let (value, distance, count) =
+          if ((*a - average_colour).length() > DELTA || (average_distance - distance).abs() > DELTA) && depth < 2 {
+            let (v, distance, count) = self.multisample(scene, photon_samples, *x, *y, radius / 2.0, depth + 1);
+            let one = Vector::splat(1.0);
+            let mask = v.lt(one);
+            (mask.select(v, one), distance.max(current_max_distance), count)
+          } else {
+            (*a, *distance, 4)
+          };
+        return (current_value + value * 0.25, distance, current_count + count);
+      },
+    );
   }
 
   pub fn new(
@@ -125,22 +136,22 @@ impl PerspectiveCamera {
 }
 
 struct RenderBuffer {
-  data: Vec<Vector>,
+  data: Vec<(Vector, f64)>,
   width: usize,
 }
 
 impl RenderBuffer {
   pub fn new(width: usize, height: usize) -> Self {
     let mut data = Vec::with_capacity(width * height);
-    for i in 0..width * height {
-      data.push(Vector::new());
+    for _ in 0..width * height {
+      data.push((Vector::new(), std::f64::INFINITY));
     }
     return RenderBuffer { width, data };
   }
-  pub fn get(&self, x: usize, y: usize) -> Vector {
+  pub fn get(&self, x: usize, y: usize) -> (Vector, f64) {
     return self.data[y * self.width + x];
   }
-  pub fn set(&mut self, x: usize, y: usize, sample: Vector) {
+  pub fn set(&mut self, x: usize, y: usize, sample: (Vector, f64)) {
     self.data[y * self.width + x] = sample;
   }
 }
@@ -152,7 +163,7 @@ impl Camera for PerspectiveCamera {
     for x in 0..self._width {
       for y in 0..self._width {
         let ray = self.ray_for_coordinate(x as f64, y as f64);
-        buffer.set(x, y, scene.colour_for_ray(&ray, photon_samples));
+        buffer.set(x, y, scene.colour_and_depth_for_ray(&ray, photon_samples));
       }
     }
 
@@ -164,13 +175,14 @@ impl Camera for PerspectiveCamera {
       'inner_loop: for y in 0..self._width {
         let miny = if y > 0 { -1i32 } else { 0 };
         let maxy = if y < self._height - 1 { 1 } else { 0 };
-        let value = buffer.get(x, y);
+        let (sample_colour, sample_distance) = buffer.get(x, y);
         for i in minx..maxx {
           for j in miny..maxy {
             if i == 0 && j == 0 {
               continue;
             }
-            if (buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize) - value).length() > DELTA {
+            let (colour, distance) = buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize);
+            if (colour - sample_colour).length() > DELTA || (sample_distance - distance).abs() > DELTA {
               future_samples.push((x, y));
               continue 'inner_loop;
             }
@@ -182,8 +194,8 @@ impl Camera for PerspectiveCamera {
     println!("Resample count: {}", future_samples.len());
     let mut resample_count = 0;
     for (x, y) in future_samples {
-      let (value, sample_count) = self.multisample(scene, photon_samples, x as f64, y as f64, 1.0, 0);
-      buffer.set(x, y, value);
+      let (value, distance, sample_count) = self.multisample(scene, photon_samples, x as f64, y as f64, 1.0, 0);
+      buffer.set(x, y, (value, distance));
       resample_count += sample_count;
     }
 
@@ -192,7 +204,7 @@ impl Camera for PerspectiveCamera {
 
     let mut result = image::RgbImage::new(self._width as u32, self._height as u32);
     for (x, y, _pixel) in result.enumerate_pixels_mut() {
-      let value = buffer.data[x as usize + y as usize * self._width];
+      let (value, _) = buffer.data[x as usize + y as usize * self._width];
       *_pixel = image::Rgb([
         (value.x() * 255.).max(0.).min(255.) as u8,
         (value.y() * 255.).max(0.).min(255.) as u8,
