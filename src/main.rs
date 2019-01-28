@@ -8,6 +8,7 @@ extern crate obj;
 extern crate rand;
 extern crate faster;
 extern crate packed_simd;
+extern crate rayon_core;
 
 mod bounding_box;
 mod bvh;

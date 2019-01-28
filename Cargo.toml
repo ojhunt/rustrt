@@ -9,7 +9,7 @@ genmesh = "*"
 itertools = "*"
 rand = "*"
 packed_simd = "*"
-threadpool = "*"
+rayon-core = "*"
 obj = { version = "*", features = ["genmesh"]}
 
 [dependencies.clap]

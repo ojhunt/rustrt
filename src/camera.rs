@@ -2,23 +2,17 @@ use std::sync::Arc;
 use image::DynamicImage;
 use image::ImageRgb8;
 use scene::Scene;
-use colour::Colour;
 use photon_map::random;
 use ray::Ray;
 use vectors::{Point, Vector, VectorType};
-use std::thread;
 use std::sync::mpsc;
+use std::thread;
 
-struct RenderedImage {
-  data: Vec<Colour>,
-  width: usize,
-  height: usize,
-}
-
-pub trait Camera {
+pub trait Camera: Clone {
   fn render(&self, scene: Arc<Scene>, photon_samples: usize) -> DynamicImage;
 }
 
+#[derive(Clone)]
 pub struct PerspectiveCamera {
   _width: usize,
   _height: usize,
@@ -177,75 +171,113 @@ impl Camera for PerspectiveCamera {
         }
       }
     }
-    let max_threads = 10;
-    let mut count = 0;
-    let (tx, rx) = mpsc::channel();
-    for tasks in initial_rays {
-      if count == max_threads {
-        for (x, y, value) in rx.recv().unwrap() {
-          buffer.set(x, y, value);
-        }
-        count -= 1;
+
+    let thread_count = 10;
+    let start = std::time::Instant::now();
+
+    {
+      let mut threads = vec![];
+      let mut tasks = vec![vec![]; thread_count];
+      let mut i = 0;
+      while let Some(mut task) = initial_rays.pop() {
+        tasks[i % thread_count].append(&mut task);
+        i += 1;
       }
-      println!("Count: {}", count);
-      {
-        count += 1;
-        let tasks = tasks.clone();
-        let tx = tx.clone();
+
+      for task in tasks {
+        let task = task.clone();
         let scene = scene.clone();
-        thread::spawn(move || {
-          let mut result = vec![];
-          let scene = &*scene;
-          for (x, y, ray) in tasks {
-            let colour = scene.colour_and_depth_for_ray(&ray, photon_samples);
-            result.push((x, y, colour));
-          }
-          return tx.send(result);
+        let (tx, rx) = mpsc::channel();
+        threads.push((
+          thread::spawn(move || {
+            let mut result = vec![];
+            let scene = &*scene;
+            for (x, y, ray) in task {
+              let colour = scene.colour_and_depth_for_ray(&ray, photon_samples);
+              result.push((x, y, colour));
+            }
+            return tx.send(result);
+          }),
+          rx,
+        ));
+      }
+
+      for (_thread, rx) in threads {
+        rx.recv().unwrap().iter().for_each(|(x, y, c)| {
+          buffer.set(*x, *y, *c);
         });
       }
     }
-    for _ in 0..count {
-      for (x, y, value) in rx.recv().unwrap() {
-        buffer.set(x, y, value);
-      }
-    }
 
-    count = 0;
-    let mut future_samples = vec![];
+    let end = std::time::Instant::now();
+    let delta = end - start;
+    let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;
+    println!("Initial render time: {}s", time);
+    if true {
+      let mut future_samples = vec![];
 
-    for x in 0..self._width {
-      let minx = if x > 0 { -1i32 } else { 0 };
-      let maxx = if x < self._width - 1 { 1 } else { 0 };
-      'inner_loop: for y in 0..self._height {
-        let miny = if y > 0 { -1i32 } else { 0 };
-        let maxy = if y < self._height - 1 { 1 } else { 0 };
-        let (sample_colour, sample_distance) = buffer.get(x, y);
-        for i in minx..maxx {
-          for j in miny..maxy {
-            if i == 0 && j == 0 {
-              continue;
-            }
-            let (colour, distance) = buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize);
-            if (colour - sample_colour).length() > DELTA || (sample_distance - distance).abs() > DELTA {
-              future_samples.push((x, y));
-              continue 'inner_loop;
+      for x in 0..self._width {
+        let minx = if x > 0 { -1i32 } else { 0 };
+        let maxx = if x < self._width - 1 { 1 } else { 0 };
+        'inner_loop: for y in 0..self._height {
+          let miny = if y > 0 { -1i32 } else { 0 };
+          let maxy = if y < self._height - 1 { 1 } else { 0 };
+          let (sample_colour, sample_distance) = buffer.get(x, y);
+          for i in minx..maxx {
+            for j in miny..maxy {
+              if i == 0 && j == 0 {
+                continue;
+              }
+              let (colour, distance) = buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize);
+              if (colour - sample_colour).length() > DELTA || (sample_distance - distance).abs() > DELTA {
+                future_samples.push((x, y));
+                continue 'inner_loop;
+              }
             }
           }
         }
       }
+
+      println!("Resample count: {}", future_samples.len());
+      {
+        let mut threads = vec![];
+        let mut tasks = vec![vec![]; thread_count];
+        let mut i = 0;
+        while let Some(task) = future_samples.pop() {
+          tasks[i % thread_count].push(task);
+          i += 1;
+        }
+
+        for task in tasks {
+          let task = task.clone();
+          let scene = scene.clone();
+          let (tx, rx) = mpsc::channel();
+          let camera = self.clone();
+          threads.push((
+            thread::spawn(move || {
+              let mut result = vec![];
+              let scene = &*scene;
+              for (x, y) in task {
+                let colour = camera.multisample(&*scene, photon_samples, x as f64, y as f64, 1.0, 0);
+                result.push((x, y, colour));
+              }
+              return tx.send(result);
+            }),
+            rx,
+          ));
+        }
+        let mut resample_count = 0;
+        for (_, rx) in threads {
+          rx.recv().unwrap().iter().for_each(|(x, y, (colour, distance, count))| {
+            resample_count += count;
+            buffer.set(*x, *y, (*colour, *distance));
+          });
+        }
+
+        println!("initial samples: {}", self._width * self._height);
+        println!("resample count: {}", resample_count);
+      }
     }
-
-    println!("Resample count: {}", future_samples.len());
-    let mut resample_count = 0;
-    for (x, y) in future_samples {
-      let (value, distance, sample_count) = self.multisample(&*scene, photon_samples, x as f64, y as f64, 1.0, 0);
-      buffer.set(x, y, (value, distance));
-      resample_count += sample_count;
-    }
-
-    println!("initial samples: {}", self._width * self._height);
-    println!("resample count: {}", resample_count);
-
     let mut result = image::RgbImage::new(self._width as u32, self._height as u32);
     for (x, y, _pixel) in result.enumerate_pixels_mut() {
       let (value, _) = buffer.data[x as usize + y as usize * self._width];
