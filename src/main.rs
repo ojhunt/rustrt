@@ -16,6 +16,7 @@ mod casefopen;
 mod collision;
 mod colour;
 mod compound_object;
+mod dispatch_queue;
 mod fragment;
 mod heap;
 mod intersectable;
@@ -38,6 +39,7 @@ use clap::*;
 use std::str::FromStr;
 use vectors::*;
 use wavefront_material::load_scene;
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct VecArg {
@@ -140,7 +142,9 @@ fn main() {
   let settings = load_settings();
 
   let mut scn = load_scene(&settings);
-  scn.finalize(settings.max_leaf_photons);
+  {
+    Arc::get_mut(&mut scn).unwrap().finalize(settings.max_leaf_photons);
+  }
   let camera = PerspectiveCamera::new(
     settings.width,
     settings.height,
@@ -152,7 +156,7 @@ fn main() {
   );
 
   let start = std::time::Instant::now();
-  let output = camera.render(&scn, settings.photon_samples);
+  let output = camera.render(scn, settings.photon_samples);
   let end = std::time::Instant::now();
   let delta = end - start;
   let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;

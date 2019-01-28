@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use scene::SceneSettings;
 use colour::Colour;
 use fragment::Fragment;
@@ -330,111 +331,112 @@ fn vecf32_to_point(v: [f32; 3]) -> Point {
   Vector::point(v[0] as f64, v[1] as f64, v[2] as f64)
 }
 
-pub fn load_scene(settings: &SceneSettings) -> Scene {
+pub fn load_scene(settings: &SceneSettings) -> Arc<Scene> {
   let mut scn = Scene::new(settings);
+  {
+    let scn = Arc::get_mut(&mut scn).unwrap();
+    let mut obj = Obj::<Polygon<IndexTuple>>::load(&Path::new(&settings.scene_file)).unwrap();
 
-  let mut obj = Obj::<Polygon<IndexTuple>>::load(&Path::new(&settings.scene_file)).unwrap();
+    obj.load_mtls().unwrap();
 
-  obj.load_mtls().unwrap();
-
-  for [x, y, z] in obj.position.iter() {
-    scn.positions.push(Vector::point(*x as f64, *y as f64, *z as f64));
-  }
-  for [x, y, z] in obj.normal.iter() {
-    let n = Vector::vector(*x as f64, *y as f64, *z as f64);
-    if n.dot(n) == 0.0 {
-      scn.normals.push(Vector::vector(0.0, 0.0, 0.0));
-    } else {
-      scn.normals.push(n);
+    for [x, y, z] in obj.position.iter() {
+      scn.positions.push(Vector::point(*x as f64, *y as f64, *z as f64));
     }
-  }
-  for [u, v] in obj.texture.iter() {
-    scn.texture_coords.push(Vec2d(*u as f64, *v as f64));
-  }
-  let max_tex: usize = scn.texture_coords.len();
-  let default_material = scn.default_material();
-  let object_count = obj.objects.len();
-  // let mut index_for_material = |mat: &obj::Material| -> (MaterialIdx, bool) {
-  //   let name = &mat.name;
-  //   if let Some(existing) = material_map.get(name) {
-  //     return *existing;
-  //   }
-  //   let material: Box<material::Material> = Box::new(WFMaterial::new(mat, |file, need_bumpmap| {
-  //     load_texture(&mut textures, file, need_bumpmap)
-  //   }));
-  //   let is_light = material.is_light();
-  //   let index = scn.add_material(material);
-
-  //   material_map.insert(name.clone(), (MaterialIdx(materials.len() - 1), is_light));
-  //   return (index, is_light);
-  // };
-
-  for object_index in 0..object_count {
-    let object = &obj.objects[object_index];
-    let mut object_triangles: Vec<Triangle> = vec![];
-
-    let group_count = object.groups.len();
-    for group_index in 0..group_count {
-      let ref group = &object.groups[group_index];
-      let material_index = if let Some(ref mat) = group.material {
-        let material: &obj::Material = &**mat;
-        let mat = scn.get_or_create_material(&material.name, |scene| {
-          return Some(Box::new(WFMaterial::new(scene, mat, |scene, file, need_bumpmap| {
-            scene.load_texture(file, need_bumpmap)
-          })));
-        });
-        Some(mat.0)
+    for [x, y, z] in obj.normal.iter() {
+      let n = Vector::vector(*x as f64, *y as f64, *z as f64);
+      if n.dot(n) == 0.0 {
+        scn.normals.push(Vector::vector(0.0, 0.0, 0.0));
       } else {
-        None
-      };
-      let mut triangles: Vec<Triangle> = group
-        .polys
-        .iter()
-        .map(|x| *x)
-        .vertex(|IndexTuple(p, t, n)| {
-          let n_idx: Option<NormalIdx> = match n {
-            Some(idx) => {
-              let normal = scn.get_normal(idx);
-              if normal.dot(normal) != 0.0 {
-                Some(NormalIdx(idx))
-              } else {
-                None
-              }
-            }
-            None => None,
-          };
-          let t_idx: Option<TextureCoordinateIdx> = match t {
-            Some(idx) => {
-              assert!(idx < max_tex);
-              Some(TextureCoordinateIdx(idx))
-            }
-            None => None,
-          };
-          (vecf32_to_point(obj.position[p]), t_idx, n_idx)
-        })
-        .triangulate()
-        .map(|genmesh::Triangle { x, y, z }| {
-          if let Some(nidx) = x.2 {
-            let n = nidx.get(&scn);
-            assert!(n.dot(n) != 0.0);
-          };
-          if let Some(nidx) = y.2 {
-            let n = nidx.get(&scn);
-            assert!(n.dot(n) != 0.0);
-          };
-          if let Some(nidx) = z.2 {
-            let n = nidx.get(&scn);
-            assert!(n.dot(n) != 0.0);
-          };
-          Triangle::new(material_index.unwrap_or(default_material), x, y, z)
-        })
-        .collect();
-      object_triangles.append(&mut triangles);
+        scn.normals.push(n);
+      }
     }
+    for [u, v] in obj.texture.iter() {
+      scn.texture_coords.push(Vec2d(*u as f64, *v as f64));
+    }
+    let max_tex: usize = scn.texture_coords.len();
+    let default_material = scn.default_material();
+    let object_count = obj.objects.len();
+    // let mut index_for_material = |mat: &obj::Material| -> (MaterialIdx, bool) {
+    //   let name = &mat.name;
+    //   if let Some(existing) = material_map.get(name) {
+    //     return *existing;
+    //   }
+    //   let material: Box<material::Material> = Box::new(WFMaterial::new(mat, |file, need_bumpmap| {
+    //     load_texture(&mut textures, file, need_bumpmap)
+    //   }));
+    //   let is_light = material.is_light();
+    //   let index = scn.add_material(material);
 
-    let new_object = Box::new(Mesh::new(&object_triangles));
-    scn.add_object(new_object);
+    //   material_map.insert(name.clone(), (MaterialIdx(materials.len() - 1), is_light));
+    //   return (index, is_light);
+    // };
+
+    for object_index in 0..object_count {
+      let object = &obj.objects[object_index];
+      let mut object_triangles: Vec<Triangle> = vec![];
+
+      let group_count = object.groups.len();
+      for group_index in 0..group_count {
+        let ref group = &object.groups[group_index];
+        let material_index = if let Some(ref mat) = group.material {
+          let material: &obj::Material = &**mat;
+          let mat = scn.get_or_create_material(&material.name, |scene| {
+            return Some(Box::new(WFMaterial::new(scene, mat, |scene, file, need_bumpmap| {
+              scene.load_texture(file, need_bumpmap)
+            })));
+          });
+          Some(mat.0)
+        } else {
+          None
+        };
+        let mut triangles: Vec<Triangle> = group
+          .polys
+          .iter()
+          .map(|x| *x)
+          .vertex(|IndexTuple(p, t, n)| {
+            let n_idx: Option<NormalIdx> = match n {
+              Some(idx) => {
+                let normal = scn.get_normal(idx);
+                if normal.dot(normal) != 0.0 {
+                  Some(NormalIdx(idx))
+                } else {
+                  None
+                }
+              }
+              None => None,
+            };
+            let t_idx: Option<TextureCoordinateIdx> = match t {
+              Some(idx) => {
+                assert!(idx < max_tex);
+                Some(TextureCoordinateIdx(idx))
+              }
+              None => None,
+            };
+            (vecf32_to_point(obj.position[p]), t_idx, n_idx)
+          })
+          .triangulate()
+          .map(|genmesh::Triangle { x, y, z }| {
+            if let Some(nidx) = x.2 {
+              let n = nidx.get(&scn);
+              assert!(n.dot(n) != 0.0);
+            };
+            if let Some(nidx) = y.2 {
+              let n = nidx.get(&scn);
+              assert!(n.dot(n) != 0.0);
+            };
+            if let Some(nidx) = z.2 {
+              let n = nidx.get(&scn);
+              assert!(n.dot(n) != 0.0);
+            };
+            Triangle::new(material_index.unwrap_or(default_material), x, y, z)
+          })
+          .collect();
+        object_triangles.append(&mut triangles);
+      }
+
+      let new_object = Box::new(Mesh::new(&object_triangles));
+      scn.add_object(new_object);
+    }
   }
-
   return scn;
 }

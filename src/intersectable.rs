@@ -5,7 +5,7 @@ use scene::Scene;
 use shader::*;
 use std::fmt::Debug;
 
-pub trait Intersectable: Debug + HasBoundingBox {
+pub trait Intersectable: Debug + HasBoundingBox + Sync + Send {
   fn get_lights<'a>(&'a self, s: &Scene) -> Vec<&'a Light>;
   fn intersect<'a>(&'a self, ray: &Ray, min: f64, max: f64) -> Option<(Collision, &'a Shadable)>;
 }

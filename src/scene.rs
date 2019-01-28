@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use photon_map::random;
 use std::collections::HashMap;
 use material::Material;
@@ -91,9 +92,9 @@ pub struct Scene {
 }
 
 impl Scene {
-  pub fn new(settings: &SceneSettings) -> Scene {
+  pub fn new(settings: &SceneSettings) -> Arc<Scene> {
     let real_path = Path::new(&settings.scene_file).canonicalize().unwrap();
-    Scene {
+    Arc::new(Scene {
       settings: settings.clone(),
       path: real_path.clone(),
       directory: real_path.parent().unwrap().to_owned(),
@@ -108,7 +109,7 @@ impl Scene {
       diffuse_photon_map: None,
       caustic_photon_map: None,
       light_samples: vec![],
-    }
+    })
   }
 
   pub fn load_texture(&mut self, file: &str, need_bumpmap: bool) -> Option<TextureIdx> {

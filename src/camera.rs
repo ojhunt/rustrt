@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use image::DynamicImage;
 use image::ImageRgb8;
 use scene::Scene;
@@ -5,6 +6,8 @@ use colour::Colour;
 use photon_map::random;
 use ray::Ray;
 use vectors::{Point, Vector, VectorType};
+use std::thread;
+use std::sync::mpsc;
 
 struct RenderedImage {
   data: Vec<Colour>,
@@ -13,7 +16,7 @@ struct RenderedImage {
 }
 
 pub trait Camera {
-  fn render(&self, scene: &Scene, photon_samples: usize) -> DynamicImage;
+  fn render(&self, scene: Arc<Scene>, photon_samples: usize) -> DynamicImage;
 }
 
 pub struct PerspectiveCamera {
@@ -157,22 +160,63 @@ impl RenderBuffer {
 }
 
 impl Camera for PerspectiveCamera {
-  fn render(&self, scene: &Scene, photon_samples: usize) -> DynamicImage {
+  fn render(&self, scene: Arc<Scene>, photon_samples: usize) -> DynamicImage {
     let mut buffer = RenderBuffer::new(self._width, self._height);
-
+    let mut initial_rays = vec![vec![]];
+    let max_rays_per_task = 20000;
     for x in 0..self._width {
       for y in 0..self._height {
         let ray = self.ray_for_coordinate(x as f64, y as f64);
-        buffer.set(x, y, scene.colour_and_depth_for_ray(&ray, photon_samples));
+        let last_length = {
+          let mut last = initial_rays.last_mut().unwrap();
+          last.push((x, y, ray));
+          last.len()
+        };
+        if last_length == max_rays_per_task {
+          initial_rays.push(vec![]);
+        }
+      }
+    }
+    let max_threads = 10;
+    let mut count = 0;
+    let (tx, rx) = mpsc::channel();
+    for tasks in initial_rays {
+      if count == max_threads {
+        for (x, y, value) in rx.recv().unwrap() {
+          buffer.set(x, y, value);
+        }
+        count -= 1;
+      }
+      println!("Count: {}", count);
+      {
+        count += 1;
+        let tasks = tasks.clone();
+        let tx = tx.clone();
+        let scene = scene.clone();
+        thread::spawn(move || {
+          let mut result = vec![];
+          let scene = &*scene;
+          for (x, y, ray) in tasks {
+            let colour = scene.colour_and_depth_for_ray(&ray, photon_samples);
+            result.push((x, y, colour));
+          }
+          return tx.send(result);
+        });
+      }
+    }
+    for _ in 0..count {
+      for (x, y, value) in rx.recv().unwrap() {
+        buffer.set(x, y, value);
       }
     }
 
+    count = 0;
     let mut future_samples = vec![];
 
     for x in 0..self._width {
       let minx = if x > 0 { -1i32 } else { 0 };
       let maxx = if x < self._width - 1 { 1 } else { 0 };
-      'inner_loop: for y in 0..self._width {
+      'inner_loop: for y in 0..self._height {
         let miny = if y > 0 { -1i32 } else { 0 };
         let maxy = if y < self._height - 1 { 1 } else { 0 };
         let (sample_colour, sample_distance) = buffer.get(x, y);
@@ -194,7 +238,7 @@ impl Camera for PerspectiveCamera {
     println!("Resample count: {}", future_samples.len());
     let mut resample_count = 0;
     for (x, y) in future_samples {
-      let (value, distance, sample_count) = self.multisample(scene, photon_samples, x as f64, y as f64, 1.0, 0);
+      let (value, distance, sample_count) = self.multisample(&*scene, photon_samples, x as f64, y as f64, 1.0, 0);
       buffer.set(x, y, (value, distance));
       resample_count += sample_count;
     }
