@@ -133,7 +133,7 @@ impl PerspectiveCamera {
 }
 
 struct RenderBuffer {
-  data: Vec<(Vector, f64)>,
+  data: Vec<(Vector, usize, f64)>,
   width: usize,
 }
 
@@ -141,14 +141,14 @@ impl RenderBuffer {
   pub fn new(width: usize, height: usize) -> Self {
     let mut data = Vec::with_capacity(width * height);
     for _ in 0..width * height {
-      data.push((Vector::new(), std::f64::INFINITY));
+      data.push((Vector::new(), 0, std::f64::INFINITY));
     }
     return RenderBuffer { width, data };
   }
-  pub fn get(&self, x: usize, y: usize) -> (Vector, f64) {
+  pub fn get(&self, x: usize, y: usize) -> (Vector, usize, f64) {
     return self.data[y * self.width + x];
   }
-  pub fn set(&mut self, x: usize, y: usize, sample: (Vector, f64)) {
+  pub fn set(&mut self, x: usize, y: usize, sample: (Vector, usize, f64)) {
     self.data[y * self.width + x] = sample;
   }
 }
@@ -193,8 +193,8 @@ impl Camera for PerspectiveCamera {
             let mut result = vec![];
             let scene = &*scene;
             for (x, y, ray) in task {
-              let colour = scene.colour_and_depth_for_ray(&ray, photon_samples);
-              result.push((x, y, colour));
+              let (colour, depth) = scene.colour_and_depth_for_ray(&ray, photon_samples);
+              result.push((x, y, (colour, 1, depth)));
             }
             return tx.send(result);
           }),
@@ -213,6 +213,7 @@ impl Camera for PerspectiveCamera {
     let delta = end - start;
     let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;
     println!("Initial render time: {}s", time);
+    let mut max_resample_count = 0;
     if true {
       let mut future_samples = vec![];
 
@@ -222,13 +223,13 @@ impl Camera for PerspectiveCamera {
         'inner_loop: for y in 0..self._height {
           let miny = if y > 0 { -1i32 } else { 0 };
           let maxy = if y < self._height - 1 { 1 } else { 0 };
-          let (sample_colour, sample_distance) = buffer.get(x, y);
+          let (sample_colour, count, sample_distance) = buffer.get(x, y);
           for i in minx..maxx {
             for j in miny..maxy {
               if i == 0 && j == 0 {
                 continue;
               }
-              let (colour, distance) = buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize);
+              let (colour, _, distance) = buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize);
               if (colour - sample_colour).length() > DELTA || (sample_distance - distance).abs() > DELTA {
                 future_samples.push((x, y));
                 continue 'inner_loop;
@@ -270,7 +271,8 @@ impl Camera for PerspectiveCamera {
         for (_, rx) in threads {
           rx.recv().unwrap().iter().for_each(|(x, y, (colour, distance, count))| {
             resample_count += count;
-            buffer.set(*x, *y, (*colour, *distance));
+            max_resample_count = max_resample_count.max(*count);
+            buffer.set(*x, *y, (*colour, *count, *distance));
           });
         }
 
@@ -280,12 +282,18 @@ impl Camera for PerspectiveCamera {
     }
     let mut result = image::RgbImage::new(self._width as u32, self._height as u32);
     for (x, y, _pixel) in result.enumerate_pixels_mut() {
-      let (value, _) = buffer.data[x as usize + y as usize * self._width];
-      *_pixel = image::Rgb([
-        (value.x() * 255.).max(0.).min(255.) as u8,
-        (value.y() * 255.).max(0.).min(255.) as u8,
-        (value.z() * 255.).max(0.).min(255.) as u8,
-      ]);
+      let (value, sample_count, d) = buffer.data[x as usize + y as usize * self._width];
+      if false {
+        let proportion = sample_count as f64 / max_resample_count as f64;
+        let d_colour = (proportion.sqrt() * 255.).max(0.).min(255.) as u8;
+        *_pixel = image::Rgb([d_colour, d_colour, d_colour]);
+      } else {
+        *_pixel = image::Rgb([
+          (value.x() * 255.).max(0.).min(255.) as u8,
+          (value.y() * 255.).max(0.).min(255.) as u8,
+          (value.z() * 255.).max(0.).min(255.) as u8,
+        ]);
+      }
     }
 
     return ImageRgb8(result);

@@ -260,9 +260,9 @@ impl Scene {
       };
       let caustic = match &self.caustic_photon_map {
         None => Colour::RGB(0.0, 0.0, 0.0),
-        Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
+        Some(photon_map) => (photon_map.lighting(&surface, photon_samples / 15)),
       };
-      (diffuse + caustic * 0.5 + Colour::RGB(0.2, 0.2, 0.2))
+      (diffuse + caustic)
     };
 
     let mut max_secondary_distance = 0.0f64;

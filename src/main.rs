@@ -17,7 +17,6 @@ mod casefopen;
 mod collision;
 mod colour;
 mod compound_object;
-mod dispatch_queue;
 mod fragment;
 mod heap;
 mod intersectable;

@@ -99,7 +99,13 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
   }
 
   // Far from optimal -- the furthest node should start its calculation on top of the existing list
-  fn nearest(&self, nearest_elements: &mut ElementAccumulator<(f64, T)>, position: Point, max_distance: f64) {
+  fn nearest<F: Fn(Point) -> bool>(
+    &self,
+    nearest_elements: &mut ElementAccumulator<(f64, T)>,
+    position: Point,
+    max_distance: f64,
+    filter: &F,
+  ) {
     let node = match self {
       KDTreeNode::Leaf(elements, bounds) => {
         if nearest_elements.is_full() {
@@ -113,7 +119,7 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
 
         for element in elements {
           let distance = (position - element.get_position()).length();
-          if distance <= max_distance {
+          if distance <= max_distance && filter(element.get_position()) {
             nearest_elements.insert((distance, element.clone()));
           }
         }
@@ -129,7 +135,7 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
         (&node.children[1], &node.children[0], false)
       }
     };
-    nearest_child.nearest(nearest_elements, position, max_distance);
+    nearest_child.nearest(nearest_elements, position, max_distance, filter);
     if nearest_elements.is_full() {
       if let Some((distance, _)) = nearest_elements.top() {
         if left_of_split {
@@ -143,7 +149,7 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
         }
       }
     }
-    farthest_child.nearest(nearest_elements, position, max_distance);
+    farthest_child.nearest(nearest_elements, position, max_distance, filter);
   }
 }
 
@@ -214,10 +220,16 @@ impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
       root: build_tree(elements, bounds, max_children),
     };
   }
-  pub fn nearest(&self, position: Point, count: usize, max_distance: f64) -> (Vec<(T, f64)>, f64) {
+  pub fn nearest<F: Fn(Point) -> bool>(
+    &self,
+    position: Point,
+    count: usize,
+    max_distance: f64,
+    filter: F,
+  ) -> (Vec<(T, f64)>, f64) {
     let comparator = |a: &(f64, T), b: &(f64, T)| return a.0.partial_cmp(&b.0).unwrap();
     let mut queue: ElementAccumulator<(f64, T)> = ElementAccumulator::new(&comparator, count);
-    self.root.nearest(&mut queue, position, max_distance);
+    self.root.nearest(&mut queue, position, max_distance, &filter);
     if queue.is_empty() {
       return (vec![], std::f64::INFINITY);
     }
