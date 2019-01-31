@@ -1,12 +1,12 @@
-use bounding_box::*;
-use bvh::BVH;
-use collision::Collision;
-use intersectable::Intersectable;
-use ray::Ray;
-use scene::Scene;
-use shader::*;
+use crate::bounding_box::*;
+use crate::bvh::BVH;
+use crate::collision::Collision;
+use crate::intersectable::Intersectable;
+use crate::ray::Ray;
+use crate::scene::Scene;
+use crate::shader::*;
 
-use triangle::Triangle;
+use crate::triangle::Triangle;
 
 #[derive(Debug)]
 pub struct Mesh {

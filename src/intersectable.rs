@@ -1,8 +1,8 @@
-use bounding_box::HasBoundingBox;
-use collision::Collision;
-use ray::Ray;
-use scene::Scene;
-use shader::*;
+use crate::bounding_box::HasBoundingBox;
+use crate::collision::Collision;
+use crate::ray::Ray;
+use crate::scene::Scene;
+use crate::shader::*;
 use std::fmt::Debug;
 
 pub trait Intersectable: Debug + HasBoundingBox + Sync + Send {

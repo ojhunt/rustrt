@@ -1,6 +1,6 @@
-use scene::MaterialIdx;
-use vectors::Vec2d;
-use vectors::*;
+use crate::scene::MaterialIdx;
+use crate::vectors::Vec2d;
+use crate::vectors::*;
 
 pub struct Fragment {
   pub position: Point,

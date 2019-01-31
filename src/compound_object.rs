@@ -1,10 +1,10 @@
-use bounding_box::*;
-use bvh::*;
-use collision::Collision;
-use intersectable::Intersectable;
-use ray::Ray;
-use scene::Scene;
-use shader::*;
+use crate::bounding_box::*;
+use crate::bvh::*;
+use crate::collision::Collision;
+use crate::intersectable::Intersectable;
+use crate::ray::Ray;
+use crate::scene::Scene;
+use crate::shader::*;
 
 #[derive(Debug)]
 pub struct CompoundObject {

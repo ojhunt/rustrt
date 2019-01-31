@@ -1,15 +1,15 @@
-use photon_map::random;
-use bounding_box::*;
-use collision::Collision;
-use fragment::Fragment;
-use intersectable::Intersectable;
-use ray::Ray;
-use scene::MaterialIdx;
-use scene::NormalIdx;
-use scene::Scene;
-use shader::*;
-use texture::TextureCoordinateIdx;
-use vectors::{Point, Vec2d, Vector, VectorType};
+use crate::photon_map::random;
+use crate::bounding_box::*;
+use crate::collision::Collision;
+use crate::fragment::Fragment;
+use crate::intersectable::Intersectable;
+use crate::ray::Ray;
+use crate::scene::MaterialIdx;
+use crate::scene::NormalIdx;
+use crate::scene::Scene;
+use crate::shader::*;
+use crate::texture::TextureCoordinateIdx;
+use crate::vectors::{Point, Vec2d, Vector, VectorType};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Triangle {

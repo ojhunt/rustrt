@@ -1,7 +1,7 @@
-use colour::Colour;
+use crate::colour::Colour;
 use image::*;
-use scene::Scene;
-use vectors::{Vec2d, Vector};
+use crate::scene::Scene;
+use crate::vectors::{Vec2d, Vector};
 
 #[derive(Debug, Copy, Clone)]
 pub struct TextureCoordinateIdx(pub usize);
@@ -14,7 +14,7 @@ impl TextureCoordinateIdx {
 }
 
 trait Lerpable: Clone + Copy {
-  fn scale(&self, f64) -> Self;
+  fn scale(&self, _: f64) -> Self;
   fn add(&self, other: &Self) -> Self;
 }
 

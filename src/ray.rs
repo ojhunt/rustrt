@@ -1,4 +1,4 @@
-use vectors::*;
+use crate::vectors::*;
 
 #[derive(Debug, Clone)]
 pub struct RayContext {

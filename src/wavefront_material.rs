@@ -1,21 +1,21 @@
 use std::sync::Arc;
-use scene::SceneSettings;
-use colour::Colour;
-use fragment::Fragment;
+use crate::scene::SceneSettings;
+use crate::colour::Colour;
+use crate::fragment::Fragment;
 use genmesh::*;
-use material::MaterialCollisionInfo;
-use material::{Material, Transparency};
+use crate::material::MaterialCollisionInfo;
+use crate::material::{Material, Transparency};
 use obj::{IndexTuple, Obj};
-use objects::Mesh;
-use ray::Ray;
-use ray::RayContext;
-use scene::NormalIdx;
-use scene::Scene;
-use scene::TextureIdx;
+use crate::objects::Mesh;
+use crate::ray::Ray;
+use crate::ray::RayContext;
+use crate::scene::NormalIdx;
+use crate::scene::Scene;
+use crate::scene::TextureIdx;
 use std::path::Path;
-use texture::TextureCoordinateIdx;
-use triangle::Triangle;
-use vectors::*;
+use crate::texture::TextureCoordinateIdx;
+use crate::triangle::Triangle;
+use crate::vectors::*;
 
 trait RawSurfaceValue: Clone + Clone + Copy {
   fn empty() -> Self;

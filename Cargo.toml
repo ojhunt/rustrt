@@ -2,6 +2,7 @@
 name = "myrt"
 version = "0.1.0"
 authors = ["Oliver Hunt <github@nerget.com>"]
+#edition = "2018"
 
 [dependencies]
 image = "*"
@@ -11,6 +12,9 @@ rand = "*"
 packed_simd = "*"
 rayon = "*"
 obj = { version = "*", features = ["genmesh"]}
+tokio-core="*"
+futures={ version = "*", features = ["nightly"] }
+
 
 [dependencies.clap]
 features = ["yaml"]

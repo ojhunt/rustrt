@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
-use heap::Comparator;
-use vectors::*;
-use bounding_box::BoundingBox;
-use bounding_box::HasBoundingBox;
-use heap::PriorityHeap;
+use crate::heap::Comparator;
+use crate::vectors::*;
+use crate::bounding_box::BoundingBox;
+use crate::bounding_box::HasBoundingBox;
+use crate::heap::PriorityHeap;
 
 pub trait HasPosition {
   fn get_position(&self) -> Point;

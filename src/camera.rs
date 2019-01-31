@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use image::DynamicImage;
 use image::ImageRgb8;
-use scene::Scene;
-use photon_map::random;
-use ray::Ray;
-use vectors::{Point, Vector, VectorType};
+use crate::scene::Scene;
+use crate::photon_map::random;
+use crate::ray::Ray;
+use crate::vectors::{Point, Vector, VectorType};
 use std::sync::mpsc;
 use std::thread;
 
@@ -49,7 +49,7 @@ impl PerspectiveCamera {
       (x + 0.25 * radius, y - 0.25 * radius),
       (x + 0.25 * radius, y + 0.25 * radius),
     ];
-    let mut max_distance = 0.0f64;
+    let _max_distance = 0.0f64;
     let rays: Vec<((f64, f64), Ray)> = positions
       .iter()
       .map(|(x, y)| {
@@ -223,7 +223,7 @@ impl Camera for PerspectiveCamera {
         'inner_loop: for y in 0..self._height {
           let miny = if y > 0 { -1i32 } else { 0 };
           let maxy = if y < self._height - 1 { 1 } else { 0 };
-          let (sample_colour, count, sample_distance) = buffer.get(x, y);
+          let (sample_colour, _count, sample_distance) = buffer.get(x, y);
           for i in minx..maxx {
             for j in miny..maxy {
               if i == 0 && j == 0 {
@@ -282,7 +282,7 @@ impl Camera for PerspectiveCamera {
     }
     let mut result = image::RgbImage::new(self._width as u32, self._height as u32);
     for (x, y, _pixel) in result.enumerate_pixels_mut() {
-      let (value, sample_count, d) = buffer.data[x as usize + y as usize * self._width];
+      let (value, sample_count, _d) = buffer.data[x as usize + y as usize * self._width];
       if false {
         let proportion = sample_count as f64 / max_resample_count as f64;
         let d_colour = (proportion.sqrt() * 255.).max(0.).min(255.) as u8;

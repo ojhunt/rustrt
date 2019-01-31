@@ -1,4 +1,4 @@
-use vectors::Vec2d;
+use crate::vectors::Vec2d;
 
 #[derive(PartialEq, Debug)]
 pub struct Collision {

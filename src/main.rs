@@ -33,12 +33,12 @@ mod triangle;
 mod vectors;
 mod wavefront_material;
 
-use scene::SceneSettings;
-use camera::*;
+use crate::scene::SceneSettings;
+use crate::camera::*;
 use clap::*;
 use std::str::FromStr;
-use vectors::*;
-use wavefront_material::load_scene;
+use crate::vectors::*;
+use crate::wavefront_material::load_scene;
 use std::sync::Arc;
 
 #[derive(Debug)]

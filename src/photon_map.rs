@@ -1,16 +1,16 @@
 use std::fmt::Debug;
-use kdtree::HasPosition;
-use bounding_box::BoundingBox;
-use bounding_box::HasBoundingBox;
-use colour::Colour;
-use fragment::Fragment;
-use kdtree::KDTree;
-use material::MaterialCollisionInfo;
+use crate::kdtree::HasPosition;
+use crate::bounding_box::BoundingBox;
+use crate::bounding_box::HasBoundingBox;
+use crate::colour::Colour;
+use crate::fragment::Fragment;
+use crate::kdtree::KDTree;
+use crate::material::MaterialCollisionInfo;
 use rand::{thread_rng, Rng};
-use ray::Ray;
-use scene::Scene;
-use shader::LightSample;
-use vectors::{Point, Vector};
+use crate::ray::Ray;
+use crate::scene::Scene;
+use crate::shader::LightSample;
+use crate::vectors::{Point, Vector};
 
 #[derive(Clone, Debug)]
 pub struct Photon {
@@ -278,7 +278,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
       .tree
       .nearest(surface.position, photon_samples, radius_cutoff, |_p| true);
     let mut max_radius: f64 = 0.0;
-    let mut skipped = 0;
+    let _skipped = 0;
     for (photon, distance) in &photons {
       if let Some(contribution) = self
         .selector
@@ -289,7 +289,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
         }
         let photon_position = photon.get_position();
         let to_photon = (photon_position - surface.position).normalize();
-        let cos_theta = to_photon.dot(surface.normal).abs();
+        let _cos_theta = to_photon.dot(surface.normal).abs();
 
         max_radius = max_radius.max(*distance);
         let weight = 1.0; //(1.0 - cos_theta); //1.0; //(-photon.direction.dot(surface.normal)).max(0.0); //* (radius_cutoff - distance).max(0.0) / radius_cutoff;

@@ -1,5 +1,5 @@
 use std::ops;
-use vectors::Vector;
+use crate::vectors::Vector;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Colour {

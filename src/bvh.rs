@@ -1,9 +1,9 @@
-use bounding_box::BoundingBox;
-use collision::Collision;
-use intersectable::Intersectable;
-use ray::Ray;
-use shader::Shadable;
-use vectors::{Point, VectorType};
+use crate::bounding_box::BoundingBox;
+use crate::collision::Collision;
+use crate::intersectable::Intersectable;
+use crate::ray::Ray;
+use crate::shader::Shadable;
+use crate::vectors::{Point, VectorType};
 
 #[derive(Debug)]
 enum BVHNode {

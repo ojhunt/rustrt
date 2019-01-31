@@ -1,5 +1,5 @@
-use ray::Ray;
-use vectors::{Point, Vector, VectorType};
+use crate::ray::Ray;
+use crate::vectors::{Point, Vector, VectorType};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BoundingBox {

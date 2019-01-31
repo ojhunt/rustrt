@@ -1,9 +1,9 @@
-use colour::Colour;
-use fragment::Fragment;
-use ray::Ray;
-use scene::Scene;
+use crate::colour::Colour;
+use crate::fragment::Fragment;
+use crate::ray::Ray;
+use crate::scene::Scene;
 use std::fmt::Debug;
-use vectors::*;
+use crate::vectors::*;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Transparency {

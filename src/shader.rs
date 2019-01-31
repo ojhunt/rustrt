@@ -1,8 +1,8 @@
-use collision::Collision;
-use fragment::Fragment;
-use ray::Ray;
-use scene::Scene;
-use vectors::{Point, Vector};
+use crate::collision::Collision;
+use crate::fragment::Fragment;
+use crate::ray::Ray;
+use crate::scene::Scene;
+use crate::vectors::{Point, Vector};
 
 #[derive(Debug)]
 pub struct LightSample {
