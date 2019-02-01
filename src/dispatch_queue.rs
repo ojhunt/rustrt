@@ -39,31 +39,40 @@ where
     R: Send + Sync + Clone + 'static,
     F: Fn(&T) -> R + Send + Clone + 'static,
   {
-    let mut thread_tasks = vec![Arc::new(vec![])];
-    let local_tasks = {
+    let mut local_tasks = {
       let mut temp = vec![];
       temp.append(&mut self.global_queue);
       shuffle(&mut temp);
       temp
     };
 
-    let max_tasks_per_thread = (self.thread_limit - 1 + local_tasks.len()) / self.thread_limit;
-    for task in local_tasks {
-      {
-        let last_length = {
-          let last = thread_tasks.last_mut().unwrap();
-          Arc::get_mut(last).unwrap().push(task);
-          last.len()
-        };
-        if last_length == max_tasks_per_thread {
-          thread_tasks.push(Arc::new(vec![]));
-        }
+    let mut thread_tasks = vec![vec![]];
+    let max_tasks_per_thread = (local_tasks.len()) / self.thread_limit;
+    println!("Task count {}", local_tasks.len());
+    while let Some(task) = local_tasks.pop() {
+      let last_length = {
+        let last = thread_tasks.last_mut().unwrap();
+        last.push(task);
+        last.len()
+      };
+      if last_length == max_tasks_per_thread {
+        thread_tasks.push(vec![]);
       }
     }
+    assert!(local_tasks.len() == 0);
+    println!("Max tasks per thread: {}", max_tasks_per_thread);
+
+    if thread_tasks.last().unwrap().is_empty() {
+      thread_tasks.pop();
+    }
+
+    assert!(thread_tasks.len() <= self.thread_limit);
+
     let mut threads = vec![];
     let mut channels = vec![];
-    for i in 0..self.thread_limit {
-      let thread_local_tasks = thread_tasks[i].clone();
+    for i in 0..self.thread_limit.min(thread_tasks.len()) {
+      println!("Thread {} vs thread limit {}", i, self.thread_limit);
+      let thread_local_tasks = Arc::new(thread_tasks.pop().unwrap());
       let callback = callback.clone();
       let (tx, rx) = mpsc::channel();
       channels.push(rx);
