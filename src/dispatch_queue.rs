@@ -47,7 +47,7 @@ where
     };
 
     let mut thread_tasks = vec![vec![]];
-    let max_tasks_per_thread = (local_tasks.len()) / self.thread_limit;
+    let max_tasks_per_thread = (self.thread_limit - 1 + local_tasks.len()) / self.thread_limit;
     println!("Task count {}", local_tasks.len());
     while let Some(task) = local_tasks.pop() {
       let last_length = {

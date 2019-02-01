@@ -47,8 +47,19 @@ impl Light for Triangle {
         .add_elements(b.scale(r1_root * (1.0 - r2)))
         .add_elements(c.scale(r1_root * r2));
       let normal = self.true_normal();
-      let ray = Ray::new(point + normal, normal * -1.0, None);
-      let (collision, _) = self.intersect(&ray, 0.0, std::f64::INFINITY).unwrap();
+      let (ray, collision) = {
+        let ray = Ray::new(point + normal, normal * -1.0, None);
+        if let Some((collision, _)) = self.intersect(&ray, 0.0, std::f64::INFINITY) {
+          (ray, collision)
+        } else {
+          let ray = Ray::new(point + normal, normal, None);
+          if let Some((collision, _)) = self.intersect(&ray, 0.0, std::f64::INFINITY) {
+            (ray, collision)
+          } else {
+            continue;
+          }
+        }
+      };
       let fragment = self.compute_fragment(scene, &ray, &collision);
 
       let material = scene.get_material(fragment.material);
