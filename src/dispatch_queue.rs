@@ -1,6 +1,8 @@
 use std::thread;
 use std::sync::Arc;
 use std::sync::mpsc;
+use rand::{thread_rng, Rng};
+use rand::seq::SliceRandom;
 
 pub struct DispatchQueue<T>
 where
@@ -8,6 +10,11 @@ where
 {
   thread_limit: usize, // usize in case we want 2^64 threads
   global_queue: Vec<T>,
+}
+
+fn shuffle<T>(input: &mut Vec<T>) {
+  let mut rng = thread_rng();
+  input.shuffle(&mut rng);
 }
 
 impl<T> DispatchQueue<T>
@@ -34,6 +41,7 @@ where
     let local_tasks = {
       let mut temp = vec![];
       temp.append(&mut self.global_queue);
+      shuffle(&mut temp);
       temp
     };
 
