@@ -191,7 +191,7 @@ impl Camera for PerspectiveCamera {
     let mut max_resample_count = 0;
     // let mut queue = Di
     if true {
-      let mut future_samples = vec![];
+      let mut multisample_queue = DispatchQueue::new(10);
 
       for x in 0..self._width {
         let minx = if x > 0 { -1i32 } else { 0 };
@@ -207,7 +207,7 @@ impl Camera for PerspectiveCamera {
               }
               let (colour, _, distance) = buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize);
               if (colour - sample_colour).length() > DELTA || (sample_distance - distance).abs() > DELTA {
-                future_samples.push((x, y));
+                multisample_queue.add_task(&(x, y));
                 continue 'inner_loop;
               }
             }
@@ -215,41 +215,23 @@ impl Camera for PerspectiveCamera {
         }
       }
 
-      println!("Resample count: {}", future_samples.len());
       {
-        let mut threads = vec![];
-        let mut tasks = vec![vec![]; thread_count];
-        let mut i = 0;
-        while let Some(task) = future_samples.pop() {
-          tasks[i % thread_count].push(task);
-          i += 1;
-        }
-
-        for task in tasks {
-          let task = task.clone();
-          let scene = scene.clone();
-          let (tx, rx) = mpsc::channel();
+        let results = {
           let camera = self.clone();
-          threads.push((
-            thread::spawn(move || {
-              let mut result = vec![];
-              let scene = &*scene;
-              for (x, y) in task {
-                let colour = camera.multisample(&*scene, photon_samples, x as f64, y as f64, 1.0, 0);
-                result.push((x, y, colour));
-              }
-              return tx.send(result);
-            }),
-            rx,
-          ));
-        }
+          multisample_queue.consume_tasks(&move |(x, y)| {
+            return (
+              *x,
+              *y,
+              camera.multisample(&*scene, photon_samples, *x as f64, *y as f64, 1.0, 0),
+            );
+          })
+        };
+
         let mut resample_count = 0;
-        for (_, rx) in threads {
-          rx.recv().unwrap().iter().for_each(|(x, y, (colour, distance, count))| {
-            resample_count += count;
-            max_resample_count = max_resample_count.max(*count);
-            buffer.set(*x, *y, (*colour, *count, *distance));
-          });
+        for (x, y, (colour, distance, count)) in results {
+          resample_count += count;
+          max_resample_count = max_resample_count.max(count);
+          buffer.set(x, y, (colour, count, distance));
         }
 
         println!("initial samples: {}", self._width * self._height);
