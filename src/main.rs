@@ -1,4 +1,4 @@
-#![feature(stdsimd)]
+#![feature(stdsimd, async_await, futures_api, await_macro)]
 
 extern crate clap;
 extern crate genmesh;
@@ -17,6 +17,7 @@ mod casefopen;
 mod collision;
 mod colour;
 mod compound_object;
+mod dispatch_queue;
 mod fragment;
 mod heap;
 mod intersectable;

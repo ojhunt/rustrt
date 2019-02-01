@@ -1,11 +1,10 @@
-#![feature(futures, async_await, await_macro)]
 use std::thread;
 use std::sync::Arc;
 use std::sync::mpsc;
 
 pub struct DispatchQueue<T>
 where
-  T: Send + Sync + Clone,
+  T: Send + Sync + Clone + 'static,
 {
   thread_limit: usize, // usize in case we want 2^64 threads
   global_queue: Vec<T>,
@@ -13,7 +12,7 @@ where
 
 impl<T> DispatchQueue<T>
 where
-  T: Send + Sync + Clone,
+  T: Send + Sync + Clone + 'static,
 {
   pub fn new(thread_limit: usize) -> Self {
     DispatchQueue {
@@ -28,8 +27,8 @@ where
   #[allow(dead_code, unused_variables)]
   pub fn consume_tasks<F, R>(&mut self, callback: &F) -> Vec<R>
   where
-    R: Send + Clone,
-    F: Fn(&T) -> R + Send + Clone,
+    R: Send + Sync + Clone + 'static,
+    F: Fn(&T) -> R + Send + Clone + 'static,
   {
     let mut thread_tasks = vec![Arc::new(vec![])];
     let local_tasks = {
@@ -52,17 +51,27 @@ where
       }
     }
     let mut threads = vec![];
+    let mut channels = vec![];
     for i in 0..self.thread_limit {
       let thread_local_tasks = thread_tasks[i].clone();
       let callback = callback.clone();
       let (tx, rx) = mpsc::channel();
-      threads.push(async {});
-      thread::spawn(move || {
-        tx.send(thread_local_tasks);
-      })
-      .join();
-    }
+      channels.push(rx);
+      threads.push(thread::spawn(move || {
+        let mut result = vec![];
+        for task in thread_local_tasks.iter() {
+          result.push(callback(task));
+        }
 
-    return vec![];
+        tx.send(Arc::new(result))
+      }));
+    }
+    let mut results = vec![];
+    for channel in channels {
+      for result in channel.recv().unwrap().iter() {
+        results.push(result.clone());
+      }
+    }
+    return results;
   }
 }

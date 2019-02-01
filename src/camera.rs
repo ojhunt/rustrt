@@ -5,6 +5,7 @@ use crate::scene::Scene;
 use crate::photon_map::random;
 use crate::ray::Ray;
 use crate::vectors::{Point, Vector, VectorType};
+use crate::dispatch_queue::DispatchQueue;
 use std::sync::mpsc;
 use std::thread;
 
@@ -156,19 +157,12 @@ impl RenderBuffer {
 impl Camera for PerspectiveCamera {
   fn render(&self, scene: Arc<Scene>, photon_samples: usize) -> DynamicImage {
     let mut buffer = RenderBuffer::new(self._width, self._height);
-    let mut initial_rays = vec![vec![]];
     let max_rays_per_task = 20000;
+    let mut first_sample_queue = DispatchQueue::new(10);
     for x in 0..self._width {
       for y in 0..self._height {
         let ray = self.ray_for_coordinate(x as f64, y as f64);
-        let last_length = {
-          let mut last = initial_rays.last_mut().unwrap();
-          last.push((x, y, ray));
-          last.len()
-        };
-        if last_length == max_rays_per_task {
-          initial_rays.push(vec![]);
-        }
+        first_sample_queue.add_task(&(x, y, ray));
       }
     }
 
@@ -176,36 +170,17 @@ impl Camera for PerspectiveCamera {
     let start = std::time::Instant::now();
 
     {
-      let mut threads = vec![];
-      let mut tasks = vec![vec![]; thread_count];
-      let mut i = 0;
-      while let Some(mut task) = initial_rays.pop() {
-        tasks[i % thread_count].append(&mut task);
-        i += 1;
-      }
-
-      for task in tasks {
-        let task = task.clone();
+      let result = {
         let scene = scene.clone();
-        let (tx, rx) = mpsc::channel();
-        threads.push((
-          thread::spawn(move || {
-            let mut result = vec![];
-            let scene = &*scene;
-            for (x, y, ray) in task {
-              let (colour, depth) = scene.colour_and_depth_for_ray(&ray, photon_samples);
-              result.push((x, y, (colour, 1, depth)));
-            }
-            return tx.send(result);
-          }),
-          rx,
-        ));
-      }
+        first_sample_queue.consume_tasks(&move |v| {
+          let (x, y, ray) = v;
+          let (colour, depth) = scene.colour_and_depth_for_ray(&ray, photon_samples);
+          return (*x, *y, (colour, 1, depth));
+        })
+      };
 
-      for (_thread, rx) in threads {
-        rx.recv().unwrap().iter().for_each(|(x, y, c)| {
-          buffer.set(*x, *y, *c);
-        });
+      for (x, y, sample) in result {
+        buffer.set(x, y, sample);
       }
     }
 
@@ -214,6 +189,7 @@ impl Camera for PerspectiveCamera {
     let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;
     println!("Initial render time: {}s", time);
     let mut max_resample_count = 0;
+    // let mut queue = Di
     if true {
       let mut future_samples = vec![];
 
