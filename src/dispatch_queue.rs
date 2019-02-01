@@ -9,7 +9,8 @@ where
   T: Send + Sync + Clone + 'static,
 {
   thread_limit: usize, // usize in case we want 2^64 threads
-  global_queue: Vec<T>,
+  global_queue: Vec<(usize, T)>,
+  current_task: usize,
 }
 
 fn shuffle<T>(input: &mut Vec<T>) {
@@ -25,10 +26,11 @@ where
     DispatchQueue {
       thread_limit,
       global_queue: vec![],
+      current_task: 0,
     }
   }
   pub fn add_task(&mut self, task: &T) {
-    self.global_queue.push(task.clone());
+    self.global_queue.push((self.current_task, task.clone()));
   }
 
   #[allow(dead_code, unused_variables)]
@@ -68,7 +70,7 @@ where
       threads.push(thread::spawn(move || {
         let mut result = vec![];
         for task in thread_local_tasks.iter() {
-          result.push(callback(task));
+          result.push((task.0, callback(&task.1)));
         }
 
         tx.send(Arc::new(result))
@@ -80,6 +82,8 @@ where
         results.push(result.clone());
       }
     }
-    return results;
+    results.sort_by(|(a, _), (b, _)| a.cmp(b));
+    assert!(results[0].0 == 0);
+    return results.iter().map(|(_, r)| r.clone()).collect();
   }
 }
