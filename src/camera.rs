@@ -6,8 +6,6 @@ use crate::photon_map::random;
 use crate::ray::Ray;
 use crate::vectors::{Point, Vector, VectorType};
 use crate::dispatch_queue::DispatchQueue;
-use std::sync::mpsc;
-use std::thread;
 
 pub trait Camera: Clone {
   fn render(&self, scene: Arc<Scene>, photon_samples: usize) -> DynamicImage;
@@ -157,7 +155,6 @@ impl RenderBuffer {
 impl Camera for PerspectiveCamera {
   fn render(&self, scene: Arc<Scene>, photon_samples: usize) -> DynamicImage {
     let mut buffer = RenderBuffer::new(self._width, self._height);
-    let max_rays_per_task = 20000;
     let mut first_sample_queue = DispatchQueue::new(10);
     for x in 0..self._width {
       for y in 0..self._height {
@@ -166,7 +163,6 @@ impl Camera for PerspectiveCamera {
       }
     }
 
-    let thread_count = 10;
     let start = std::time::Instant::now();
 
     {

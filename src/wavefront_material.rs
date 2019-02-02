@@ -185,7 +185,7 @@ impl Material for WFMaterial {
           let new_context = ray.ray_context.enter_material(ior);
           (ray.ray_context.current_ior_or(1.0), ior, new_context)
         };
-        let mut nr = ni / nt;
+        let nr = ni / nt;
 
         let n_dot_v = normal.dot(view);
 

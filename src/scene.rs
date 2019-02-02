@@ -136,7 +136,7 @@ impl Scene {
 
     let image = match casefopen::open(&resolved_path) {
       Ok(file) => {
-        let mut buffer = std::io::BufReader::new(file);
+        let buffer = std::io::BufReader::new(file);
         match image::load(buffer, format) {
           Ok(image) => image,
           Err(msg) => panic!("Failed to open {:?} with error: {}", resolved_path, msg),

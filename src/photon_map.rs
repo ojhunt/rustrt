@@ -107,7 +107,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
         if paths >= target_photon_count {
           break;
         }
-        let mut light_dir = {
+        let light_dir = {
           if false {
             let mut x;
             let mut y;
