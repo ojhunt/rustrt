@@ -1,7 +1,7 @@
 use std::thread;
 use std::sync::Arc;
 use std::sync::mpsc;
-use rand::{thread_rng, Rng};
+use rand::thread_rng;
 use rand::seq::SliceRandom;
 
 pub struct DispatchQueue<T>

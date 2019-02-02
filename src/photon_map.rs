@@ -97,6 +97,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     for light in lights {
       virtual_lights.append(&mut light.get_samples(1000, scene));
     }
+    assert!(!virtual_lights.is_empty());
     let mut bounces: usize = 0;
     let mut max_bounces: usize = 0;
     let mut paths = 0;
