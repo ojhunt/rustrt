@@ -35,7 +35,11 @@ pub trait VectorType: Sized + Copy {
   fn splat(value: f32) -> Self {
     Self::new(f32x4::splat(value))
   }
-
+  fn clamp(self, min: Self, max: Self) -> Self {
+    let min_mask = min.lt(self);
+    let max_mask = max.gt(self);
+    return max_mask.select(self, min_mask.select(self, min));
+  }
   fn fdiv(self, divisor: f32) -> Self {
     Self::new(self.data() / divisor)
   }
