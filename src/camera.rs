@@ -175,8 +175,8 @@ impl Camera for PerspectiveCamera {
         })
       };
 
-      for (x, y, sample) in result {
-        buffer.set(x, y, sample);
+      for (x, y, (v, i, f)) in result {
+        buffer.set(x, y, (v.clamp(Vector::splat(0.0), Vector::splat(1.0)), i, f));
       }
     }
 

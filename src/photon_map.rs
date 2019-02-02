@@ -10,7 +10,7 @@ use rand::{thread_rng, Rng};
 use crate::ray::Ray;
 use crate::scene::Scene;
 use crate::light::LightSample;
-use crate::vectors::{Point, Vector};
+use crate::vectors::{Point, Vector, VectorType};
 
 #[derive(Clone, Debug)]
 pub struct Photon {
@@ -83,77 +83,69 @@ fn random_in_hemisphere(normal: Vector) -> Vector {
     }
   }
 }
+fn make_photon(sample: &LightSample) -> (Ray, Colour) {
+  loop {
+    let light_dir = {
+      let u = random(0.0, 1.0);
+      let v = 2.0 * 3.14127 * random(0.0, 1.0);
+      Vector::vector(v.cos() * u.sqrt(), -(1.0 - u).sqrt(), v.sin() * u.sqrt())
+    };
 
+    if sample.direction.is_some() && light_dir.dot(sample.direction.unwrap()) < 0.01 {
+      continue;
+    }
+
+    let mut photon_ray = Ray::new(sample.position + light_dir * 0.01, light_dir, None);
+    let mut photon_colour = sample.emission * sample.power * sample.weight;
+    return (
+      photon_ray,
+      Colour::from(photon_colour)//.clamp(Vector::splat(0.0), Vector::splat(1.0))),
+    );
+  }
+}
 impl<Selector: PhotonSelector> PhotonMap<Selector> {
   pub fn new(
     selector: &Selector,
     scene: &Scene,
-    target_photon_count: usize,
+    lights: &[LightSample],
+    target_photon_per_watt_count: usize,
     max_elements_per_leaf: usize,
   ) -> PhotonMap<Selector> {
     let mut photons: Vec<Photon> = vec![];
-    let lights = &scene.get_lights();
-    let mut virtual_lights: Vec<LightSample> = vec![];
-    for light in lights {
-      virtual_lights.append(&mut light.get_samples(1000, scene));
-    }
-    assert!(!virtual_lights.is_empty());
+    assert!(!lights.is_empty());
     let mut bounces: usize = 0;
     let mut max_bounces: usize = 0;
     let mut paths = 0;
     let mut actual_paths = 0;
     let start = std::time::Instant::now();
-    while paths < target_photon_count {
-      'photon_loop: for sample in &virtual_lights {
-        if paths >= target_photon_count {
-          break;
-        }
-        let light_dir = {
-          if false {
-            let mut x;
-            let mut y;
-            let mut z;
+    let mut initial_photons = vec![];
 
-            loop {
-              x = random(-1.0, 1.0);
-              y = random(-1.0, 1.0);
-              z = random(-1.0, 1.0);
-              if (x * x + y * y + z * z) <= 1.0 {
-                break;
-              }
-            }
-
-            Vector::vector(x, y, z).normalize() // this is a super awful/biased random, but whatever
-          } else {
-            let u = random(0.0, 1.0);
-            let v = 2.0 * 3.14127 * random(0.0, 1.0);
-            Vector::vector(v.cos() * u.sqrt(), -(1.0 - u).sqrt(), v.sin() * u.sqrt())
-          }
-        };
-
-        if sample.direction.is_none() || light_dir.dot(sample.direction.unwrap()) < 0.01 {
-          continue 'photon_loop;
-        }
-
-        paths += 1;
-        actual_paths += 1;
-
+    for light in lights {
+      let power = light.power * light.area;
+      let photon_count = (power * target_photon_per_watt_count as f64) as usize;
+      for _ in 0..photon_count.max(1) {
+        initial_photons.push(make_photon(&light));
+      }
+    }
+    let initial_photon_count = initial_photons.len();
+    'photon_loop: for (mut photon_ray, mut photon_colour) in initial_photons {
+      {
         let mut throughput = Colour::RGB(1.0, 1.0, 1.0);
-        let mut photon_ray = Ray::new(sample.position + light_dir * 0.01, light_dir, None);
-        let mut photon_colour = Colour::from(sample.emission) * 2.0;
-
         let mut path_length: usize = 0;
         let mut recorded = false;
-        'photon_bounce_loop: while path_length < 64 {
+        'photon_bounce_loop: while path_length < 256 {
           let current_colour = photon_colour;
+
+          paths += 1;
+          actual_paths += 1;
           bounces += 1;
           path_length += 1;
           max_bounces = max_bounces.max(path_length);
           let (c, shadable) = match scene.intersect(&photon_ray) {
             None => {
-              if !recorded {
-                actual_paths += 1;
-              }
+              // if !recorded {
+              //   actual_paths += 1;
+              // }
               continue 'photon_loop;
             }
             Some(x) => x,
@@ -210,7 +202,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
               new_colour,
             ));
           };
-          let (next_ray, next_colour) = next.unwrap();
+          let (next_ray, mut next_colour) = next.unwrap();
           let path_mode = selector.record_mode(&surface, path_length);
           let recorded_photon = if path_mode.should_record() {
             if !recorded {
@@ -238,6 +230,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
               continue 'photon_loop;
             }
             throughput = throughput * (1.0 / p);
+            next_colour = next_colour * (1.0 / p);
           }
           photon_colour = next_colour;
           photon_ray = next_ray;
@@ -245,8 +238,11 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
         }
       }
     }
+
+    println!("Actual paths: {}", actual_paths);
+
     for i in 0..photons.len() {
-      photons[i].colour = photons[i].colour * (1.0 / actual_paths as f64);
+      photons[i].colour = photons[i].colour * (0.1 / initial_photon_count as f64);
     }
     let end = std::time::Instant::now();
 
@@ -325,7 +321,7 @@ fn is_specular(surface: &MaterialCollisionInfo) -> bool {
 
 impl PhotonSelector for DiffuseSelector {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
-    if depth == 1 && is_specular(surface) {
+    if depth == 1 && is_specular(surface) && false {
       return RecordMode::TerminatePath;
     }
 

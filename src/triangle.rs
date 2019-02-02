@@ -73,7 +73,9 @@ impl Light for Triangle {
         specular: Vector::from(surface.specular_colour),
         diffuse: Vector::from(surface.diffuse_colour),
         emission: Vector::from(surface.emissive_colour.unwrap()),
-        weight: 1.0 / (count as f64),
+        weight: 1.0,
+        power: 10.0,
+        area: self.get_area() / count as f64,
       };
       lights.push(sample);
     }

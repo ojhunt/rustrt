@@ -10,6 +10,8 @@ pub struct LightSample {
   pub specular: Vector,
   pub emission: Vector,
   pub weight: f64,
+  pub power: f64,
+  pub area: f64,
 }
 
 pub trait Light {
