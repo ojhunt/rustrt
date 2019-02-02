@@ -293,7 +293,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
         let _cos_theta = to_photon.dot(surface.normal).abs();
 
         max_radius = max_radius.max(*distance);
-        let weight = 1.0; //(1.0 - cos_theta); //1.0; //(-photon.direction.dot(surface.normal)).max(0.0); //* (radius_cutoff - distance).max(0.0) / radius_cutoff;
+        let weight = 1.0;
         result = result + Vector::from(photon.colour) * (contribution * weight).max(0.0);
       }
     }
