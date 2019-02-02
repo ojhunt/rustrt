@@ -9,7 +9,7 @@ use crate::material::MaterialCollisionInfo;
 use rand::{thread_rng, Rng};
 use crate::ray::Ray;
 use crate::scene::Scene;
-use crate::shader::LightSample;
+use crate::light::LightSample;
 use crate::vectors::{Point, Vector};
 
 #[derive(Clone, Debug)]
@@ -332,6 +332,7 @@ impl PhotonSelector for DiffuseSelector {
     if depth > 1 || self.include_first_bounce {
       return RecordMode::Record;
     }
+
     return RecordMode::DontRecord;
   }
 

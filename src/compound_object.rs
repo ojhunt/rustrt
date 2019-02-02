@@ -1,3 +1,4 @@
+use crate::light::Light;
 use crate::bounding_box::*;
 use crate::bvh::*;
 use crate::collision::Collision;

@@ -1,3 +1,5 @@
+use crate::light::Light;
+use crate::light::LightSample;
 use crate::photon_map::random;
 use crate::bounding_box::*;
 use crate::collision::Collision;

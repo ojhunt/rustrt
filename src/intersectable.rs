@@ -1,3 +1,4 @@
+use crate::light::Light;
 use crate::bounding_box::HasBoundingBox;
 use crate::collision::Collision;
 use crate::ray::Ray;

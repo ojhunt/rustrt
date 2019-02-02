@@ -14,8 +14,8 @@ use crate::photon_map::CausticSelector;
 use crate::photon_map::DiffuseSelector;
 use crate::photon_map::PhotonMap;
 use crate::ray::Ray;
-use crate::shader::Light;
-use crate::shader::LightSample;
+use crate::light::Light;
+use crate::light::LightSample;
 use crate::shader::Shadable;
 use std::path::Path;
 use std::path::PathBuf;
@@ -314,7 +314,7 @@ impl Scene {
   }
 
   pub fn get_light_samples(&self, max_samples: usize) -> Vec<LightSample> {
-    let light_objects = &self._scene.get_lights(self);
+    let light_objects = self._scene.get_lights(self);
     let light_areas: &Vec<f64> = &light_objects.iter().map(|l| l.get_area()).collect();
     let total_area = {
       let mut area = 0.0;

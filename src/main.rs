@@ -22,6 +22,7 @@ mod fragment;
 mod heap;
 mod intersectable;
 mod kdtree;
+mod light;
 mod material;
 mod mesh;
 mod objects;
