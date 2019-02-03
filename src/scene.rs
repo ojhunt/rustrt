@@ -198,21 +198,21 @@ impl Scene {
     println!("Building photon maps with {} photons", self.settings.photon_count);
     let diffuse_selector = DiffuseSelector::new(!self.settings.use_direct_lighting);
     self.light_samples = self.get_light_samples(10000);
-    self.diffuse_photon_map = Some(PhotonMap::new(
+    self.diffuse_photon_map = PhotonMap::new(
       &diffuse_selector,
       self,
       &self.light_samples,
       self.settings.photon_count,
       max_elements_per_leaf,
-    ));
+    );
     let caustic_selector = CausticSelector::new();
-    self.caustic_photon_map = Some(PhotonMap::new(
+    self.caustic_photon_map = PhotonMap::new(
       &caustic_selector,
       self,
       &self.light_samples,
       self.settings.photon_count,
       max_elements_per_leaf,
-    ));
+    );
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {
@@ -355,9 +355,8 @@ impl Scene {
         diffuse: Vector::vector(1.0, 1.0, 1.0),
         specular: Vector::vector(1.0, 1.0, 1.0),
         emission: Vector::vector(1.0, 1.0, 1.0),
-        weight: 0.25,
+        weight: 1.0,
         power: 100.0,
-        area: 1.0,
       })
       .collect();
     };

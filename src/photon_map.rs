@@ -95,11 +95,9 @@ fn make_photon(sample: &LightSample) -> (Ray, Colour) {
       continue;
     }
 
-    let mut photon_ray = Ray::new(sample.position + light_dir * 0.01, light_dir, None);
-    let mut photon_colour = sample.emission * sample.power * sample.weight;
     return (
-      photon_ray,
-      Colour::from(photon_colour)//.clamp(Vector::splat(0.0), Vector::splat(1.0))),
+      Ray::new(sample.position + light_dir * 0.01, light_dir, None),
+      Colour::from(sample.emission * sample.output()),
     );
   }
 }
@@ -108,9 +106,9 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     selector: &Selector,
     scene: &Scene,
     lights: &[LightSample],
-    target_photon_per_watt_count: usize,
+    target_photon_count: usize,
     max_elements_per_leaf: usize,
-  ) -> PhotonMap<Selector> {
+  ) -> Option<PhotonMap<Selector>> {
     let mut photons: Vec<Photon> = vec![];
     assert!(!lights.is_empty());
     let mut bounces: usize = 0;
@@ -119,15 +117,17 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     let mut actual_paths = 0;
     let start = std::time::Instant::now();
     let mut initial_photons = vec![];
-
+    let total_power = lights.iter().fold(0.0, |a, b| a + b.output());
     for light in lights {
-      let power = light.power * light.area;
-      let photon_count = (power * target_photon_per_watt_count as f64) as usize;
+      let power = light.output();
+      let photon_count = (power / total_power * target_photon_count as f64).ceil() as usize;
       for _ in 0..photon_count.max(1) {
         initial_photons.push(make_photon(&light));
       }
     }
     let initial_photon_count = initial_photons.len();
+    assert_eq!(initial_photon_count, initial_photons.len());
+
     'photon_loop: for (mut photon_ray, mut photon_colour) in initial_photons {
       {
         let mut throughput = Colour::RGB(1.0, 1.0, 1.0);
@@ -240,9 +240,11 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     }
 
     println!("Actual paths: {}", actual_paths);
-
+    if photons.is_empty() {
+      return None;
+    }
     for i in 0..photons.len() {
-      photons[i].colour = photons[i].colour * (0.1 / initial_photon_count as f64);
+      photons[i].colour = photons[i].colour * (1.0 / initial_photon_count as f64);
     }
     let end = std::time::Instant::now();
 
@@ -259,10 +261,10 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     println!("Tree minimum depth {}", min);
     println!("Tree maximum depth {}", max);
 
-    return PhotonMap {
+    return Some(PhotonMap {
       tree,
       selector: selector.clone(),
-    };
+    });
   }
 
   pub fn lighting(&self, surface: &MaterialCollisionInfo, photon_samples: usize) -> Colour {
@@ -274,6 +276,9 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     let (photons, radius) = self
       .tree
       .nearest(surface.position, photon_samples, radius_cutoff, |_p| true);
+    if photons.len() == 0 {
+      return Colour::RGB(0.0, 0.0, 0.0);
+    }
     let mut max_radius: f64 = 0.0;
     let _skipped = 0;
     for (photon, distance) in &photons {

@@ -186,7 +186,7 @@ impl Camera for PerspectiveCamera {
     println!("Initial render time: {}s", time);
     let mut max_resample_count = 0;
     // let mut queue = Di
-    if true {
+    if false {
       let mut multisample_queue = DispatchQueue::new(10);
 
       for x in 0..self._width {
