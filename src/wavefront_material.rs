@@ -249,7 +249,7 @@ fn load_bumpmap<F: FnMut(&mut Scene, &str, bool) -> Option<TextureIdx>>(
   texture: &Option<String>,
   mut texture_loader: F,
 ) -> (Option<TextureIdx>, F) {
-  if true {
+  if false {
     return (None, texture_loader);
   }
   return match texture {
