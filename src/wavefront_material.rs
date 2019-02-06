@@ -69,7 +69,11 @@ impl<Raw: Copy + RawSurfaceValue + MergeValues, Texture: Copy + TextureSurfaceVa
       WFSurfaceProperty::None => Raw::empty(),
       WFSurfaceProperty::Single(v) => *v,
       WFSurfaceProperty::Texture(t) => t.raw_for_fragment(scene, fragment),
-      WFSurfaceProperty::Complex(c, t) => c.merge(t.raw_for_fragment(scene, fragment)),
+      WFSurfaceProperty::Complex(c, t) =>
+      /*c.merge*/
+      {
+        (t.raw_for_fragment(scene, fragment))
+      }
     };
   }
   pub fn option_for_fragment(&self, scene: &Scene, fragment: &Fragment) -> Option<Raw> {
@@ -97,7 +101,7 @@ pub struct WFMaterial {
 }
 
 fn perturb_normal(bump: Option<TextureIdx>, f: &Fragment, s: &Scene) -> Vector {
-  if bump.is_none() {
+  if bump.is_none() || true {
     return f.normal;
   }
   let map = s.get_texture(bump.unwrap());
