@@ -137,6 +137,9 @@ fn load_settings() -> SceneSettings {
       settings.use_direct_lighting = true;
     }
   }
+  if matches.is_present("multisampling") {
+    settings.use_multisampling = true;
+  }
   return settings;
 }
 
@@ -155,6 +158,7 @@ fn main() {
     settings.camera_up,
     40.,
     settings.samples_per_pixel,
+    settings.use_multisampling,
   );
 
   let start = std::time::Instant::now();

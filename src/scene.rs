@@ -52,6 +52,7 @@ pub struct SceneSettings {
   pub samples_per_pixel: usize,
   pub photon_count: usize,
   pub use_direct_lighting: bool,
+  pub use_multisampling: bool,
 }
 
 impl SceneSettings {
@@ -69,6 +70,7 @@ impl SceneSettings {
       samples_per_pixel: 4,
       photon_count: 0,
       use_direct_lighting: false,
+      use_multisampling: false,
     };
   }
 }

@@ -55,6 +55,9 @@ args:
     - use_direct_lighting:
         help: Use direct lighting path
         long: use-direct-lighting
+    - multisampling:
+        help: Use adpative multisampling
+        long: multisampling
 
 
 

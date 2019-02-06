@@ -101,13 +101,13 @@ pub struct WFMaterial {
 }
 
 fn perturb_normal(bump: Option<TextureIdx>, f: &Fragment, s: &Scene) -> Vector {
-  if bump.is_none() || true {
+  if bump.is_none() {
     return f.normal;
   }
   let map = s.get_texture(bump.unwrap());
   let (fu, fv) = {
     let (u, v) = map.gradient(f.uv);
-    (u * 0.2, v * 0.2)
+    (u, v)
   };
   let normal = f.normal;
   let ndpdv = normal.cross(f.dpdv);
@@ -115,6 +115,9 @@ fn perturb_normal(bump: Option<TextureIdx>, f: &Fragment, s: &Scene) -> Vector {
   let mut perturbed_normal = normal + (fu * ndpdv - fv * ndpdu);
   if perturbed_normal.dot(perturbed_normal) == 0.0 {
     perturbed_normal = normal;
+  }
+  if perturbed_normal.dot(f.view) > 0.0 {
+    perturbed_normal = -perturbed_normal;
   }
   // new_info.ambient_colour = Colour::from(
   //     (n + fu * ndpdv - fv * ndpdu).normalize() * 0.5 + Vector::vector(0.5, 0.5, 0.5),

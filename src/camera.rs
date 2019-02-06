@@ -23,6 +23,7 @@ pub struct PerspectiveCamera {
   y_delta: Vector,
   samples_per_pixel: usize,
   view_origin: Point,
+  do_multisampling: bool,
 }
 
 const DELTA: f64 = 0.1;
@@ -100,6 +101,7 @@ impl PerspectiveCamera {
     up: Vector,
     fov: f64,
     samples_per_pixel: usize,
+    do_multisampling: bool,
   ) -> PerspectiveCamera {
     let direction = (target - position).normalize();
     let right = direction.cross(up).normalize();
@@ -127,6 +129,7 @@ impl PerspectiveCamera {
       x_delta,
       y_delta,
       samples_per_pixel,
+      do_multisampling,
     };
   }
 }
@@ -186,7 +189,7 @@ impl Camera for PerspectiveCamera {
     println!("Initial render time: {}s", time);
     let mut max_resample_count = 0;
     // let mut queue = Di
-    if true {
+    if self.do_multisampling {
       let mut multisample_queue = DispatchQueue::new(10);
 
       for x in 0..self._width {
