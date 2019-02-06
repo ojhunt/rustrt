@@ -14,7 +14,6 @@ use crate::photon_map::CausticSelector;
 use crate::photon_map::DiffuseSelector;
 use crate::photon_map::PhotonMap;
 use crate::ray::Ray;
-use crate::light::Light;
 use crate::light::LightSample;
 use crate::shader::Shadable;
 use std::path::Path;

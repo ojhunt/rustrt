@@ -41,7 +41,6 @@ use clap::*;
 use std::str::FromStr;
 use crate::vectors::*;
 use crate::wavefront_material::load_scene;
-use std::sync::Arc;
 use crate::scene::Scene;
 
 #[derive(Debug)]

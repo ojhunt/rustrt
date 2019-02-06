@@ -69,11 +69,7 @@ impl<Raw: Copy + RawSurfaceValue + MergeValues, Texture: Copy + TextureSurfaceVa
       WFSurfaceProperty::None => Raw::empty(),
       WFSurfaceProperty::Single(v) => *v,
       WFSurfaceProperty::Texture(t) => t.raw_for_fragment(scene, fragment),
-      WFSurfaceProperty::Complex(c, t) =>
-      /*c.merge*/
-      {
-        (t.raw_for_fragment(scene, fragment))
-      }
+      WFSurfaceProperty::Complex(_, t) => t.raw_for_fragment(scene, fragment),
     };
   }
   pub fn option_for_fragment(&self, scene: &Scene, fragment: &Fragment) -> Option<Raw> {
