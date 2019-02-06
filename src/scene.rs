@@ -341,20 +341,21 @@ impl Scene {
       return lights;
     } else {
       return (vec![
-        Vector::point(2., 3., 0.),
-        Vector::point(-10., -12., -4.),
-        Vector::point(-16., 9.5, 4.),
-        Vector::point(-14., 19.5, -2.),
+        // Vector::point(2., 3., 0.),
+        // Vector::point(-10., -12., -4.),
+        // Vector::point(-16., 9.5, 4.),
+        // Vector::point(-14., 19.5, -2.),
+        Vector::point(0.0, 1.25, 0.0),
       ])
       .iter()
       .map(|p| LightSample {
         position: *p,
-        direction: None,
+        direction: None, //Some(Vector::vector(0.0, -1.0, 0.0)),
         diffuse: Vector::vector(1.0, 1.0, 1.0),
         specular: Vector::vector(1.0, 1.0, 1.0),
         emission: Vector::vector(1.0, 1.0, 1.0),
-        weight: 2.0,
-        power: 100.0,
+        weight: 20.0,
+        power: 500000.0,
       })
       .collect();
     };

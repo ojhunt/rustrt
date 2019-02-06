@@ -318,3 +318,13 @@ newmtl sp_00_vrata_kock
 	map_Kd VRATA_KO.JPG
 	map_bump VRATA_KO.JPG
 	bump VRATA_KO.JPG
+
+newmtl light
+  Ns 10.0000
+  Ni 1.0000
+  illum 2
+  Ka 0.78 0.78 0.78 # White
+  Kd 0.78 0.78 0.78
+  Ks 0 0 0
+  Ke 13700 13700 13700
+

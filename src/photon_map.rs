@@ -274,7 +274,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     let mut result = Vector::new();
     let surface_normal = surface.normal;
     let position = surface.position;
-    let radius_cutoff = 0.25 * 3.0;
+    let radius_cutoff = 0.25 * 30.0;
     let (photons, radius) = self.tree.nearest(surface.position, photon_samples, |p| {
       let to_vector = p.position - position;
       let length = to_vector.length();
@@ -337,7 +337,7 @@ fn is_specular(surface: &MaterialCollisionInfo) -> bool {
 
 impl PhotonSelector for DiffuseSelector {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
-    if depth == 1 && is_specular(surface) {
+    if depth == 1 && is_specular(surface) && false {
       return RecordMode::TerminatePath;
     }
 
