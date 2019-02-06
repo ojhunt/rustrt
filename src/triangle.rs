@@ -74,7 +74,7 @@ impl Light for Triangle {
         diffuse: Vector::from(surface.diffuse_colour),
         emission: Vector::from(surface.emissive_colour.unwrap()),
         weight: (1.0 / count as f64).sqrt(),
-        power: 100.0,
+        power: 1.0,
       };
       lights.push(sample);
     }

@@ -91,13 +91,13 @@ fn make_photon(sample: &LightSample) -> (Ray, Colour) {
       Vector::vector(v.cos() * u.sqrt(), -(1.0 - u).sqrt(), v.sin() * u.sqrt())
     };
 
-    if sample.direction.is_some() && light_dir.dot(sample.direction.unwrap()) < 0.01 {
+    if sample.direction.is_some() && light_dir.dot(sample.direction.unwrap()) < 0.41 {
       continue;
     }
 
     return (
       Ray::new(sample.position + light_dir * 0.01, light_dir, None),
-      Colour::from(sample.emission * sample.output()),
+      Colour::from(sample.emission),
     );
   }
 }
@@ -226,11 +226,11 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
             // Now we know the colour and direction of the next bounce, let's decide if we're keeping it.
             throughput = throughput * next_colour;
             let p = random(0.0, 1.0);
-            if p > throughput.max_value() {
+            if p > throughput.max_value().sqrt().sqrt() {
               continue 'photon_loop;
             }
             throughput = throughput * (1.0 / p);
-            next_colour = next_colour * (1.0 / p);
+            next_colour = next_colour;
           }
           photon_colour = next_colour;
           photon_ray = next_ray;
@@ -272,10 +272,19 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
       return Colour::RGB(0.0, 0.0, 0.0);
     }
     let mut result = Vector::new();
+    let surface_normal = surface.normal;
+    let position = surface.position;
     let radius_cutoff = 0.25 * 3.0;
-    let (photons, radius) = self
-      .tree
-      .nearest(surface.position, photon_samples, radius_cutoff, |_p| true);
+    let (photons, radius) = self.tree.nearest(surface.position, photon_samples, |p| {
+      let to_vector = p.position - position;
+      let length = to_vector.length();
+
+      let overlap = (to_vector / length).dot(surface_normal);
+      // if overlap > 0.4 {
+      //   return None;
+      // }
+      return Some(to_vector.length());
+    });
     if photons.len() == 0 {
       return Colour::RGB(0.0, 0.0, 0.0);
     }
@@ -286,13 +295,15 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
         .selector
         .weight_for_sample(surface.position, &photon, photons.len(), radius)
       {
-        if *distance > radius_cutoff {
-          continue;
-        }
+        // if *distance > radius_cutoff {
+        //   continue;
+        // }
         let photon_position = photon.get_position();
         let to_photon = (photon_position - surface.position).normalize();
         let _cos_theta = to_photon.dot(surface.normal).abs();
-
+        if _cos_theta > 0.5 {
+          continue;
+        }
         max_radius = max_radius.max(*distance);
         let weight = 1.0;
         result = result + Vector::from(photon.colour) * (contribution * weight).max(0.0);
@@ -326,7 +337,7 @@ fn is_specular(surface: &MaterialCollisionInfo) -> bool {
 
 impl PhotonSelector for DiffuseSelector {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
-    if depth == 1 && is_specular(surface) && false {
+    if depth == 1 && is_specular(surface) {
       return RecordMode::TerminatePath;
     }
 

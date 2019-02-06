@@ -219,9 +219,7 @@ impl Scene {
     let n = self.texture_coords[idx];
     return n;
   }
-  pub fn get_lights<'a>(&'a self) -> Vec<&'a Light> {
-    return self._scene.get_lights(self);
-  }
+
   pub fn get_material(&self, MaterialIdx(idx): MaterialIdx) -> &material::Material {
     return &*self.materials[idx];
   }
@@ -289,7 +287,7 @@ impl Scene {
     }
 
     if self.settings.use_direct_lighting {
-      let light_samples = 8;
+      let light_samples = 120;
       let mut has_intersected = false;
       for i in 0..light_samples {
         let light = &lights[random(0.0, lights.len() as f64) as usize];
@@ -297,7 +295,7 @@ impl Scene {
         let ldir_len = ldir.dot(ldir).sqrt();
         ldir = ldir.normalize();
         if i * 2 < light_samples || has_intersected {
-          let shadow_test = Ray::new_bound(surface.position, ldir, 0.01 * ldir_len, ldir_len * 0.999, None);
+          let shadow_test = Ray::new_bound(surface.position, ldir, 0.02 * ldir_len, ldir_len * 0.99, None);
           if self.intersect(&shadow_test).is_some() {
             has_intersected = true;
             continue;
@@ -307,7 +305,7 @@ impl Scene {
         if diffuse_intensity <= 0.0 {
           continue;
         }
-        direct_lighting = direct_lighting + light.diffuse * diffuse_intensity;
+        direct_lighting = direct_lighting + light.emission * light.output() * diffuse_intensity;
       }
     }
     colour = colour + Vector::from(Colour::from(diffuse_colour) * (Colour::from(direct_lighting) + ambient_light));
@@ -355,7 +353,7 @@ impl Scene {
         diffuse: Vector::vector(1.0, 1.0, 1.0),
         specular: Vector::vector(1.0, 1.0, 1.0),
         emission: Vector::vector(1.0, 1.0, 1.0),
-        weight: 1.0,
+        weight: 2.0,
         power: 100.0,
       })
       .collect();
