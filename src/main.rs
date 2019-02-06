@@ -42,6 +42,7 @@ use std::str::FromStr;
 use crate::vectors::*;
 use crate::wavefront_material::load_scene;
 use std::sync::Arc;
+use crate::scene::Scene;
 
 #[derive(Debug)]
 struct VecArg {
@@ -148,7 +149,7 @@ fn main() {
 
   let mut scn = load_scene(&settings);
   {
-    Arc::get_mut(&mut scn).unwrap().finalize(settings.max_leaf_photons);
+    Scene::finalize(&mut scn, settings.max_leaf_photons);
   }
   let camera = PerspectiveCamera::new(
     settings.width,

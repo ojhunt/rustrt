@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::fmt::Debug;
 use crate::kdtree::HasPosition;
 use crate::bounding_box::BoundingBox;
@@ -11,8 +12,9 @@ use crate::ray::Ray;
 use crate::scene::Scene;
 use crate::light::LightSample;
 use crate::vectors::{Point, Vector};
+use crate::dispatch_queue::DispatchQueue;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct Photon {
   colour: Colour,
   position: Point,
@@ -54,16 +56,16 @@ impl RecordMode {
   }
 }
 
-pub trait PhotonSelector: Debug + Clone {
+pub trait PhotonSelector: Debug + Clone + Sync + Send {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode;
   fn weight_for_sample(&self, position: Point, photon: &Photon, photon_count: usize, sample_radius: f64)
     -> Option<f64>;
 }
 
 #[derive(Debug)]
-pub struct PhotonMap<Selector: PhotonSelector> {
+pub struct PhotonMap<Selector: PhotonSelector + 'static> {
   tree: KDTree<Photon>,
-  selector: Selector,
+  selector: Arc<Selector>,
 }
 
 pub fn random(min: f64, max: f64) -> f64 {
@@ -103,10 +105,10 @@ fn make_photon(sample: &LightSample) -> (Ray, Colour) {
   }
 }
 
-fn bounce_photon<Selector: PhotonSelector>(
-  selector: &Selector,
-  scene: &Scene,
-  initial_ray: Ray,
+fn bounce_photon<Selector: PhotonSelector + 'static>(
+  selector: &Arc<Selector>,
+  scene: &Arc<Scene>,
+  initial_ray: &Ray,
   initial_colour: Colour,
 ) -> (usize, usize, usize, usize, Vec<Photon>) {
   let mut throughput = Colour::RGB(1.0, 1.0, 1.0);
@@ -118,7 +120,7 @@ fn bounce_photon<Selector: PhotonSelector>(
   let mut bounces = 0;
   let mut photons = vec![];
   let mut photon_colour = initial_colour;
-  let mut photon_ray = initial_ray;
+  let mut photon_ray = initial_ray.clone();
 
   while path_length < 256 {
     let current_colour = photon_colour;
@@ -223,9 +225,9 @@ fn bounce_photon<Selector: PhotonSelector>(
   return (bounces, paths, max_bounces, actual_paths, photons);
 }
 
-fn bounce_photons<Selector: PhotonSelector>(
-  selector: &Selector,
-  scene: &Scene,
+fn bounce_photons<Selector: PhotonSelector + 'static>(
+  selector: &Arc<Selector>,
+  scene: &Arc<Scene>,
   initial_photons: Vec<(Ray, Colour)>,
 ) -> (usize, usize, usize, usize, Vec<Photon>) {
   let mut photons = vec![];
@@ -233,22 +235,38 @@ fn bounce_photons<Selector: PhotonSelector>(
   let mut max_bounces = 0;
   let mut paths = 0;
   let mut actual_paths = 0;
-  'photon_loop: for (photon_ray, photon_colour) in initial_photons {
-    let (photon_bounces, photon_path_count, photon_max_bounces, photon_actual_paths, mut photon_paths) =
-      bounce_photon(selector, scene, photon_ray, photon_colour);
-    bounces += photon_bounces;
-    max_bounces = max_bounces.max(photon_max_bounces);
-    actual_paths += photon_actual_paths;
-    paths += photon_path_count;
-    photons.append(&mut photon_paths);
+  let mut queue = DispatchQueue::new(8);
+
+  'photon_loop: for photon in initial_photons {
+    queue.add_task(&photon);
   }
+
+  let scene = scene.clone();
+  let selector = selector.clone();
+  queue
+    .consume_tasks(&move |(photon_ray, photon_colour)| {
+      return bounce_photon(&selector, &scene, photon_ray, *photon_colour);
+    })
+    .iter()
+    .for_each(
+      |(photon_bounces, photon_path_count, photon_max_bounces, photon_actual_paths, photon_paths)| {
+        bounces += photon_bounces;
+        max_bounces = max_bounces.max(*photon_max_bounces);
+        actual_paths += photon_actual_paths;
+        paths += *photon_path_count;
+        for photon in photon_paths {
+          photons.push(*photon);
+        }
+      },
+    );
+
   return (bounces, paths, max_bounces, actual_paths, photons);
 }
 
-impl<Selector: PhotonSelector> PhotonMap<Selector> {
+impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
   pub fn new(
-    selector: &Selector,
-    scene: &Scene,
+    selector: &Arc<Selector>,
+    scene: &Arc<Scene>,
     lights: &[LightSample],
     target_photon_count: usize,
     max_elements_per_leaf: usize,

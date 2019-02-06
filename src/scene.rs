@@ -185,9 +185,9 @@ impl Scene {
     return self._scene.intersect(ray, ray.min, ray.max);
   }
 
-  pub fn finalize(&mut self, max_elements_per_leaf: usize) {
-    self._scene.finalize();
-    self.rebuild_photon_map(max_elements_per_leaf);
+  pub fn finalize(this: &mut Arc<Self>, max_elements_per_leaf: usize) {
+    Arc::get_mut(this).unwrap()._scene.finalize();
+    Self::rebuild_photon_map(this, max_elements_per_leaf);
   }
 
   pub fn get_normal(&self, idx: usize) -> Vector {
@@ -196,23 +196,23 @@ impl Scene {
     return n;
   }
 
-  fn rebuild_photon_map(&mut self, max_elements_per_leaf: usize) {
-    println!("Building photon maps with {} photons", self.settings.photon_count);
-    let diffuse_selector = DiffuseSelector::new(!self.settings.use_direct_lighting);
-    self.light_samples = self.get_light_samples(10000);
-    self.diffuse_photon_map = PhotonMap::new(
+  fn rebuild_photon_map(this: &mut Arc<Self>, max_elements_per_leaf: usize) {
+    println!("Building photon maps with {} photons", this.settings.photon_count);
+    let diffuse_selector = Arc::new(DiffuseSelector::new(!this.settings.use_direct_lighting));
+    Arc::get_mut(this).unwrap().light_samples = this.get_light_samples(10000);
+    Arc::get_mut(this).unwrap().diffuse_photon_map = PhotonMap::new(
       &diffuse_selector,
-      self,
-      &self.light_samples,
-      self.settings.photon_count,
+      this,
+      &this.light_samples,
+      this.settings.photon_count,
       max_elements_per_leaf,
     );
-    let caustic_selector = CausticSelector::new();
-    self.caustic_photon_map = PhotonMap::new(
+    let caustic_selector = Arc::new(CausticSelector::new());
+    Arc::get_mut(this).unwrap().caustic_photon_map = PhotonMap::new(
       &caustic_selector,
-      self,
-      &self.light_samples,
-      self.settings.photon_count,
+      this,
+      &this.light_samples,
+      this.settings.photon_count,
       max_elements_per_leaf,
     );
   }
