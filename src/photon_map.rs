@@ -1,3 +1,4 @@
+use crate::collision::Collision;
 use std::fmt::Debug;
 use crate::kdtree::HasPosition;
 use crate::bounding_box::BoundingBox;
@@ -16,7 +17,8 @@ use crate::vectors::{Point, Vector, VectorType};
 pub struct Photon {
   colour: Colour,
   position: Point,
-  direction: Vector,
+  in_direction: Vector,
+  out_direction: Vector,
 }
 
 impl HasBoundingBox for Photon {
@@ -85,14 +87,14 @@ fn random_in_hemisphere(normal: Vector) -> Vector {
 }
 fn make_photon(sample: &LightSample) -> (Ray, Colour) {
   loop {
-    let light_dir = {
+    let mut light_dir = {
       let u = random(0.0, 1.0);
       let v = 2.0 * 3.14127 * random(0.0, 1.0);
       Vector::vector(v.cos() * u.sqrt(), -(1.0 - u).sqrt(), v.sin() * u.sqrt())
     };
 
-    if sample.direction.is_some() && light_dir.dot(sample.direction.unwrap()) < 0.41 {
-      continue;
+    if sample.direction.is_some() && light_dir.dot(sample.direction.unwrap()) < 0.0 {
+      light_dir = -light_dir;
     }
 
     return (
@@ -213,7 +215,8 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
             photons.push(Photon {
               colour: current_colour,
               position: fragment.position,
-              direction: photon_ray.direction,
+              in_direction: photon_ray.direction,
+              out_direction: next_ray.direction,
             });
             true
           } else {
@@ -267,7 +270,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     });
   }
 
-  pub fn lighting(&self, surface: &MaterialCollisionInfo, photon_samples: usize) -> Colour {
+  pub fn lighting(&self, fragment: &Fragment, surface: &MaterialCollisionInfo, photon_samples: usize) -> Colour {
     if photon_samples == 0 {
       return Colour::RGB(0.0, 0.0, 0.0);
     }
@@ -275,8 +278,14 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     let surface_normal = surface.normal;
     let position = surface.position;
     let radius_cutoff = 0.25 * 30.0;
+
     let (photons, radius) = self.tree.nearest(surface.position, photon_samples, |p| {
+      // if p.out_direction.dot(surface_normal) < 0.0 {
+      //   return None;
+      // }
+
       let to_vector = p.position - position;
+
       let length = to_vector.length();
 
       let overlap = (to_vector / length).dot(surface_normal);

@@ -256,11 +256,11 @@ impl Scene {
     let ambient_light = {
       let diffuse = match &self.diffuse_photon_map {
         None => Colour::RGB(0.0, 0.0, 0.0),
-        Some(photon_map) => (photon_map.lighting(&surface, photon_samples)),
+        Some(photon_map) => (photon_map.lighting(&fragment, &surface, photon_samples)),
       };
       let caustic = match &self.caustic_photon_map {
         None => Colour::RGB(0.0, 0.0, 0.0),
-        Some(photon_map) => photon_map.lighting(&surface, (photon_samples / 15).max(1)),
+        Some(photon_map) => photon_map.lighting(&fragment, &surface, (photon_samples / 15).max(1)),
       };
       (diffuse + 0.0 * caustic)
     };
