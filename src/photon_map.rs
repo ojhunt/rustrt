@@ -1,4 +1,3 @@
-use crate::collision::Collision;
 use std::fmt::Debug;
 use crate::kdtree::HasPosition;
 use crate::bounding_box::BoundingBox;
@@ -11,7 +10,7 @@ use rand::{thread_rng, Rng};
 use crate::ray::Ray;
 use crate::scene::Scene;
 use crate::light::LightSample;
-use crate::vectors::{Point, Vector, VectorType};
+use crate::vectors::{Point, Vector};
 
 #[derive(Clone, Debug)]
 pub struct Photon {
@@ -103,6 +102,149 @@ fn make_photon(sample: &LightSample) -> (Ray, Colour) {
     );
   }
 }
+
+fn bounce_photon<Selector: PhotonSelector>(
+  selector: &Selector,
+  scene: &Scene,
+  initial_ray: Ray,
+  initial_colour: Colour,
+) -> (usize, usize, usize, usize, Vec<Photon>) {
+  let mut throughput = Colour::RGB(1.0, 1.0, 1.0);
+  let mut path_length: usize = 0;
+  let mut recorded = false;
+  let mut paths = 0;
+  let mut actual_paths = 0;
+  let mut max_bounces = 0;
+  let mut bounces = 0;
+  let mut photons = vec![];
+  let mut photon_colour = initial_colour;
+  let mut photon_ray = initial_ray;
+
+  while path_length < 256 {
+    let current_colour = photon_colour;
+
+    paths += 1;
+    actual_paths += 1;
+    bounces += 1;
+    path_length += 1;
+    max_bounces = max_bounces.max(path_length);
+    let (c, shadable) = match scene.intersect(&photon_ray) {
+      None => {
+        break;
+      }
+      Some(x) => x,
+    };
+
+    let fragment: Fragment = shadable.compute_fragment(scene, &photon_ray, &c);
+    let material = scene.get_material(fragment.material);
+
+    let surface: MaterialCollisionInfo = material.compute_surface_properties(scene, &photon_ray, &fragment);
+    let mut remaining_weight = 1.0;
+    let mut next = {
+      let mut selection = random(0.0, 1.0);
+      let mut result: Option<(Ray, Colour)> = None;
+      for (_, _, secondary_weight) in &surface.secondaries {
+        remaining_weight -= secondary_weight;
+      }
+      remaining_weight = remaining_weight.max(0.0);
+      for (secondary_ray, secondary_colour, secondary_weight) in &surface.secondaries {
+        if selection > *secondary_weight {
+          selection -= secondary_weight;
+          continue;
+        }
+        let next_colour = photon_colour * *secondary_colour;
+        let next_power = next_colour.max_value() / photon_colour.max_value();
+        result = Some((secondary_ray.clone(), next_colour * next_power))
+      }
+      result
+    };
+
+    if next.is_none() {
+      let prob_diffuse = (surface.diffuse_colour * photon_colour).max_value() / photon_colour.max_value();
+      let prob_specular = (surface.specular_colour * photon_colour).max_value() / photon_colour.max_value();
+      let p = random(0.0, 1.0);
+      let (new_direction, new_colour) = if p * remaining_weight < prob_diffuse {
+        (
+          random_in_hemisphere(surface.normal),
+          surface.diffuse_colour * photon_colour * (1.0 / prob_diffuse),
+        )
+      } else if p * remaining_weight < (prob_diffuse + prob_specular) {
+        (
+          fragment.view.reflect(surface.normal),
+          surface.specular_colour * photon_colour * (1.0 / prob_specular),
+        )
+      } else {
+        break;
+      };
+
+      next = Some((
+        Ray::new(
+          fragment.position + new_direction * 0.001,
+          new_direction,
+          Some(photon_ray.ray_context.clone()),
+        ),
+        new_colour,
+      ));
+    };
+    let (next_ray, mut next_colour) = next.unwrap();
+    let path_mode = selector.record_mode(&surface, path_length);
+    let recorded_photon = if path_mode.should_record() {
+      if !recorded {
+        actual_paths += 1;
+        recorded = true;
+      }
+
+      photons.push(Photon {
+        colour: current_colour,
+        position: fragment.position,
+        in_direction: photon_ray.direction,
+        out_direction: next_ray.direction,
+      });
+      true
+    } else {
+      false
+    };
+    if path_mode.should_terminate() {
+      break;
+    }
+    if !recorded_photon {
+      // Now we know the colour and direction of the next bounce, let's decide if we're keeping it.
+      throughput = throughput * next_colour;
+      let p = random(0.0, 1.0);
+      if p > throughput.max_value().sqrt().sqrt() {
+        break;
+      }
+      throughput = throughput * (1.0 / p);
+      next_colour = next_colour;
+    }
+    photon_colour = next_colour;
+    photon_ray = next_ray;
+  }
+  return (bounces, paths, max_bounces, actual_paths, photons);
+}
+
+fn bounce_photons<Selector: PhotonSelector>(
+  selector: &Selector,
+  scene: &Scene,
+  initial_photons: Vec<(Ray, Colour)>,
+) -> (usize, usize, usize, usize, Vec<Photon>) {
+  let mut photons = vec![];
+  let mut bounces = 0;
+  let mut max_bounces = 0;
+  let mut paths = 0;
+  let mut actual_paths = 0;
+  'photon_loop: for (photon_ray, photon_colour) in initial_photons {
+    let (photon_bounces, photon_path_count, photon_max_bounces, photon_actual_paths, mut photon_paths) =
+      bounce_photon(selector, scene, photon_ray, photon_colour);
+    bounces += photon_bounces;
+    max_bounces = max_bounces.max(photon_max_bounces);
+    actual_paths += photon_actual_paths;
+    paths += photon_path_count;
+    photons.append(&mut photon_paths);
+  }
+  return (bounces, paths, max_bounces, actual_paths, photons);
+}
+
 impl<Selector: PhotonSelector> PhotonMap<Selector> {
   pub fn new(
     selector: &Selector,
@@ -111,12 +253,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     target_photon_count: usize,
     max_elements_per_leaf: usize,
   ) -> Option<PhotonMap<Selector>> {
-    let mut photons: Vec<Photon> = vec![];
     assert!(!lights.is_empty());
-    let mut bounces: usize = 0;
-    let mut max_bounces: usize = 0;
-    let mut paths = 0;
-    let mut actual_paths = 0;
     let start = std::time::Instant::now();
     let mut initial_photons = vec![];
     let total_power = lights.iter().fold(0.0, |a, b| a + b.output());
@@ -129,119 +266,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     }
     let initial_photon_count = initial_photons.len();
     assert_eq!(initial_photon_count, initial_photons.len());
-
-    'photon_loop: for (mut photon_ray, mut photon_colour) in initial_photons {
-      {
-        let mut throughput = Colour::RGB(1.0, 1.0, 1.0);
-        let mut path_length: usize = 0;
-        let mut recorded = false;
-        'photon_bounce_loop: while path_length < 256 {
-          let current_colour = photon_colour;
-
-          paths += 1;
-          actual_paths += 1;
-          bounces += 1;
-          path_length += 1;
-          max_bounces = max_bounces.max(path_length);
-          let (c, shadable) = match scene.intersect(&photon_ray) {
-            None => {
-              // if !recorded {
-              //   actual_paths += 1;
-              // }
-              continue 'photon_loop;
-            }
-            Some(x) => x,
-          };
-
-          let fragment: Fragment = shadable.compute_fragment(scene, &photon_ray, &c);
-          let material = scene.get_material(fragment.material);
-
-          let surface: MaterialCollisionInfo = material.compute_surface_properties(scene, &photon_ray, &fragment);
-          let mut remaining_weight = 1.0;
-          let mut next = {
-            let mut selection = random(0.0, 1.0);
-            let mut result: Option<(Ray, Colour)> = None;
-            for (_, _, secondary_weight) in &surface.secondaries {
-              remaining_weight -= secondary_weight;
-            }
-            remaining_weight = remaining_weight.max(0.0);
-            for (secondary_ray, secondary_colour, secondary_weight) in &surface.secondaries {
-              if selection > *secondary_weight {
-                selection -= secondary_weight;
-                continue;
-              }
-              let next_colour = photon_colour * *secondary_colour;
-              let next_power = next_colour.max_value() / photon_colour.max_value();
-              result = Some((secondary_ray.clone(), next_colour * next_power))
-            }
-            result
-          };
-
-          if next.is_none() {
-            let prob_diffuse = (surface.diffuse_colour * photon_colour).max_value() / photon_colour.max_value();
-            let prob_specular = (surface.specular_colour * photon_colour).max_value() / photon_colour.max_value();
-            let p = random(0.0, 1.0);
-            let (new_direction, new_colour) = if p * remaining_weight < prob_diffuse {
-              (
-                random_in_hemisphere(surface.normal),
-                surface.diffuse_colour * photon_colour * (1.0 / prob_diffuse),
-              )
-            } else if p * remaining_weight < (prob_diffuse + prob_specular) {
-              (
-                fragment.view.reflect(surface.normal),
-                surface.specular_colour * photon_colour * (1.0 / prob_specular),
-              )
-            } else {
-              continue 'photon_loop;
-            };
-
-            next = Some((
-              Ray::new(
-                fragment.position + new_direction * 0.001,
-                new_direction,
-                Some(photon_ray.ray_context.clone()),
-              ),
-              new_colour,
-            ));
-          };
-          let (next_ray, mut next_colour) = next.unwrap();
-          let path_mode = selector.record_mode(&surface, path_length);
-          let recorded_photon = if path_mode.should_record() {
-            if !recorded {
-              actual_paths += 1;
-              recorded = true;
-            }
-
-            photons.push(Photon {
-              colour: current_colour,
-              position: fragment.position,
-              in_direction: photon_ray.direction,
-              out_direction: next_ray.direction,
-            });
-            true
-          } else {
-            false
-          };
-          if path_mode.should_terminate() {
-            continue 'photon_loop;
-          }
-          if !recorded_photon {
-            // Now we know the colour and direction of the next bounce, let's decide if we're keeping it.
-            throughput = throughput * next_colour;
-            let p = random(0.0, 1.0);
-            if p > throughput.max_value().sqrt().sqrt() {
-              continue 'photon_loop;
-            }
-            throughput = throughput * (1.0 / p);
-            next_colour = next_colour;
-          }
-          photon_colour = next_colour;
-          photon_ray = next_ray;
-          continue 'photon_bounce_loop;
-        }
-      }
-    }
-
+    let (bounces, paths, max_bounces, actual_paths, mut photons) = bounce_photons(selector, scene, initial_photons);
     println!("Actual paths: {}", actual_paths);
     if photons.is_empty() {
       return None;
@@ -270,14 +295,14 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
     });
   }
 
-  pub fn lighting(&self, fragment: &Fragment, surface: &MaterialCollisionInfo, photon_samples: usize) -> Colour {
+  pub fn lighting(&self, _fragment: &Fragment, surface: &MaterialCollisionInfo, photon_samples: usize) -> Colour {
     if photon_samples == 0 {
       return Colour::RGB(0.0, 0.0, 0.0);
     }
     let mut result = Vector::new();
     let surface_normal = surface.normal;
     let position = surface.position;
-    let radius_cutoff = 0.25 * 30.0;
+    let _radius_cutoff = 0.25 * 30.0;
 
     let (photons, radius) = self.tree.nearest(surface.position, photon_samples, |p| {
       // if p.out_direction.dot(surface_normal) < 0.0 {
@@ -288,7 +313,7 @@ impl<Selector: PhotonSelector> PhotonMap<Selector> {
 
       let length = to_vector.length();
 
-      let overlap = (to_vector / length).dot(surface_normal);
+      let _overlap = (to_vector / length).dot(surface_normal);
       // if overlap > 0.4 {
       //   return None;
       // }
