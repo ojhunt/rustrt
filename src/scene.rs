@@ -251,8 +251,8 @@ impl Scene {
     let surface = material.compute_surface_properties(self, ray, &fragment);
     // let ambient_colour = Vector::from(surface.ambient_colour);
     let mut diffuse_colour = Vector::from(surface.diffuse_colour);
-    if let Some(colour) = surface.emissive_colour {
-      return (Vector::from(colour), collision.distance);
+    if let Some(emission) = surface.emissive_colour {
+      return (Vector::splat(emission.ambient as f32), collision.distance);
     }
 
     let mut colour;

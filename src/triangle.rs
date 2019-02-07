@@ -72,7 +72,7 @@ impl Light for Triangle {
         direction: Some(fragment.normal),
         specular: Vector::from(surface.specular_colour),
         diffuse: Vector::from(surface.diffuse_colour),
-        emission: Vector::from(surface.emissive_colour.unwrap()),
+        emission: Vector::splat(surface.emissive_colour.map(|emission| emission.ambient).unwrap() as f32),
         weight: (1.0 / count as f64),
         power: 1.0,
       };

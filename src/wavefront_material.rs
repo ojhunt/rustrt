@@ -1,3 +1,4 @@
+use crate::material::EmissionCoefficients;
 use std::sync::Arc;
 use crate::scene::SceneSettings;
 use crate::colour::Colour;
@@ -18,14 +19,67 @@ use crate::triangle::Triangle;
 use crate::vectors::*;
 
 trait RawSurfaceValue: Clone + Clone + Copy {
+  type RawType;
   fn empty() -> Self;
+  fn from_array(array: Option<[f32; 3]>) -> Option<Self>;
+  fn max_value(&self) -> f64;
 }
 
 impl RawSurfaceValue for Colour {
+  type RawType = Self;
   fn empty() -> Self {
     return Colour::RGB(0.0, 0.0, 0.0);
   }
+  fn max_value(&self) -> f64 {
+    return self.r().max(self.g().max(self.b()));
+  }
+
+  fn from_array(array: Option<[f32; 3]>) -> Option<Self> {
+    if let Some([r, g, b]) = array {
+      if r.max(g.max(b)) == 0.0 {
+        return None;
+      }
+      return Some(Colour::RGB(r, g, b));
+    }
+    return None;
+  }
 }
+
+impl RawSurfaceValue for EmissionCoefficients {
+  type RawType = Self;
+  fn empty() -> Self {
+    return EmissionCoefficients {
+      ambient: 0.0,
+      diffuse: 0.0,
+      specular: 0.0,
+    };
+  }
+  fn from_array(array: Option<[f32; 3]>) -> Option<Self> {
+    if let Some([a, d, s]) = array {
+      if a.max(d.max(s)) == 0.0 {
+        return None;
+      }
+      return Some(EmissionCoefficients {
+        ambient: a as f64,
+        diffuse: d as f64,
+        specular: s as f64,
+      });
+    }
+    return None;
+  }
+  fn max_value(&self) -> f64 {
+    return self.diffuse.max(self.ambient.max(self.specular));
+  }
+}
+/*
+impl<T: RawSurfaceValue> RawSurfaceValue for Option<T> {
+  type RawType = T;
+  fn empty() -> T {
+    return T::empty();
+  }
+
+  fn from_array([a, d, s]: [f32; 3]) -> Option<RawType> {}
+}*/
 
 trait TextureSurfaceValue<Raw: RawSurfaceValue> {
   fn raw_for_fragment(&self, s: &Scene, f: &Fragment) -> Raw;
@@ -35,6 +89,20 @@ trait TextureSurfaceValue<Raw: RawSurfaceValue> {
 impl TextureSurfaceValue<Colour> for TextureIdx {
   fn raw_for_fragment(&self, s: &Scene, f: &Fragment) -> Colour {
     return Colour::from(s.get_texture(*self).sample(f.uv));
+  }
+  fn gradient(&self, s: &Scene, uv: Vec2d) -> (f64, f64) {
+    return s.get_texture(*self).gradient(uv);
+  }
+}
+
+impl TextureSurfaceValue<EmissionCoefficients> for TextureIdx {
+  fn raw_for_fragment(&self, s: &Scene, f: &Fragment) -> EmissionCoefficients {
+    let colour = s.get_texture(*self).sample(f.uv);
+    return EmissionCoefficients {
+      ambient: colour.r(),
+      diffuse: colour.g(),
+      specular: colour.b(),
+    };
   }
   fn gradient(&self, s: &Scene, uv: Vec2d) -> (f64, f64) {
     return s.get_texture(*self).gradient(uv);
@@ -61,16 +129,36 @@ impl MergeValues for Colour {
   }
 }
 
+impl MergeValues for EmissionCoefficients {
+  fn merge(&self, other: Self) -> Self {
+    Self {
+      ambient: self.ambient * other.ambient,
+      diffuse: self.diffuse * other.diffuse,
+      specular: self.specular * other.specular,
+    }
+  }
+}
+
 impl<Raw: Copy + RawSurfaceValue + MergeValues, Texture: Copy + TextureSurfaceValue<Raw>>
   WFSurfaceProperty<Raw, Texture>
 {
   pub fn raw_for_fragment(&self, scene: &Scene, fragment: &Fragment) -> Raw {
-    return match self {
+    let result: Raw = match self {
       WFSurfaceProperty::None => Raw::empty(),
-      WFSurfaceProperty::Single(v) => *v,
-      WFSurfaceProperty::Texture(t) => t.raw_for_fragment(scene, fragment),
-      WFSurfaceProperty::Complex(_, t) => t.raw_for_fragment(scene, fragment),
+      WFSurfaceProperty::Single(v) => {
+        let r: Raw = *v;
+        r
+      }
+      WFSurfaceProperty::Texture(t) => {
+        let r: Raw = t.raw_for_fragment(scene, fragment);
+        r
+      }
+      WFSurfaceProperty::Complex(_, t) => {
+        let r: Raw = t.raw_for_fragment(scene, fragment);
+        r
+      }
     };
+    return result;
   }
   pub fn option_for_fragment(&self, scene: &Scene, fragment: &Fragment) -> Option<Raw> {
     return match self {
@@ -87,10 +175,10 @@ pub struct WFMaterial {
   diffuse_colour: WFSurfaceProperty<Colour, TextureIdx>,  // Kd
   specular_colour: WFSurfaceProperty<Colour, TextureIdx>, // Ks
   bump_map: Option<TextureIdx>,
-  emissive_colour: WFSurfaceProperty<Colour, TextureIdx>, // Ke
-  transparent_colour: Option<Colour>,                     // Tf
-  transparency: Transparency,                             // d -- seriously who came up with these names?
-  specular_exponent: Option<f64>,                         // Ns
+  emissive_colour: WFSurfaceProperty<EmissionCoefficients, TextureIdx>, // Ke
+  transparent_colour: Option<Colour>,                                   // Tf
+  transparency: Transparency,                                           // d -- seriously who came up with these names?
+  specular_exponent: Option<f64>,                                       // Ns
   sharpness: Option<f64>,
   index_of_refraction: Option<f64>, // Ni
   illumination_model: usize,
@@ -261,36 +349,29 @@ fn load_bumpmap<F: FnMut(&mut Scene, &str, bool) -> Option<TextureIdx>>(
   };
 }
 
-fn load_surface_colour<F: FnMut(&mut Scene, &str, bool) -> Option<TextureIdx>>(
+fn load_surface<Raw: Copy + RawSurfaceValue, F: FnMut(&mut Scene, &str, bool) -> Option<TextureIdx>>(
   scene: &mut Scene,
   colour: Option<[f32; 3]>,
   texture: &Option<String>,
   mut texture_loader: F,
-) -> (WFSurfaceProperty<Colour, TextureIdx>, F) {
-  let real_colour = match colour {
-    None => None,
-    Some([r, g, b]) if r != 0.0 && g != 0.0 && b != 0.0 => Some(Colour::RGB(r, g, b)),
-    _ => None,
-  };
+) -> (WFSurfaceProperty<Raw, TextureIdx>, F)
+where
+  TextureIdx: TextureSurfaceValue<Raw>,
+{
+  let real_colour = Raw::from_array(colour);
   let real_texture = match texture {
     None => None,
     Some(texture_name) => texture_loader(scene, texture_name, false),
   };
 
-  return (
-    match (real_colour, real_texture) {
-      (Some(Colour::RGB(r, g, b)), Some(texture)) if r == 0.0 && g == 0.0 && b == 0.0 => {
-        WFSurfaceProperty::Texture(texture)
-      }
-      (Some(colour), Some(texture)) => WFSurfaceProperty::Complex(colour, texture),
-      (Some(Colour::RGB(r, g, b)), None) if r != 0.0 && g != 0.0 && b != 0.0 => {
-        WFSurfaceProperty::Single(Colour::RGB(r, g, b))
-      }
-      (None, Some(texture)) => WFSurfaceProperty::Texture(texture),
-      _ => WFSurfaceProperty::None,
-    },
-    texture_loader,
-  );
+  let result = match (real_colour, real_texture) {
+    (Some(raw), Some(texture)) if raw.max_value() == 0.0 => WFSurfaceProperty::Texture(texture),
+    (Some(colour), Some(texture)) => WFSurfaceProperty::Complex(colour, texture),
+    (Some(raw), None) if raw.max_value() != 0.0 => (WFSurfaceProperty::Single(raw)),
+    (None, Some(texture)) => (WFSurfaceProperty::Texture(texture)),
+    _ => (WFSurfaceProperty::None),
+  };
+  return (result, texture_loader);
 }
 
 impl WFMaterial {
@@ -307,11 +388,10 @@ impl WFMaterial {
       }
     };
 
-    let (ambient, f) = load_surface_colour(scene, mat.ka, &mat.map_ka, texture_loader);
-    let (diffuse, f1) = load_surface_colour(scene, mat.kd, &mat.map_kd, f);
-    let (specular, f2) = load_surface_colour(scene, mat.ks, &mat.map_ks, f1);
-
-    let (emission, f3) = load_surface_colour(scene, mat.ke, &mat.map_ke, f2);
+    let (ambient, f) = load_surface(scene, mat.ka, &mat.map_ka, texture_loader);
+    let (diffuse, f1) = load_surface(scene, mat.kd, &mat.map_kd, f);
+    let (specular, f2) = load_surface(scene, mat.ks, &mat.map_ks, f1);
+    let (emission, f3) = load_surface(scene, mat.ke, &mat.map_ke, f2);
     let (bump_map, _) = load_bumpmap(scene, &mat.map_bump, f3);
 
     WFMaterial {

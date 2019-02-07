@@ -20,6 +20,18 @@ impl Colour {
     let Colour::RGB(r, g, b) = self;
     return r.max(*g).max(*b) as f64;
   }
+  pub fn r(&self) -> f64 {
+    let Colour::RGB(r, _, _) = *self;
+    return r as f64;
+  }
+  pub fn g(&self) -> f64 {
+    let Colour::RGB(_, g, _) = *self;
+    return g as f64;
+  }
+  pub fn b(&self) -> f64 {
+    let Colour::RGB(_, _, b) = *self;
+    return b as f64;
+  }
 }
 
 impl From<Colour> for Vector {

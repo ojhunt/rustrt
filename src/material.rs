@@ -12,12 +12,32 @@ pub enum Transparency {
   // Halo(f64), // 1.0 - (N*v)(1.0-factor)
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct EmissionCoefficients {
+  pub ambient: f64,
+  pub diffuse: f64,
+  pub specular: f64,
+}
+
+impl EmissionCoefficients {
+  pub fn new() -> EmissionCoefficients {
+    return EmissionCoefficients {
+      ambient: 0.0,
+      diffuse: 0.0,
+      specular: 0.0,
+    };
+  }
+  pub fn max_value(&self) -> f64 {
+    return self.ambient.max(self.diffuse).max(self.specular);
+  }
+}
+
 #[derive(Clone)]
 pub struct MaterialCollisionInfo {
   pub ambient_colour: Colour,
   pub diffuse_colour: Colour,
   pub specular_colour: Colour,
-  pub emissive_colour: Option<Colour>,
+  pub emissive_colour: Option<EmissionCoefficients>,
   pub transparent_colour: Option<Colour>,
   pub position: Point,
   pub normal: Vector,
