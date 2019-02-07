@@ -1,4 +1,4 @@
-# An empty Cornell Box with cyan and orange walls in OBJ format.
+# An empty Cornell Box with red and blue walls in OBJ format.
 # Note that the real box is not a perfect cube, so
 # the faces are imperfect in this data set.
 #
@@ -9,12 +9,13 @@
 # http://www.graphics.cornell.edu/online/box/data.html
 #
 
+
 newmtl leftWall
   Ns 10.0000
   Ni 1.5000
   illum 2
-  Ka 0.953 0.357 0.212 # Orange
-  Kd 0.953 0.357 0.212
+  Ka 0.63 0.065 0.05 # Red
+  Kd 0.63 0.065 0.05
   Ks 0 0 0
   Ke 0 0 0
 
@@ -23,10 +24,11 @@ newmtl rightWall
   Ns 10.0000
   Ni 1.5000
   illum 2
-  Ka 0.486 0.631 0.663 # Cyan
-  Kd 0.486 0.631 0.663 
+  Ka 0.14 0.45 0.091 # Green
+  Kd 0.14 0.45 0.091
   Ks 0 0 0
   Ke 0 0 0
+
   
 newmtl floor
   Ns 10.0000
@@ -57,15 +59,11 @@ newmtl backWall
   Ks 0 0 0
   Ke 0 0 0
 
-  newmtl light
-	Ns 10.0000
-	Ni 1.5000
-	d 1.0000
-	Tr 0.0000
-	Tf 1.0000 1.0000 1.0000 
-	illum 2
-	Ka 0.7800 0.7800 0.7800
-	Kd 0.7800 0.7800 0.7800
-    Ke 10 10 10
-	Ks 0 0 0
-
+newmtl light
+  Ns 10.0000
+  Ni 1.0000
+  illum 2
+  Ka 0.78 0.78 0.78 # White
+  Kd 0.78 0.78 0.78
+  Ks 0 0 0
+  Ke 17 12 4

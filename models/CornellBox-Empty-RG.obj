@@ -1,4 +1,4 @@
-# An empty Cornell Box with cyan and orange walls in OBJ format.
+# An empty Cornell Box with red and blue walls in OBJ format.
 # Note that the real box is not a perfect cube, so
 # the faces are imperfect in this data set.
 #
@@ -9,7 +9,7 @@
 # http://www.graphics.cornell.edu/online/box/data.html
 #
 
-mtllib CornellBox-Empty-CO.mtl
+mtllib CornellBox-Empty-RG.mtl
 
 # Object floor
 v  -1.01  0.00   0.99

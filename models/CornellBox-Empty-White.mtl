@@ -13,8 +13,8 @@ newmtl leftWall
   Ns 10.0000
   Ni 1.5000
   illum 2
-  Ka 0.953 0.357 0.212 # Orange
-  Kd 0.953 0.357 0.212
+  Ka 1 1 1 
+  Kd 1 1 1
   Ks 0 0 0
   Ke 0 0 0
 
@@ -23,8 +23,8 @@ newmtl rightWall
   Ns 10.0000
   Ni 1.5000
   illum 2
-  Ka 0.486 0.631 0.663 # Cyan
-  Kd 0.486 0.631 0.663 
+  Ka 1 1 1
+  Kd 1 1 1
   Ks 0 0 0
   Ke 0 0 0
   
@@ -32,8 +32,8 @@ newmtl floor
   Ns 10.0000
   Ni 1.0000
   illum 2
-  Ka 0.725 0.71 0.68 # White
-  Kd 0.725 0.71 0.68
+  Ka 1 1 1
+  Kd 1 1 1
   Ks 0 0 0
   Ke 0 0 0
 
@@ -42,8 +42,8 @@ newmtl ceiling
   Ns 10.0000
   Ni 1.0000
   illum 2
-  Ka 0.725 0.71 0.68 # White
-  Kd 0.725 0.71 0.68
+  Ka 1 1 1
+  Kd 1 1 1
   Ks 0     0    0
   Ke 0     0    0
   
@@ -52,20 +52,20 @@ newmtl backWall
   Ns 10.0000
   Ni 1.0000
   illum 2
-  Ka 0.725 0.71 0.68 # White
-  Kd 0.725 0.71 0.68
+  Ka 1 1 1
+  Kd 1 1 1
   Ks 0 0 0
   Ke 0 0 0
 
-  newmtl light
-	Ns 10.0000
-	Ni 1.5000
-	d 1.0000
-	Tr 0.0000
-	Tf 1.0000 1.0000 1.0000 
-	illum 2
-	Ka 0.7800 0.7800 0.7800
-	Kd 0.7800 0.7800 0.7800
-    Ke 10 10 10
-	Ks 0 0 0
+newmtl light
+Ns 10.0000
+Ni 1.5000
+d 1.0000
+Tr 0.0000
+Tf 1.0000 1.0000 1.0000 
+illum 2
+Ka 0.7800 0.7800 0.7800
+Kd 0.7800 0.7800 0.7800
+Ke 10 10 10
+Ks 0 0 0
 

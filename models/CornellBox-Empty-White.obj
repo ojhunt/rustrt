@@ -9,7 +9,7 @@
 # http://www.graphics.cornell.edu/online/box/data.html
 #
 
-mtllib CornellBox-Empty-CO.mtl
+mtllib CornellBox-Empty-White.mtl
 
 # Object floor
 v  -1.01  0.00   0.99
