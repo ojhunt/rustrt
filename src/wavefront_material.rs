@@ -269,7 +269,8 @@ fn load_surface_colour<F: FnMut(&mut Scene, &str, bool) -> Option<TextureIdx>>(
 ) -> (WFSurfaceProperty<Colour, TextureIdx>, F) {
   let real_colour = match colour {
     None => None,
-    Some([r, g, b]) => Some(Colour::RGB(r, g, b)),
+    Some([r, g, b]) if r != 0.0 && g != 0.0 && b != 0.0 => Some(Colour::RGB(r, g, b)),
+    _ => None,
   };
   let real_texture = match texture {
     None => None,
@@ -309,7 +310,7 @@ impl WFMaterial {
     let (ambient, f) = load_surface_colour(scene, mat.ka, &mat.map_ka, texture_loader);
     let (diffuse, f1) = load_surface_colour(scene, mat.kd, &mat.map_kd, f);
     let (specular, f2) = load_surface_colour(scene, mat.ks, &mat.map_ks, f1);
-    println!("emmission: {:?}", mat.ke);
+
     let (emission, f3) = load_surface_colour(scene, mat.ke, &mat.map_ke, f2);
     let (bump_map, _) = load_bumpmap(scene, &mat.map_bump, f3);
 

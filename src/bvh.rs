@@ -49,7 +49,6 @@ impl BVH {
       info.push(BVHPrimitiveInfo::new(i, inner_bounds));
     }
     let root = recursive_build(0, &mut info);
-    println!("Tree max depth: {}", tree_depth(&root));
     BVH { root: root }
   }
 

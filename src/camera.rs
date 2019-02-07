@@ -6,6 +6,7 @@ use crate::photon_map::random;
 use crate::ray::Ray;
 use crate::vectors::{Point, Vector, VectorType};
 use crate::dispatch_queue::DispatchQueue;
+use crate::photon_map::Timing;
 
 pub trait Camera: Clone {
   fn render(&self, scene: Arc<Scene>, photon_samples: usize) -> DynamicImage;
@@ -159,17 +160,19 @@ impl Camera for PerspectiveCamera {
   fn render(&self, scene: Arc<Scene>, photon_samples: usize) -> DynamicImage {
     let mut buffer = RenderBuffer::new(self._width, self._height);
     let mut first_sample_queue = DispatchQueue::new(10);
-    for x in 0..self._width {
-      for y in 0..self._height {
-        let ray = self.ray_for_coordinate(x as f64, y as f64);
-        first_sample_queue.add_task(&(x, y, ray));
+    {
+      let _t = Timing::new("Generating first sample set");
+      for x in 0..self._width {
+        for y in 0..self._height {
+          let ray = self.ray_for_coordinate(x as f64, y as f64);
+          first_sample_queue.add_task(&(x, y, ray));
+        }
       }
     }
 
-    let start = std::time::Instant::now();
-
     {
       let result = {
+        let _t = Timing::new("First render pass");
         let scene = scene.clone();
         first_sample_queue.consume_tasks(&move |v| {
           let (x, y, ray) = v;
@@ -178,36 +181,35 @@ impl Camera for PerspectiveCamera {
         })
       };
 
+      let _t = Timing::new("Copy first render results");
       for (x, y, (v, i, f)) in result {
         buffer.set(x, y, (v.clamp(Vector::splat(0.0), Vector::splat(1.0)), i, f));
       }
     }
 
-    let end = std::time::Instant::now();
-    let delta = end - start;
-    let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;
-    println!("Initial render time: {}s", time);
     let mut max_resample_count = 0;
     // let mut queue = Di
     if self.do_multisampling {
       let mut multisample_queue = DispatchQueue::new(10);
-
-      for x in 0..self._width {
-        let minx = if x > 0 { -1i32 } else { 0 };
-        let maxx = if x < self._width - 1 { 1 } else { 0 };
-        'inner_loop: for y in 0..self._height {
-          let miny = if y > 0 { -1i32 } else { 0 };
-          let maxy = if y < self._height - 1 { 1 } else { 0 };
-          let (sample_colour, _count, sample_distance) = buffer.get(x, y);
-          for i in minx..maxx {
-            for j in miny..maxy {
-              if i == 0 && j == 0 {
-                continue;
-              }
-              let (colour, _, distance) = buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize);
-              if (colour - sample_colour).length() > DELTA || (sample_distance - distance).abs() > DELTA {
-                multisample_queue.add_task(&(x, y));
-                continue 'inner_loop;
+      {
+        let _t = Timing::new("Performing initial multisample tasks");
+        for x in 0..self._width {
+          let minx = if x > 0 { -1i32 } else { 0 };
+          let maxx = if x < self._width - 1 { 1 } else { 0 };
+          'inner_loop: for y in 0..self._height {
+            let miny = if y > 0 { -1i32 } else { 0 };
+            let maxy = if y < self._height - 1 { 1 } else { 0 };
+            let (sample_colour, _count, sample_distance) = buffer.get(x, y);
+            for i in minx..maxx {
+              for j in miny..maxy {
+                if i == 0 && j == 0 {
+                  continue;
+                }
+                let (colour, _, distance) = buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize);
+                if (colour - sample_colour).length() > DELTA || (sample_distance - distance).abs() > DELTA {
+                  multisample_queue.add_task(&(x, y));
+                  continue 'inner_loop;
+                }
               }
             }
           }
@@ -216,6 +218,7 @@ impl Camera for PerspectiveCamera {
 
       {
         let results = {
+          let _t = Timing::new("Multisampling");
           let camera = self.clone();
           multisample_queue.consume_tasks(&move |(x, y)| {
             return (
@@ -227,16 +230,17 @@ impl Camera for PerspectiveCamera {
         };
 
         let mut resample_count = 0;
-        for (x, y, (colour, distance, count)) in results {
-          resample_count += count;
-          max_resample_count = max_resample_count.max(count);
-          buffer.set(x, y, (colour, count, distance));
+        {
+          let _t = Timing::new("Copying resample output");
+          for (x, y, (colour, distance, count)) in results {
+            resample_count += count;
+            max_resample_count = max_resample_count.max(count);
+            buffer.set(x, y, (colour, count, distance));
+          }
         }
-
-        println!("initial samples: {}", self._width * self._height);
-        println!("resample count: {}", resample_count);
       }
     }
+    let _t = Timing::new("Creating output image");
     let mut result = image::RgbImage::new(self._width as u32, self._height as u32);
     for (x, y, _pixel) in result.enumerate_pixels_mut() {
       let (value, sample_count, _d) = buffer.data[x as usize + y as usize * self._width];

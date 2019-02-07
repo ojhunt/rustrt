@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::fmt::Debug;
+use std::time::Instant;
 use crate::kdtree::HasPosition;
 use crate::bounding_box::BoundingBox;
 use crate::bounding_box::HasBoundingBox;
@@ -110,7 +111,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
   scene: &Arc<Scene>,
   initial_ray: &Ray,
   initial_colour: Colour,
-) -> (usize, usize, usize, usize, Vec<Photon>) {
+) -> Vec<Photon> {
   let mut throughput = Colour::RGB(1.0, 1.0, 1.0);
   let mut path_length: usize = 0;
   let mut recorded = false;
@@ -222,23 +223,19 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
     photon_colour = next_colour;
     photon_ray = next_ray;
   }
-  return (bounces, paths, max_bounces, actual_paths, photons);
+  return photons;
 }
 
 fn bounce_photons<Selector: PhotonSelector + 'static>(
   selector: &Arc<Selector>,
   scene: &Arc<Scene>,
-  initial_photons: Vec<(Ray, Colour)>,
-) -> (usize, usize, usize, usize, Vec<Photon>) {
+  initial_photons: &[(Ray, Colour)],
+) -> Vec<Photon> {
   let mut photons = vec![];
-  let mut bounces = 0;
-  let mut max_bounces = 0;
-  let mut paths = 0;
-  let mut actual_paths = 0;
   let mut queue = DispatchQueue::new(8);
 
   'photon_loop: for photon in initial_photons {
-    queue.add_task(&photon);
+    queue.add_task(photon);
   }
 
   let scene = scene.clone();
@@ -248,19 +245,41 @@ fn bounce_photons<Selector: PhotonSelector + 'static>(
       return bounce_photon(&selector, &scene, photon_ray, *photon_colour);
     })
     .iter()
-    .for_each(
-      |(photon_bounces, photon_path_count, photon_max_bounces, photon_actual_paths, photon_paths)| {
-        bounces += photon_bounces;
-        max_bounces = max_bounces.max(*photon_max_bounces);
-        actual_paths += photon_actual_paths;
-        paths += *photon_path_count;
-        for photon in photon_paths {
-          photons.push(*photon);
-        }
-      },
-    );
+    .for_each(|photon_paths| {
+      photons.reserve(photon_paths.len());
+      for photon in photon_paths {
+        photons.push(*photon);
+      }
+    });
 
-  return (bounces, paths, max_bounces, actual_paths, photons);
+  return photons;
+}
+
+pub struct Timing {
+  name: String,
+  start: Instant,
+}
+impl Timing {
+  #[must_use]
+  pub fn new(name: &str) -> Timing {
+    Timing {
+      name: name.to_string(),
+      start: Instant::now(),
+    }
+  }
+  pub fn time<F, T>(name: &str, mut f: F) -> T
+  where
+    F: FnMut() -> T,
+  {
+    let _t = Timing::new(name);
+    let r = f();
+    return r;
+  }
+}
+impl Drop for Timing {
+  fn drop(&mut self) {
+    println!("{} took {:?}ms ", self.name, (Instant::now() - self.start).as_millis());
+  }
 }
 
 impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
@@ -273,39 +292,37 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
   ) -> Option<PhotonMap<Selector>> {
     assert!(!lights.is_empty());
     let start = std::time::Instant::now();
-    let mut initial_photons = vec![];
-    let total_power = lights.iter().fold(0.0, |a, b| a + b.output());
-    for light in lights {
-      let power = light.output();
-      let photon_count = (power / total_power * target_photon_count as f64).ceil() as usize;
-      for _ in 0..photon_count.max(1) {
-        initial_photons.push(make_photon(&light));
+
+    let initial_photons = Timing::time("Generating initial rays", || {
+      let mut initial_photons = vec![];
+      let total_power = lights.iter().fold(0.0, |a, b| a + b.output());
+      for light in lights {
+        let power = light.output();
+        let photon_count = (power / total_power * target_photon_count as f64).ceil() as usize;
+        for _ in 0..photon_count.max(1) {
+          initial_photons.push(make_photon(&light));
+        }
       }
-    }
+      return initial_photons;
+    });
+
     let initial_photon_count = initial_photons.len();
     assert_eq!(initial_photon_count, initial_photons.len());
-    let (bounces, paths, max_bounces, actual_paths, mut photons) = bounce_photons(selector, scene, initial_photons);
-    println!("Actual paths: {}", actual_paths);
+    let mut photons = Timing::time("Bouncing photons", || {
+      return bounce_photons(selector, scene, &initial_photons);
+    });
     if photons.is_empty() {
       return None;
     }
-    for i in 0..photons.len() {
-      photons[i].colour = photons[i].colour * (1.0 / initial_photon_count as f64);
+    {
+      let _t = Timing::new("Normalising photon power");
+      for i in 0..photons.len() {
+        photons[i].colour = photons[i].colour * (1.0 / initial_photon_count as f64);
+      }
     }
-    let end = std::time::Instant::now();
-
-    let delta = end - start;
-    let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;
-    println!("Time taken to generate photons: {}", time);
-    let average_bounces = bounces as f64 / paths as f64;
-    println!("Average path length: {}", average_bounces);
-    println!("Total paths: {}", paths);
-    println!("Total photon records: {}", photons.len());
-    println!("Max path length: {}", max_bounces);
-    let tree = KDTree::new(&photons, max_elements_per_leaf);
-    let (min, max) = tree.depth();
-    println!("Tree minimum depth {}", min);
-    println!("Tree maximum depth {}", max);
+    let tree = Timing::time("Creating KDTree", || {
+      return KDTree::new(&photons, max_elements_per_leaf);
+    });
 
     return Some(PhotonMap {
       tree,

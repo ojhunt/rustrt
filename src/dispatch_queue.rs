@@ -24,7 +24,7 @@ where
 {
   pub fn new(thread_limit: usize) -> Self {
     DispatchQueue {
-      thread_limit,
+      thread_limit: num_cpus::get(),
       global_queue: vec![],
       current_task: 0,
     }
@@ -48,7 +48,6 @@ where
 
     let mut thread_tasks = vec![vec![]];
     let max_tasks_per_thread = (self.thread_limit - 1 + local_tasks.len()) / self.thread_limit;
-    println!("Task count {}", local_tasks.len());
     while let Some(task) = local_tasks.pop() {
       let last_length = {
         let last = thread_tasks.last_mut().unwrap();
@@ -60,7 +59,6 @@ where
       }
     }
     assert!(local_tasks.len() == 0);
-    println!("Max tasks per thread: {}", max_tasks_per_thread);
 
     if thread_tasks.last().unwrap().is_empty() {
       thread_tasks.pop();
@@ -71,7 +69,6 @@ where
     let mut threads = vec![];
     let mut channels = vec![];
     for i in 0..self.thread_limit.min(thread_tasks.len()) {
-      println!("Thread {} vs thread limit {}", i, self.thread_limit);
       let thread_local_tasks = Arc::new(thread_tasks.pop().unwrap());
       let callback = callback.clone();
       let (tx, rx) = mpsc::channel();

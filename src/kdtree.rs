@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 use std::cmp::Ordering;
 use crate::heap::Comparator;
 use crate::vectors::*;
@@ -213,7 +214,7 @@ impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
     for elem in elements {
       bounds = bounds.merge_with_bbox(elem.bounds());
     }
-    println!("Max children: {}", max_children);
+
     return KDTree {
       root: build_tree(elements, bounds, max_children),
     };

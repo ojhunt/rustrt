@@ -9,6 +9,7 @@ extern crate rand;
 extern crate faster;
 extern crate packed_simd;
 extern crate rayon;
+extern crate num_cpus;
 
 mod bounding_box;
 mod bvh;
@@ -42,6 +43,7 @@ use std::str::FromStr;
 use crate::vectors::*;
 use crate::wavefront_material::load_scene;
 use crate::scene::Scene;
+use crate::photon_map::Timing;
 
 #[derive(Debug)]
 struct VecArg {
@@ -92,14 +94,12 @@ fn load_settings() -> SceneSettings {
   }
   match value_t!(matches, "max_leaf_photons", usize) {
     Ok(value) => {
-      println!("max-leaf-photons: {}", value);
       settings.max_leaf_photons = value.max(4);
     }
     _ => {}
   }
   match value_t!(matches, "photon_samples", usize) {
     Ok(value) => {
-      println!("photon_samples: {}", value);
       settings.photon_samples = value;
     }
     _ => {}
@@ -132,7 +132,6 @@ fn load_settings() -> SceneSettings {
   if matches.is_present("use_direct_lighting") {
     settings.use_direct_lighting = true;
   } else {
-    println!("photon samples2: {}", settings.photon_samples);
     if settings.photon_samples == 0 {
       settings.use_direct_lighting = true;
     }
@@ -161,14 +160,10 @@ fn main() {
     settings.use_multisampling,
   );
 
-  let start = std::time::Instant::now();
-  let output = camera.render(scn, settings.photon_samples);
-  let end = std::time::Instant::now();
-  let delta = end - start;
-  let time = (delta.as_secs() * 1000 + delta.subsec_millis() as u64) as f64 / 1000.0;
-  println!("Time taken: {}", time);
-  println!("Writing {}", settings.output_file);
-
+  let output = {
+    let _t = Timing::new("Total Rendering");
+    let o = camera.render(scn, settings.photon_samples);
+    o
+  };
   output.save(settings.output_file).unwrap();
-  println!("Done!");
 }

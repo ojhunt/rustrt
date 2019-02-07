@@ -20,6 +20,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use crate::texture::Texture;
 use crate::vectors::*;
+use crate::photon_map::Timing;
 
 #[derive(Debug, Copy, Clone)]
 pub struct MaterialIdx(pub usize);
@@ -185,7 +186,9 @@ impl Scene {
   }
 
   pub fn finalize(this: &mut Arc<Self>, max_elements_per_leaf: usize) {
-    Arc::get_mut(this).unwrap()._scene.finalize();
+    Timing::time("Build scene graph", || {
+      Arc::get_mut(this).unwrap()._scene.finalize();
+    });
     Self::rebuild_photon_map(this, max_elements_per_leaf);
   }
 
@@ -196,7 +199,6 @@ impl Scene {
   }
 
   fn rebuild_photon_map(this: &mut Arc<Self>, max_elements_per_leaf: usize) {
-    println!("Building photon maps with {} photons", this.settings.photon_count);
     let diffuse_selector = Arc::new(DiffuseSelector::new(!this.settings.use_direct_lighting));
     Arc::get_mut(this).unwrap().light_samples = this.get_light_samples(10000);
     Arc::get_mut(this).unwrap().diffuse_photon_map = PhotonMap::new(
