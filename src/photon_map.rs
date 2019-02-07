@@ -364,16 +364,6 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
         .selector
         .weight_for_sample(surface.position, &photon, photons.len(), radius)
       {
-        // if *distance > radius_cutoff {
-        //   continue;
-        // }
-        let photon_position = photon.get_position();
-        let to_photon = (photon_position - surface.position).normalize();
-        let _cos_theta = to_photon.dot(surface.normal).abs();
-        if _cos_theta > 0.5 {
-          continue;
-        }
-
         max_radius = max_radius.max(*distance);
         let weight = photon.in_direction.dot(-surface_normal).max(0.0);
         result = result + Vector::from(photon.colour) * (contribution * weight).max(0.0);
