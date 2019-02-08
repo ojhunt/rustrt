@@ -1,3 +1,4 @@
+use crate::material::EmissionCoefficients;
 use crate::vectors::Vector;
 use crate::vectors::Point;
 use crate::scene::Scene;
@@ -6,9 +7,10 @@ use crate::scene::Scene;
 pub struct LightSample {
   pub position: Point,
   pub direction: Option<Vector>,
+  pub ambient: Vector,
   pub diffuse: Vector,
   pub specular: Vector,
-  pub emission: Vector,
+  pub emission: EmissionCoefficients,
   pub weight: f64,
   pub power: f64,
 }

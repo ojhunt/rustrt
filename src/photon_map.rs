@@ -12,7 +12,7 @@ use rand::{thread_rng, Rng};
 use crate::ray::Ray;
 use crate::scene::Scene;
 use crate::light::LightSample;
-use crate::vectors::{Point, Vector};
+use crate::vectors::{Point, Vector,VectorType};
 use crate::dispatch_queue::DispatchQueue;
 
 #[derive(Clone, Debug, Copy)]
@@ -21,6 +21,7 @@ pub struct Photon {
   position: Point,
   in_direction: Vector,
   out_direction: Vector,
+  is_direct: bool,
 }
 
 impl HasBoundingBox for Photon {
@@ -101,7 +102,11 @@ fn make_photon(sample: &LightSample) -> (Ray, Colour) {
 
     return (
       Ray::new(sample.position + light_dir * 0.01, light_dir, None),
-      Colour::from(sample.emission),
+      Colour::from(
+        sample.emission.diffuse * sample.diffuse
+          + sample.emission.ambient * sample.ambient
+          + sample.emission.specular * sample.specular,
+      ),
     );
   }
 }
@@ -122,7 +127,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
   let mut photons = vec![];
   let mut photon_colour = initial_colour;
   let mut photon_ray = initial_ray.clone();
-
+  // println!("Photon colour {:?}", photon_colour);
   while path_length < 256 {
     let current_colour = photon_colour;
 
@@ -202,6 +207,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
         position: fragment.position,
         in_direction: photon_ray.direction,
         out_direction: next_ray.direction,
+        is_direct: path_length == 1,
       });
       true
     } else {

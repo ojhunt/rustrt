@@ -55,7 +55,7 @@ impl RawSurfaceValue for EmissionCoefficients {
     };
   }
   fn from_array(array: Option<[f32; 3]>) -> Option<Self> {
-    if let Some([a, d, s]) = array {
+    if let Some([d, a, s]) = array {
       if a.max(d.max(s)) == 0.0 {
         return None;
       }

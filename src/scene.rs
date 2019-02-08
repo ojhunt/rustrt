@@ -92,7 +92,21 @@ pub struct Scene {
   caustic_photon_map: Option<PhotonMap<CausticSelector>>,
   light_samples: Vec<LightSample>,
 }
+struct SampleLighting {
+  diffuse: Vector,
+  ambient: Vector,
+  specular: Vector,
+}
 
+impl SampleLighting {
+  fn new() -> Self {
+    SampleLighting {
+      ambient: Vector::new(),
+      diffuse: Vector::new(),
+      specular: Vector::new(),
+    }
+  }
+}
 impl Scene {
   pub fn new(settings: &SceneSettings) -> Arc<Scene> {
     let real_path = Path::new(&settings.scene_file).canonicalize().unwrap();
@@ -189,6 +203,7 @@ impl Scene {
     Timing::time("Build scene graph", || {
       Arc::get_mut(this).unwrap()._scene.finalize();
     });
+    Arc::get_mut(this).unwrap().light_samples = this.get_light_samples(10000);
     Self::rebuild_photon_map(this, max_elements_per_leaf);
   }
 
@@ -199,8 +214,10 @@ impl Scene {
   }
 
   fn rebuild_photon_map(this: &mut Arc<Self>, max_elements_per_leaf: usize) {
+    if this.settings.photon_count == 0 {
+      return;
+    }
     let diffuse_selector = Arc::new(DiffuseSelector::new(!this.settings.use_direct_lighting));
-    Arc::get_mut(this).unwrap().light_samples = this.get_light_samples(10000);
     Arc::get_mut(this).unwrap().diffuse_photon_map = PhotonMap::new(
       &diffuse_selector,
       this,
@@ -252,20 +269,26 @@ impl Scene {
     // let ambient_colour = Vector::from(surface.ambient_colour);
     let mut diffuse_colour = Vector::from(surface.diffuse_colour);
     if let Some(emission) = surface.emissive_colour {
-      return (Vector::splat(emission.ambient as f32), collision.distance);
+      return (
+        Vector::from(
+          emission.ambient * surface.ambient_colour
+            + emission.diffuse * surface.diffuse_colour
+            + emission.specular * surface.specular_colour,
+        ),
+        collision.distance,
+      );
     }
 
     let mut colour;
-    let ambient_light = {
-      let diffuse = match &self.diffuse_photon_map {
-        None => Colour::RGB(0.0, 0.0, 0.0),
-        Some(photon_map) => (photon_map.lighting(&fragment, &surface, photon_samples)),
-      };
+    let ambient_light = if let Some(ref diffuse_map) = self.diffuse_photon_map {
+      let diffuse = diffuse_map.lighting(&fragment, &surface, photon_samples);
       let caustic = match &self.caustic_photon_map {
         None => Colour::RGB(0.0, 0.0, 0.0),
         Some(photon_map) => photon_map.lighting(&fragment, &surface, (photon_samples / 15).max(1)),
       };
-      (diffuse + 0.0 * caustic)
+      Some(diffuse + 0.0 * caustic)
+    } else {
+      None
     };
 
     let mut max_secondary_distance = 0.0f64;
@@ -283,35 +306,42 @@ impl Scene {
       max_secondary_distance = max_secondary_distance.max(secondary_distance);
     }
     colour = secondaries_colour;
-    let mut direct_lighting = Vector::new();
+    Vector::new();
     diffuse_colour = diffuse_colour * remaining_weight;
     if diffuse_colour.length() <= 0.01 {
       return (colour, collision.distance + max_secondary_distance);
     }
 
-    if self.settings.use_direct_lighting {
-      let light_samples = 120;
-      let mut has_intersected = false;
+    let direct_lighting = if self.settings.use_direct_lighting {
+      let mut direct_lighting = SampleLighting::new();
+      let light_samples = 50;
+      let light_scale = lights.len() as f64 / light_samples as f64;
       for i in 0..light_samples {
         let light = &lights[random(0.0, lights.len() as f64) as usize];
         let mut ldir = light.position - surface.position;
-        let ldir_len = ldir.dot(ldir).sqrt();
+        let ldir_len = ldir.length();
         ldir = ldir.normalize();
-        if i * 2 < light_samples || has_intersected {
-          let shadow_test = Ray::new_bound(surface.position, ldir, 0.02 * ldir_len, ldir_len * 0.99, None);
-          if self.intersect(&shadow_test).is_some() {
-            has_intersected = true;
-            continue;
-          }
-        }
-        let diffuse_intensity = ldir.dot(surface.normal) / light_samples as f64;
-        if diffuse_intensity <= 0.0 {
+        let shadow_test = Ray::new_bound(surface.position, ldir, 0.005, ldir_len - 0.001, None);
+        if self.intersect(&shadow_test).is_some() {
           continue;
         }
-        direct_lighting = direct_lighting + light.emission * light.output() * diffuse_intensity;
+
+        let diffuse_intensity = light_scale * light.weight * ldir.dot(surface.normal).max(0.0);
+        let ambient_intensity = light_scale * light.weight * light.ambient;
+        direct_lighting.diffuse = direct_lighting.diffuse + light.diffuse * diffuse_intensity;
+        direct_lighting.ambient = direct_lighting.ambient + light.ambient * ambient_intensity;
       }
-    }
-    colour = colour + Vector::from(Colour::from(diffuse_colour) * (Colour::from(direct_lighting) + ambient_light));
+      direct_lighting
+    } else {
+      SampleLighting::new()
+    };
+
+    colour = colour
+      + Vector::from(
+        Colour::from(diffuse_colour) * Colour::from(direct_lighting.diffuse)
+          + Colour::from(surface.ambient_colour) * ambient_light.unwrap_or(Colour::from(direct_lighting.ambient))
+          + Colour::from(surface.specular_colour) * Colour::from(direct_lighting.specular),
+      );
 
     return (colour, collision.distance + max_secondary_distance);
   }
@@ -326,41 +356,23 @@ impl Scene {
       }
       area
     };
-    if light_objects.len() != 0 {
-      let max_lights = max_samples;
-      let mut remaining_lights = max_lights;
-      let mut lights: Vec<LightSample> = vec![];
-      for i in 0..light_areas.len() {
-        let light_area = light_areas[i];
-        let light_count = if i < light_areas.len() - 1 {
-          (max_lights as f64 * (light_area / total_area)) as usize
-        } else {
-          remaining_lights
-        };
-        remaining_lights -= light_count;
-        let mut samples = light_objects[i].get_samples(light_count, self);
-        lights.append(&mut samples);
+    let max_lights = max_samples;
+    let mut remaining_lights = max_lights;
+    let mut lights: Vec<LightSample> = vec![];
+    for i in 0..light_areas.len() {
+      let light_area = light_areas[i];
+      let light_count = if i < light_areas.len() - 1 {
+        (max_lights as f64 * (light_area / total_area)) as usize
+      } else {
+        remaining_lights
+      };
+      remaining_lights -= light_count;
+      let mut samples = light_objects[i].get_samples(light_count, self);
+      for mut sample in samples.iter_mut() {
+        sample.weight *= light_count as f64 / max_lights as f64;
       }
-      return lights;
-    } else {
-      return (vec![
-        // Vector::point(2., 3., 0.),
-        // Vector::point(-10., -12., -4.),
-        // Vector::point(-16., 9.5, 4.),
-        // Vector::point(-14., 19.5, -2.),
-        Vector::point(0.0, 1.25, 0.0),
-      ])
-      .iter()
-      .map(|p| LightSample {
-        position: *p,
-        direction: None, //Some(Vector::vector(0.0, -1.0, 0.0)),
-        diffuse: Vector::vector(1.0, 1.0, 1.0),
-        specular: Vector::vector(1.0, 1.0, 1.0),
-        emission: Vector::vector(1.0, 1.0, 1.0),
-        weight: 20.0,
-        power: 500000.0,
-      })
-      .collect();
-    };
+      lights.append(&mut samples);
+    }
+    return lights;
   }
 }
