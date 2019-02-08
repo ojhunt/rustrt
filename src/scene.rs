@@ -280,16 +280,16 @@ impl Scene {
     }
 
     let mut colour;
-    let photon_lighting = if let Some(ref diffuse_map) = self.diffuse_photon_map {
-      let diffuse = diffuse_map.lighting(&fragment, &surface, photon_samples);
-      let caustic = match &self.caustic_photon_map {
-        None => Colour::RGB(0.0, 0.0, 0.0),
+    let (photon_lighting, had_shadow) = if let Some(ref diffuse_map) = self.diffuse_photon_map {
+      let (diffuse, had_shadow) = diffuse_map.lighting(&fragment, &surface, photon_samples);
+      let (caustic, _) = match &self.caustic_photon_map {
+        None => (Colour::RGB(0.0, 0.0, 0.0), false),
         Some(photon_map) => photon_map.lighting(&fragment, &surface, (photon_samples / 15).max(1)),
       };
       let result = (diffuse + 0.0 * caustic) * surface.diffuse_colour;
-      Some(result)
+      (Some(result), Some(had_shadow))
     } else {
-      None
+      (None, None)
     };
 
     let mut max_secondary_distance = 0.0f64;
@@ -322,11 +322,12 @@ impl Scene {
         let mut ldir = light.position - surface.position;
         let ldir_len = ldir.length();
         ldir = ldir.normalize();
-        let shadow_test = Ray::new_bound(surface.position, ldir, 0.005, ldir_len - 0.001, None);
-        if self.intersect(&shadow_test).is_some() {
-          continue;
+        if had_shadow.unwrap_or(true) {
+          let shadow_test = Ray::new_bound(surface.position, ldir, 0.005, ldir_len - 0.001, None);
+          if self.intersect(&shadow_test).is_some() {
+            continue;
+          }
         }
-
         let diffuse_intensity = light_scale * light.weight * ldir.dot(surface.normal).max(0.0);
         let ambient_intensity = light_scale * light.weight * light.ambient;
         direct_lighting.diffuse = direct_lighting.diffuse + light.diffuse * diffuse_intensity;

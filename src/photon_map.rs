@@ -16,19 +16,25 @@ use crate::vectors::{Point, Vector,VectorType};
 use crate::dispatch_queue::DispatchQueue;
 
 #[derive(Clone, Debug, Copy)]
-pub struct Photon {
+struct PhotonData {
   colour: Colour,
-  position: Point,
   in_direction: Vector,
   out_direction: Vector,
   is_direct: bool,
 }
 
+#[derive(Clone, Debug, Copy)]
+pub struct Photon {
+  data: Option<PhotonData>,
+  position: Point,
+}
+
 impl HasBoundingBox for Photon {
   fn bounds(&self) -> BoundingBox {
-    BoundingBox::new_from_point(self.position)
+    return BoundingBox::new_from_point(self.position);
   }
 }
+
 impl HasPosition for Photon {
   fn get_position(&self) -> Point {
     return self.position;
@@ -62,6 +68,7 @@ pub trait PhotonSelector: Debug + Clone + Sync + Send {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode;
   fn weight_for_sample(&self, position: Point, photon: &Photon, photon_count: usize, sample_radius: f64)
     -> Option<f64>;
+  fn record_shadow_rays(&self) -> bool;
 }
 
 #[derive(Debug)]
@@ -127,6 +134,26 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
   let mut photons = vec![];
   let mut photon_colour = initial_colour;
   let mut photon_ray = initial_ray.clone();
+  if selector.record_shadow_rays() {
+    let mut shadow_depth = 0;
+    let mut shadow_ray = Ray::new(
+      photon_ray.origin + photon_ray.direction * 0.01,
+      photon_ray.direction,
+      None,
+    );
+    while let Some((collision, _)) = scene.intersect(&shadow_ray) {
+      let new_position = shadow_ray.origin + (collision.distance + 0.01) * shadow_ray.direction;
+      if shadow_depth > 0 {
+        photons.push(Photon {
+          data: None,
+          position: new_position,
+        });
+      }
+      shadow_depth += 1;
+      shadow_ray = Ray::new(new_position, shadow_ray.direction, None);
+    }
+    shadow_depth += 1;
+  }
   // println!("Photon colour {:?}", photon_colour);
   while path_length < 256 {
     let current_colour = photon_colour;
@@ -203,11 +230,13 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
       }
 
       photons.push(Photon {
-        colour: current_colour,
+        data: Some(PhotonData {
+          colour: current_colour,
+          in_direction: photon_ray.direction,
+          out_direction: next_ray.direction,
+          is_direct: path_length == 1,
+        }),
         position: fragment.position,
-        in_direction: photon_ray.direction,
-        out_direction: next_ray.direction,
-        is_direct: path_length == 1,
       });
       true
     } else {
@@ -238,7 +267,7 @@ fn bounce_photons<Selector: PhotonSelector + 'static>(
   initial_photons: &[(Ray, Colour)],
 ) -> Vec<Photon> {
   let mut photons = vec![];
-  let mut queue = DispatchQueue::new(8);
+  let mut queue = DispatchQueue::default();
 
   'photon_loop: for photon in initial_photons {
     queue.add_task(photon);
@@ -323,7 +352,9 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
     {
       let _t = Timing::new("Normalising photon power");
       for i in 0..photons.len() {
-        photons[i].colour = photons[i].colour * (1.0 / initial_photon_count as f64);
+        if let Some(ref mut photon_data) = photons[i].data {
+          photon_data.colour = photon_data.colour * (1.0 / initial_photon_count as f64);
+        }
       }
     }
     let tree = Timing::time("Creating KDTree", || {
@@ -336,32 +367,34 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
     });
   }
 
-  pub fn lighting(&self, _fragment: &Fragment, surface: &MaterialCollisionInfo, photon_samples: usize) -> Colour {
+  pub fn lighting(
+    &self,
+    _fragment: &Fragment,
+    surface: &MaterialCollisionInfo,
+    photon_samples: usize,
+  ) -> (Colour, bool) {
     if photon_samples == 0 {
-      return Colour::RGB(0.0, 0.0, 0.0);
+      return (Colour::RGB(0.0, 0.0, 0.0), false);
     }
     let mut result = Vector::new();
     let surface_normal = surface.normal;
     let position = surface.position;
-    let _radius_cutoff = 0.25 * 30.0;
-
-    let (photons, radius) = self.tree.nearest(surface.position, photon_samples, |p| {
-      // if p.out_direction.dot(surface_normal) < 0.0 {
-      //   return None;
-      // }
-
+    let _radius_cutoff = 0.05;
+    let mut nearest_shadow = std::f64::INFINITY;
+    let (photons, radius) = self.tree.nearest(surface.position, photon_samples, &mut |p| {
       let to_vector = p.position - position;
 
       let length = to_vector.length();
 
       let _overlap = (to_vector / length).dot(surface_normal);
-      // if overlap > 0.4 {
-      //   return None;
-      // }
-      return Some(to_vector.length());
+      if p.data.is_none() {
+        nearest_shadow = nearest_shadow.min(length);
+        return None;
+      }
+      return Some(length);
     });
     if photons.len() == 0 {
-      return Colour::RGB(0.0, 0.0, 0.0);
+      return (Colour::RGB(0.0, 0.0, 0.0), false);
     }
     let mut max_radius: f64 = 0.0;
     let _skipped = 0;
@@ -370,12 +403,20 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
         .selector
         .weight_for_sample(surface.position, &photon, photons.len(), radius)
       {
+        let photon_data = if let Some(ref data) = photon.data {
+          data
+        } else {
+          continue;
+        };
         max_radius = max_radius.max(*distance);
-        let weight = photon.in_direction.dot(-surface_normal).max(0.0);
-        result = result + Vector::from(photon.colour) * (contribution * weight).max(0.0);
+        let weight = photon_data.in_direction.dot(-surface_normal).max(0.0);
+        result = result + Vector::from(photon_data.colour) * (contribution * weight).max(0.0);
       }
     }
-    return Colour::from(result) * (1.0 / max_radius / max_radius / 3.1412).max(0.0);
+    return (
+      Colour::from(result) * (1.0 / max_radius / max_radius / 3.1412).max(0.0),
+      nearest_shadow <= max_radius,
+    );
   }
 }
 
@@ -423,6 +464,9 @@ impl PhotonSelector for DiffuseSelector {
   ) -> Option<f64> {
     Some(1.0)
   }
+  fn record_shadow_rays(&self) -> bool {
+    return !self.include_first_bounce;
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -452,5 +496,8 @@ impl PhotonSelector for CausticSelector {
     _sample_radius: f64,
   ) -> Option<f64> {
     Some(1.0) // / photon_count as f64)
+  }
+  fn record_shadow_rays(&self) -> bool {
+    return false;
   }
 }

@@ -18,13 +18,22 @@ fn shuffle<T>(input: &mut Vec<T>) {
   input.shuffle(&mut rng);
 }
 
+impl<T> Default for DispatchQueue<T>
+where
+  T: Send + Sync + Clone + 'static,
+{
+  fn default() -> Self {
+    return DispatchQueue::new(num_cpus::get());
+  }
+}
+
 impl<T> DispatchQueue<T>
 where
   T: Send + Sync + Clone + 'static,
 {
   pub fn new(thread_limit: usize) -> Self {
     DispatchQueue {
-      thread_limit: num_cpus::get(),
+      thread_limit: thread_limit,
       global_queue: vec![],
       current_task: 0,
     }

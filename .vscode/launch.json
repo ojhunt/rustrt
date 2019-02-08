@@ -26,10 +26,11 @@
                 "(0,0.75,0)",
                 "-o",
                 "${workspaceFolder}/test.png",
-                // "--photon-count",
-                // "10",
-                // "--photon-samples",
-                // "1"
+                "--photon-count",
+                "10",
+                "--photon-samples",
+                "1",
+                "--use-direct-lighting"
             ],
             "cwd": "${workspaceFolder}"
         },

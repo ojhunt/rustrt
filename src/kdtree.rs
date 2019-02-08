@@ -100,11 +100,11 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
   }
 
   // Far from optimal -- the furthest node should start its calculation on top of the existing list
-  fn nearest<F: Fn(&T) -> Option<f64>>(
+  fn nearest<F: FnMut(&T) -> Option<f64>>(
     &self,
     nearest_elements: &mut ElementAccumulator<(f64, T)>,
     position: Point,
-    filter: &F,
+    filter: &mut F,
   ) {
     let node = match self {
       KDTreeNode::Leaf(elements, bounds) => {
@@ -219,10 +219,15 @@ impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
       root: build_tree(elements, bounds, max_children),
     };
   }
-  pub fn nearest<F: Fn(&T) -> Option<f64>>(&self, position: Point, count: usize, filter: F) -> (Vec<(T, f64)>, f64) {
+  pub fn nearest<F: FnMut(&T) -> Option<f64>>(
+    &self,
+    position: Point,
+    count: usize,
+    filter: &mut F,
+  ) -> (Vec<(T, f64)>, f64) {
     let comparator = |a: &(f64, T), b: &(f64, T)| return a.0.partial_cmp(&b.0).unwrap();
     let mut queue: ElementAccumulator<(f64, T)> = ElementAccumulator::new(&comparator, count);
-    self.root.nearest(&mut queue, position, &filter);
+    self.root.nearest(&mut queue, position, filter);
     if queue.is_empty() {
       return (vec![], std::f64::INFINITY);
     }

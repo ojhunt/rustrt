@@ -167,7 +167,7 @@ impl RenderBuffer {
 impl Camera for PerspectiveCamera {
   fn render(&self, scene: Arc<Scene>, photon_samples: usize) -> DynamicImage {
     let mut buffer = RenderBuffer::new(self._width, self._height);
-    let mut first_sample_queue = DispatchQueue::new(10);
+    let mut first_sample_queue = DispatchQueue::default();
     {
       let _t = Timing::new("Generating first sample set");
       for x in 0..self._width {
@@ -198,7 +198,7 @@ impl Camera for PerspectiveCamera {
     let mut max_resample_count = 0;
     // let mut queue = Di
     if self.do_multisampling {
-      let mut multisample_queue = DispatchQueue::new(10);
+      let mut multisample_queue = DispatchQueue::default();
       {
         let _t = Timing::new("Performing initial multisample tasks");
         for x in 0..self._width {
@@ -237,11 +237,9 @@ impl Camera for PerspectiveCamera {
           })
         };
 
-        let mut resample_count = 0;
         {
           let _t = Timing::new("Copying resample output");
           for (x, y, (colour, distance, count)) in results {
-            resample_count += count;
             max_resample_count = max_resample_count.max(count);
             buffer.set(x, y, (colour, count, distance));
           }

@@ -33,13 +33,6 @@ impl BVHPrimitiveInfo {
   }
 }
 
-fn tree_depth(node: &BVHNode) -> usize {
-  match node {
-    BVHNode::Leaf(_) => 1,
-    BVHNode::Node((_, _, left, right)) => 1 + tree_depth(left).max(tree_depth(right)),
-  }
-}
-
 impl BVH {
   pub fn new<T: Intersectable>(elements: &[T]) -> BVH {
     let mut info: Vec<BVHPrimitiveInfo> = Vec::new();
