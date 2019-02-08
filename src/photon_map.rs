@@ -96,9 +96,9 @@ fn make_photon(sample: &LightSample) -> (Ray, Colour) {
       Vector::vector(v.cos() * u.sqrt(), -(1.0 - u).sqrt(), v.sin() * u.sqrt())
     };
 
-    if sample.direction.is_some() && light_dir.dot(sample.direction.unwrap()) < 0.0 {
-      light_dir = -light_dir;
-    }
+    // if sample.direction.is_some() && light_dir.dot(sample.direction.unwrap()) < 0.0 {
+    //   light_dir = -light_dir;
+    // }
 
     return (
       Ray::new(sample.position + light_dir * 0.01, light_dir, None),

@@ -47,9 +47,12 @@ impl PerspectiveCamera {
     let positions = [
       (x - 0.25 * radius, y - 0.25 * radius),
       (x - 0.25 * radius, y + 0.25 * radius),
+      (x, y),
       (x + 0.25 * radius, y - 0.25 * radius),
       (x + 0.25 * radius, y + 0.25 * radius),
     ];
+    let subsample_count = positions.len();
+    let subsample_weight = 1.0 / subsample_count as f64;
     let _max_distance = 0.0f64;
     let rays: Vec<((f64, f64), Ray)> = positions
       .iter()
@@ -72,24 +75,29 @@ impl PerspectiveCamera {
       (Vector::new(), 0.0),
       |(average_colour, average_distance), (_, (sample_colour, sample_distance))| {
         (
-          average_colour + *sample_colour * 0.25,
-          average_distance + sample_distance * 0.25,
+          average_colour + *sample_colour * subsample_weight,
+          average_distance + sample_distance * subsample_weight,
         )
       },
     );
     return samples.iter().fold(
       (Vector::new(), 0.0f64, 0),
       |(current_value, current_max_distance, current_count), ((x, y), (a, distance))| {
-        let (value, distance, count) =
-          if ((*a - average_colour).length() > DELTA || (average_distance - distance).abs() > DELTA) && depth < 2 {
-            let (v, distance, count) = self.multisample(scene, photon_samples, *x, *y, radius / 2.0, depth + 1);
-            let one = Vector::splat(1.0);
-            let mask = v.lt(one);
-            (mask.select(v, one), distance.max(current_max_distance), count)
-          } else {
-            (*a, *distance, 4)
-          };
-        return (current_value + value * 0.25, distance, current_count + count);
+        let (value, distance, count) = if ((*a - average_colour).length() > DELTA && depth < 2)
+          || ((average_distance - distance).abs() > DELTA && depth < 3)
+        {
+          let (v, distance, count) = self.multisample(scene, photon_samples, *x, *y, radius / 2.0, depth + 1);
+          let one = Vector::splat(1.0);
+          let mask = v.lt(one);
+          (mask.select(v, one), distance.max(current_max_distance), count)
+        } else {
+          (*a, *distance, subsample_count)
+        };
+        return (
+          current_value + value * subsample_weight,
+          distance,
+          current_count + count,
+        );
       },
     );
   }

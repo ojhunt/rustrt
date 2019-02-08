@@ -280,13 +280,14 @@ impl Scene {
     }
 
     let mut colour;
-    let ambient_light = if let Some(ref diffuse_map) = self.diffuse_photon_map {
+    let photon_lighting = if let Some(ref diffuse_map) = self.diffuse_photon_map {
       let diffuse = diffuse_map.lighting(&fragment, &surface, photon_samples);
       let caustic = match &self.caustic_photon_map {
         None => Colour::RGB(0.0, 0.0, 0.0),
         Some(photon_map) => photon_map.lighting(&fragment, &surface, (photon_samples / 15).max(1)),
       };
-      Some(diffuse + 0.0 * caustic)
+      let result = (diffuse + 0.0 * caustic) * surface.diffuse_colour;
+      Some(result)
     } else {
       None
     };
@@ -339,7 +340,7 @@ impl Scene {
     colour = colour
       + Vector::from(
         Colour::from(diffuse_colour) * Colour::from(direct_lighting.diffuse)
-          + Colour::from(surface.ambient_colour) * ambient_light.unwrap_or(Colour::from(direct_lighting.ambient))
+          + photon_lighting.unwrap_or(Colour::from(surface.ambient_colour) * Colour::from(direct_lighting.ambient))
           + Colour::from(surface.specular_colour) * Colour::from(direct_lighting.specular),
       );
 
