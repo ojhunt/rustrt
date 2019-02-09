@@ -358,7 +358,7 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
       }
     }
     let tree = Timing::time("Creating KDTree", || {
-      return KDTree::new(&photons, max_elements_per_leaf);
+      return KDTree::new(&mut photons, max_elements_per_leaf);
     });
 
     return Some(PhotonMap {

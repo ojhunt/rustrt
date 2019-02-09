@@ -164,7 +164,7 @@ impl<T: Clone + HasPosition> KDTree<T> {
 }
 
 fn build_tree<T: Clone + HasBoundingBox + HasPosition>(
-  elements: &[T],
+  elements: &mut [T],
   bounds: BoundingBox,
   max_children: usize,
 ) -> KDTreeNode<T> {
@@ -173,26 +173,25 @@ fn build_tree<T: Clone + HasBoundingBox + HasPosition>(
   }
   let max_axis = bounds.max_axis();
 
-  let mut copy = elements.to_vec();
-  copy.sort_by(|l, r| {
+  elements.sort_by(|l, r| {
     let left = l.get_position().data.extract(max_axis);
     let right = r.get_position().data.extract(max_axis);
     return left.partial_cmp(&right).unwrap();
   });
-  let split_point = copy[copy.len() / 2].get_position().data.extract(max_axis);
+  let split_point = elements[elements.len() / 2].get_position().data.extract(max_axis);
 
-  let (left, right) = copy.split_at(copy.len() / 2);
+  let (left, right) = elements.split_at_mut(elements.len() / 2);
 
   let left_bounds = {
     let mut result = BoundingBox::new();
-    for elem in left {
+    for elem in left.iter() {
       result = result.merge_with_point(elem.get_position());
     }
     result
   };
   let right_bounds = {
     let mut result = BoundingBox::new();
-    for elem in right {
+    for elem in right.iter() {
       result = result.merge_with_point(elem.get_position());
     }
     result
@@ -209,9 +208,9 @@ fn build_tree<T: Clone + HasBoundingBox + HasPosition>(
 }
 
 impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
-  pub fn new(elements: &[T], max_children: usize) -> Self {
+  pub fn new(elements: &mut [T], max_children: usize) -> Self {
     let mut bounds = BoundingBox::new();
-    for elem in elements {
+    for elem in elements.iter() {
       bounds = bounds.merge_with_bbox(elem.bounds());
     }
 
