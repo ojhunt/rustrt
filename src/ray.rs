@@ -2,7 +2,7 @@ use crate::vectors::*;
 
 #[derive(Debug, Clone)]
 pub struct RayContext {
-  ior: Vec<f64>,
+  ior: Vec<f32>,
 }
 
 impl RayContext {
@@ -10,11 +10,11 @@ impl RayContext {
     RayContext { ior: vec![] }
   }
 
-  pub fn enter_material(&self, _ior: f64) -> RayContext {
+  pub fn enter_material(&self, _ior: f32) -> RayContext {
     self.clone()
   }
 
-  pub fn current_ior_or(&self, _or: f64) -> f64 {
+  pub fn current_ior_or(&self, _or: f32) -> f32 {
     *self.ior.last().unwrap_or(&1.0)
   }
   pub fn exit_material(&self) -> RayContext {

@@ -178,9 +178,9 @@ pub struct WFMaterial {
   emissive_colour: WFSurfaceProperty<EmissionCoefficients, TextureIdx>, // Ke
   transparent_colour: Option<Colour>,                                   // Tf
   transparency: Transparency,                                           // d -- seriously who came up with these names?
-  specular_exponent: Option<f64>,                                       // Ns
-  sharpness: Option<f64>,
-  index_of_refraction: Option<f64>, // Ni
+  specular_exponent: Option<f32>,                                       // Ns
+  sharpness: Option<f32>,
+  index_of_refraction: Option<f32>, // Ni
   illumination_model: usize,
 }
 
@@ -268,15 +268,15 @@ impl Material for WFMaterial {
         let (ni, nt, new_context) = if in_object {
           let new_context = ray.ray_context.exit_material();
           (
-            ray.ray_context.current_ior_or(ior),
-            new_context.current_ior_or(1.0),
+            ray.ray_context.current_ior_or(ior) as f64,
+            new_context.current_ior_or(1.0) as f64,
             new_context,
           )
         } else {
           let new_context = ray.ray_context.enter_material(ior);
-          (ray.ray_context.current_ior_or(1.0), ior, new_context)
+          (ray.ray_context.current_ior_or(1.0) as f64, ior as f64, new_context)
         };
-        let nr = ni / nt;
+        let nr = ni as f64 / nt as f64;
 
         let n_dot_v = normal.dot(view);
 
@@ -380,13 +380,6 @@ impl WFMaterial {
     mat: &obj::Material,
     texture_loader: F,
   ) -> WFMaterial {
-    let opt_f32_to_f64 = |o: Option<f32>| {
-      if let Some(v) = o {
-        Some(v as f64)
-      } else {
-        None
-      }
-    };
 
     let (ambient, f) = load_surface(scene, mat.ka, &mat.map_ka, texture_loader);
     let (diffuse, f1) = load_surface(scene, mat.kd, &mat.map_kd, f);
@@ -401,8 +394,8 @@ impl WFMaterial {
       emissive_colour: emission,
       bump_map: bump_map,
       transparent_colour: colour_from_slice(mat.tf),
-      specular_exponent: opt_f32_to_f64(mat.ns),
-      index_of_refraction: opt_f32_to_f64(mat.ni),
+      specular_exponent: mat.ns,
+      index_of_refraction: mat.ni,
       transparency: if let Some(d) = mat.d {
         Transparency::Constant(d as f64)
       } else {
