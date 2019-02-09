@@ -32,6 +32,9 @@ pub trait VectorType: Sized + Copy {
   fn w(&self) -> f32 {
     self.data().extract(3)
   }
+  fn axis(&self, index: usize) -> f32 {
+    self.data().extract(index)
+  }
   fn splat(value: f32) -> Self {
     Self::new(f32x4::splat(value))
   }

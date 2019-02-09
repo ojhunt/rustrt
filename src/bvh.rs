@@ -153,16 +153,34 @@ fn intersect<'a, T: Intersectable>(
   return result;
 }
 
-const NUM_BUCKETS: usize = 64;
+const NUM_BUCKETS: usize = 4;
 const MAX_PRIMS_PER_NODE: usize = 4;
 
 #[derive(Copy, Clone, Debug)]
 struct BucketInfo {
   pub count: usize,
+  pub left_inclusive_count: usize,
+  pub right_exclusive_count: usize,
   pub bounds: BoundingBox,
+  pub centroid_bounds: BoundingBox,
+  pub left_inclusive_bounds: BoundingBox,
+  pub right_exclusive_bounds: BoundingBox,
+  pub left_inclusive_centroid_bounds: BoundingBox,
+  pub right_exclusive_centroid_bounds: BoundingBox,
+  pub split_cost: f64,
 }
 
-fn recursive_build(depth: usize, primitives: &mut [BVHPrimitiveInfo]) -> BVHNode {
+fn bucket_for_primitive(
+  centroid_bounds: BoundingBox,
+  bucket_count: usize,
+  axis: usize,
+  primitive: &BVHPrimitiveInfo,
+) -> usize {
+  return ((bucket_count as f64 * centroid_bounds.offset(primitive.centroid).axis(axis) as f64) as usize)
+    .min(bucket_count - 1);
+}
+
+fn recursive_build(depth: usize, primitives: &mut Vec<BVHPrimitiveInfo>) -> BVHNode {
   let mut bounds = BoundingBox::new();
   for primitive in primitives.iter() {
     bounds = bounds.merge_with_bbox(primitive.bounds);
@@ -180,7 +198,7 @@ fn recursive_build(depth: usize, primitives: &mut [BVHPrimitiveInfo]) -> BVHNode
   };
 
   if length == 1 {
-    return make_leaf(primitives);
+    return make_leaf(&primitives);
   }
 
   let mut centroid_bounds = BoundingBox::new();
@@ -190,75 +208,105 @@ fn recursive_build(depth: usize, primitives: &mut [BVHPrimitiveInfo]) -> BVHNode
 
   let max_axis = centroid_bounds.max_axis();
   if centroid_bounds.max.data.extract(max_axis) == centroid_bounds.min.data.extract(max_axis) {
-    return make_leaf(primitives);
+    return make_leaf(&primitives);
   }
 
   let mut buckets = [BucketInfo {
     count: 0,
+    left_inclusive_count: 0,
+    right_exclusive_count: 0,
     bounds: BoundingBox::new(),
+    centroid_bounds: BoundingBox::new(),
+    left_inclusive_bounds: BoundingBox::new(),
+    right_exclusive_bounds: BoundingBox::new(),
+    left_inclusive_centroid_bounds: BoundingBox::new(),
+    right_exclusive_centroid_bounds: BoundingBox::new(),
+    split_cost: 0.0,
   }; NUM_BUCKETS];
 
+  let initial_count = primitives.len();
+
+  // First pass, accrue the per bucket primitive information
   for primitive in primitives.iter() {
-    let b = ((NUM_BUCKETS as f32 * centroid_bounds.offset(primitive.centroid).data.extract(max_axis)) as usize)
-      .min(NUM_BUCKETS - 1);
+    let b = bucket_for_primitive(centroid_bounds, NUM_BUCKETS, max_axis, primitive);
     assert!(b < NUM_BUCKETS);
     buckets[b].count += 1;
     buckets[b].bounds = buckets[b].bounds.merge_with_bbox(primitive.bounds);
+    buckets[b].centroid_bounds = buckets[b].centroid_bounds.merge_with_bbox(primitive.bounds);
     assert!(buckets[b].bounds.is_valid());
   }
 
-  let mut cost = [0. as f64; NUM_BUCKETS - 1];
-  for i in 0..(NUM_BUCKETS - 1) {
-    let mut b0 = BoundingBox::new();
-    let mut b1 = BoundingBox::new();
-    let mut count0 = 0;
-    let mut count1 = 0;
-    for j in 0..=i {
-      b0 = b0.merge_with_bbox(buckets[j].bounds);
-      count0 += buckets[j].count;
-    }
-    for j in (i + 1)..NUM_BUCKETS {
-      b1 = b1.merge_with_bbox(buckets[j].bounds);
-      count1 += buckets[j].count;
-    }
-    let left_cost = count0 as f64 * b0.surface_area();
-    let right_cost = count1 as f64 * b1.surface_area();
-    cost[i] = 0.125 + (left_cost + right_cost) / bounds.surface_area();
-  }
-
-  let mut min_cost = cost[0];
-  let mut split_bucket = 0;
-  for i in 1..(NUM_BUCKETS - 1) {
-    if cost[i] < min_cost {
-      min_cost = cost[i];
-      split_bucket = i;
+  // Second pass, compute left properties
+  {
+    let mut cummulative_bounds = BoundingBox::new();
+    let mut cummulative_centroid_bounds = BoundingBox::new();
+    let mut cummulative_count = 0;
+    for i in 0..NUM_BUCKETS {
+      buckets[i].left_inclusive_count = cummulative_count + buckets[i].count;
+      cummulative_count = buckets[i].left_inclusive_count;
+      buckets[i].left_inclusive_bounds = cummulative_bounds.merge_with_bbox(buckets[i].bounds);
+      cummulative_bounds = buckets[i].left_inclusive_bounds;
+      buckets[i].left_inclusive_centroid_bounds =
+        cummulative_centroid_bounds.merge_with_bbox(buckets[i].left_inclusive_centroid_bounds);
+      cummulative_centroid_bounds = buckets[i].left_inclusive_centroid_bounds;
     }
   }
 
-  let leaf_cost = length;
+  // Third pass, compute right properties
+  {
+    let mut prior_bounds = BoundingBox::new();
+    let mut prior_centroid_bounds = BoundingBox::new();
+    let mut cummulative_count = 0;
+    for j in 0..NUM_BUCKETS {
+      let i = NUM_BUCKETS - j - 1;
+      buckets[i].right_exclusive_bounds = prior_bounds;
+      prior_bounds = prior_bounds.merge_with_bbox(buckets[i].bounds);
+      buckets[i].right_exclusive_centroid_bounds = prior_centroid_bounds;
+      prior_centroid_bounds = prior_centroid_bounds.merge_with_bbox(buckets[i].right_exclusive_centroid_bounds);
 
-  if length < MAX_PRIMS_PER_NODE && min_cost >= leaf_cost as f64 {
-    return make_leaf(primitives);
-  }
-
-  let mut left_primitives: Vec<BVHPrimitiveInfo> = Vec::new();
-  let mut right_primitives: Vec<BVHPrimitiveInfo> = Vec::new();
-  let centroid_split = centroid_bounds.min.data.extract(max_axis)
-    + (centroid_bounds.max - centroid_bounds.min).data.extract(max_axis) * split_bucket as f32 / NUM_BUCKETS as f32;
-  let mut inner_bounds = BoundingBox::new();
-  for primitive in primitives.iter() {
-    inner_bounds = inner_bounds.merge_with_bbox(primitive.bounds);
-    if primitive.centroid.data.extract(max_axis) <= centroid_split {
-      left_primitives.push(*primitive);
-    } else {
-      right_primitives.push(*primitive);
+      buckets[i].right_exclusive_count = cummulative_count;
+      cummulative_count = cummulative_count + buckets[i].count;
     }
   }
+
+  // Fourth pass, compute the split costs
+  {
+    let leaf_surface = bounds.surface_area();
+    for bucket in buckets.iter_mut() {
+      assert!(bucket.left_inclusive_count + bucket.right_exclusive_count == initial_count);
+      let left_cost = bucket.left_inclusive_bounds.surface_area() / leaf_surface * bucket.left_inclusive_count as f64;
+      let right_cost =
+        bucket.right_exclusive_bounds.surface_area() / leaf_surface * bucket.right_exclusive_count as f64;
+      bucket.split_cost = 1.0 + left_cost * 2.0 + right_cost * 2.0;
+    }
+  }
+
+  let mut minimum_split_cost = std::f64::INFINITY;
+  let mut minimum_split_bucket = 0;
+  for i in 0..NUM_BUCKETS - 1 {
+    if buckets[i].split_cost < minimum_split_cost {
+      minimum_split_bucket = i;
+      minimum_split_cost = buckets[i].split_cost;
+    }
+  }
+
+  let leaf_cost = initial_count as f64;
+  if leaf_cost < minimum_split_cost && initial_count <= MAX_PRIMS_PER_NODE {
+    return make_leaf(&primitives);
+  }
+
+  let mut left_primitives: Vec<BVHPrimitiveInfo> = primitives
+    .drain_filter(|primitive| {
+      let b = bucket_for_primitive(centroid_bounds, NUM_BUCKETS, max_axis, primitive);
+      return b <= minimum_split_bucket;
+    })
+    .collect();
+  let mut right_primitives = primitives;
 
   assert!(left_primitives.len() != 0);
   assert!(right_primitives.len() != 0);
-  assert!(left_primitives.len() + right_primitives.len() == primitives.len());
+  assert!(left_primitives.len() + right_primitives.len() == initial_count);
   let left_child = Box::new(recursive_build(depth + 1, &mut left_primitives));
   let right_child = Box::new(recursive_build(depth + 1, &mut right_primitives));
-  return BVHNode::Node((inner_bounds, max_axis, left_child, right_child));
+  return BVHNode::Node((bounds, max_axis, left_child, right_child));
 }

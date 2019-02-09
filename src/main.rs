@@ -1,4 +1,4 @@
-#![feature(stdsimd, async_await, futures_api, await_macro)]
+#![feature(stdsimd, async_await, futures_api, await_macro, drain_filter)]
 
 extern crate clap;
 extern crate genmesh;
