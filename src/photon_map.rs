@@ -75,6 +75,7 @@ pub trait PhotonSelector: Debug + Clone + Sync + Send {
 pub struct PhotonMap<Selector: PhotonSelector + 'static> {
   tree: KDTree<Photon>,
   selector: Arc<Selector>,
+  max_photon_samples: usize,
 }
 
 pub fn random(min: f64, max: f64) -> f64 {
@@ -324,6 +325,7 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
     lights: &[LightSample],
     target_photon_count: usize,
     max_elements_per_leaf: usize,
+    max_photon_samples: usize,
   ) -> Option<PhotonMap<Selector>> {
     assert!(!lights.is_empty());
     let start = std::time::Instant::now();
@@ -364,6 +366,7 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
     return Some(PhotonMap {
       tree,
       selector: selector.clone(),
+      max_photon_samples,
     });
   }
 
@@ -419,6 +422,12 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
     );
   }
 }
+
+// impl<Selector: PhotonSelector + 'static> LightingIntegrator for PhotonMap<Selector> {
+//   fn lighting(&self, fragment: &Fragment, surface: &MaterialCollisionInfo) -> (Colour, bool) {
+//     return self.lighting(fragment, surface, self.max_photon_samples);
+//   }
+// }
 
 #[derive(Debug, Clone)]
 pub struct DiffuseSelector {

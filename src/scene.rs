@@ -224,6 +224,7 @@ impl Scene {
       &this.light_samples,
       this.settings.photon_count,
       max_elements_per_leaf,
+      this.settings.photon_samples
     );
     let caustic_selector = Arc::new(CausticSelector::new());
     Arc::get_mut(this).unwrap().caustic_photon_map = PhotonMap::new(
@@ -232,6 +233,7 @@ impl Scene {
       &this.light_samples,
       this.settings.photon_count,
       max_elements_per_leaf,
+      (this.settings.photon_samples / 100).max(5)
     );
   }
 
