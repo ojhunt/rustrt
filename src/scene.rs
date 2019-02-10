@@ -1,3 +1,4 @@
+use crate::render_configuration::RenderConfiguration;
 use std::sync::Arc;
 use crate::photon_map::random;
 use std::collections::HashMap;
@@ -224,7 +225,7 @@ impl Scene {
       &this.light_samples,
       this.settings.photon_count,
       max_elements_per_leaf,
-      this.settings.photon_samples
+      this.settings.photon_samples,
     );
     let caustic_selector = Arc::new(CausticSelector::new());
     Arc::get_mut(this).unwrap().caustic_photon_map = PhotonMap::new(
@@ -233,7 +234,7 @@ impl Scene {
       &this.light_samples,
       this.settings.photon_count,
       max_elements_per_leaf,
-      (this.settings.photon_samples / 100).max(5)
+      (this.settings.photon_samples / 100).max(5),
     );
   }
 
@@ -250,12 +251,12 @@ impl Scene {
     return &self.textures[idx];
   }
 
-  pub fn colour_and_depth_for_ray(&self, ray: &Ray, photon_samples: usize) -> (Vector, f64) {
+  pub fn colour_and_depth_for_ray(&self, configuration: &RenderConfiguration, ray: &Ray) -> (Vector, f64) {
     let lights = &self.light_samples;
-    return self.intersect_ray(ray, lights, photon_samples, 0);
+    return self.intersect_ray(configuration, ray, 0);
   }
 
-  fn intersect_ray(&self, ray: &Ray, lights: &[LightSample], photon_samples: usize, depth: usize) -> (Vector, f64) {
+  fn intersect_ray(&self, configuration: &RenderConfiguration, ray: &Ray, depth: usize) -> (Vector, f64) {
     if depth > 10 {
       return (Vector::vector(1.0, 1.0, 1.0), 0.0);
     }
@@ -282,17 +283,7 @@ impl Scene {
     }
 
     let mut colour;
-    let (photon_lighting, had_shadow) = if let Some(ref diffuse_map) = self.diffuse_photon_map {
-      let (diffuse, had_shadow) = diffuse_map.lighting(&fragment, &surface, photon_samples);
-      let (caustic, _) = match &self.caustic_photon_map {
-        None => (Colour::RGB(0.0, 0.0, 0.0), false),
-        Some(photon_map) => photon_map.lighting(&fragment, &surface, (photon_samples / 15).max(1)),
-      };
-      let result = (diffuse + 0.0 * caustic) * surface.diffuse_colour;
-      (Some(result), Some(had_shadow))
-    } else {
-      (None, None)
-    };
+    let (photon_lighting, had_shadow) = configuration.lighting_integrator().lighting(&fragment, &surface);
 
     let mut max_secondary_distance = 0.0f64;
     let mut remaining_weight = 1.0;
@@ -302,8 +293,7 @@ impl Scene {
         break;
       }
       remaining_weight -= weight;
-      let (secondary_intersection_colour, secondary_distance) =
-        self.intersect_ray(ray, lights, photon_samples, depth + 1);
+      let (secondary_intersection_colour, secondary_distance) = self.intersect_ray(configuration, ray, depth + 1);
       secondaries_colour =
         secondaries_colour + Vector::from(Colour::from(secondary_intersection_colour) * *secondary_colour * *weight);
       max_secondary_distance = max_secondary_distance.max(secondary_distance);
@@ -318,6 +308,7 @@ impl Scene {
     let direct_lighting = if self.settings.use_direct_lighting {
       let mut direct_lighting = SampleLighting::new();
       let light_samples = 50;
+      let lights = configuration.lights();
       let light_scale = lights.len() as f64 / light_samples as f64;
       for i in 0..light_samples {
         let light = &lights[random(0.0, lights.len() as f64) as usize];

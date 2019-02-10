@@ -1,3 +1,4 @@
+use crate::render_configuration::RenderConfiguration;
 use std::sync::Arc;
 use image::DynamicImage;
 use image::ImageRgb8;
@@ -8,8 +9,8 @@ use crate::vectors::{Point, Vector, VectorType};
 use crate::dispatch_queue::DispatchQueue;
 use crate::photon_map::Timing;
 
-pub trait Camera: Clone {
-  fn render(&self, scene: Arc<Scene>, photon_samples: usize) -> DynamicImage;
+pub trait Camera: Sync + Send {
+  fn render(&self, configuration: &Arc<RenderConfiguration>) -> DynamicImage;
 }
 
 #[derive(Clone)]
@@ -36,8 +37,7 @@ impl PerspectiveCamera {
   }
   fn multisample(
     &self,
-    scene: &Scene,
-    photon_samples: usize,
+    configuration: &RenderConfiguration,
     x: f64,
     y: f64,
     radius: f64,
@@ -69,7 +69,12 @@ impl PerspectiveCamera {
 
     let samples: Vec<((f64, f64), (Vector, f64))> = rays
       .iter()
-      .map(|((x, y), r)| ((*x, *y), scene.colour_and_depth_for_ray(r, photon_samples)))
+      .map(|((x, y), r)| {
+        (
+          (*x, *y),
+          configuration.scene().colour_and_depth_for_ray(configuration, r),
+        )
+      })
       .collect();
     let (average_colour, average_distance): (Vector, f64) = samples.iter().fold(
       (Vector::new(), 0.0),
@@ -86,7 +91,7 @@ impl PerspectiveCamera {
         let (value, distance, count) = if ((*a - average_colour).length() > DELTA && depth < 2)
           || ((average_distance - distance).abs() > DELTA && depth < 3)
         {
-          let (v, distance, count) = self.multisample(scene, photon_samples, *x, *y, radius / 2.0, depth + 1);
+          let (v, distance, count) = self.multisample(configuration, *x, *y, radius / 2.0, depth + 1);
           let one = Vector::splat(1.0);
           let mask = v.lt(one);
           (mask.select(v, one), distance.max(current_max_distance), count)
@@ -165,7 +170,7 @@ impl RenderBuffer {
 }
 
 impl Camera for PerspectiveCamera {
-  fn render(&self, scene: Arc<Scene>, photon_samples: usize) -> DynamicImage {
+  fn render(&self, configuration: &Arc<RenderConfiguration>) -> DynamicImage {
     let mut buffer = RenderBuffer::new(self._width, self._height);
     let mut first_sample_queue = DispatchQueue::default();
     {
@@ -181,10 +186,10 @@ impl Camera for PerspectiveCamera {
     {
       let result = {
         let _t = Timing::new("First render pass");
-        let scene = scene.clone();
+        let configuration = configuration.clone();
         first_sample_queue.consume_tasks(&move |v| {
           let (x, y, ray) = v;
-          let (colour, depth) = scene.colour_and_depth_for_ray(&ray, photon_samples);
+          let (colour, depth) = configuration.scene().colour_and_depth_for_ray(&configuration, &ray);
           return (*x, *y, (colour, 1, depth));
         })
       };
@@ -228,12 +233,9 @@ impl Camera for PerspectiveCamera {
         let results = {
           let _t = Timing::new("Multisampling");
           let camera = self.clone();
+          let configuration = configuration.clone();
           multisample_queue.consume_tasks(&move |(x, y)| {
-            return (
-              *x,
-              *y,
-              camera.multisample(&*scene, photon_samples, *x as f64, *y as f64, 1.0, 0),
-            );
+            return (*x, *y, camera.multisample(&configuration, *x as f64, *y as f64, 1.0, 0));
           })
         };
 

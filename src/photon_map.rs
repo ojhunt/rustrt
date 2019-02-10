@@ -1,3 +1,4 @@
+use crate::render_configuration::LightingIntegrator;
 use std::sync::Arc;
 use std::fmt::Debug;
 use std::time::Instant;
@@ -375,9 +376,9 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
     _fragment: &Fragment,
     surface: &MaterialCollisionInfo,
     photon_samples: usize,
-  ) -> (Colour, bool) {
+  ) -> (Option<Colour>, Option<bool>) {
     if photon_samples == 0 {
-      return (Colour::RGB(0.0, 0.0, 0.0), false);
+      return (None, None);
     }
     let mut result = Vector::new();
     let surface_normal = surface.normal;
@@ -397,7 +398,7 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
       return Some(length);
     });
     if photons.len() == 0 {
-      return (Colour::RGB(0.0, 0.0, 0.0), false);
+      return (None, Some(false));
     }
     let mut max_radius: f64 = 0.0;
     let _skipped = 0;
@@ -417,17 +418,17 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
       }
     }
     return (
-      Colour::from(result) * (1.0 / max_radius / max_radius / 3.1412).max(0.0),
-      nearest_shadow <= max_radius,
+      Some(Colour::from(result) * (1.0 / max_radius / max_radius / 3.1412).max(0.0)),
+      Some(nearest_shadow <= max_radius),
     );
   }
 }
 
-// impl<Selector: PhotonSelector + 'static> LightingIntegrator for PhotonMap<Selector> {
-//   fn lighting(&self, fragment: &Fragment, surface: &MaterialCollisionInfo) -> (Colour, bool) {
-//     return self.lighting(fragment, surface, self.max_photon_samples);
-//   }
-// }
+impl<Selector: PhotonSelector + 'static> LightingIntegrator for PhotonMap<Selector> {
+  fn lighting(&self, fragment: &Fragment, surface: &MaterialCollisionInfo) -> (Option<Colour>, Option<bool>) {
+    return self.lighting(fragment, surface, self.max_photon_samples);
+  }
+}
 
 #[derive(Debug, Clone)]
 pub struct DiffuseSelector {

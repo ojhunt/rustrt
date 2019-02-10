@@ -29,6 +29,7 @@ mod mesh;
 mod objects;
 mod photon_map;
 mod ray;
+mod render_configuration;
 mod scene;
 mod shader;
 mod texture;
@@ -36,14 +37,19 @@ mod triangle;
 mod vectors;
 mod wavefront_material;
 
-use crate::scene::SceneSettings;
+use crate::render_configuration::LightingIntegrator;
 use crate::camera::*;
+use crate::photon_map::DiffuseSelector;
+use crate::photon_map::PhotonMap;
+use crate::photon_map::Timing;
+use crate::scene::Scene;
+use crate::scene::SceneSettings;
+use crate::wavefront_material::load_scene;
+use crate::render_configuration::RenderConfiguration;
+use crate::vectors::*;
 use clap::*;
 use std::str::FromStr;
-use crate::vectors::*;
-use crate::wavefront_material::load_scene;
-use crate::scene::Scene;
-use crate::photon_map::Timing;
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct VecArg {
@@ -149,7 +155,20 @@ fn main() {
   {
     Scene::finalize(&mut scn, settings.max_leaf_photons);
   }
-  let camera = PerspectiveCamera::new(
+
+  let diffuse_map = Arc::new(DiffuseSelector::new(!settings.use_direct_lighting));
+  let photonmap: Arc<Box<LightingIntegrator>> = Arc::new(Box::new(
+    PhotonMap::new(
+      &diffuse_map,
+      &scn,
+      &scn.get_light_samples(100000),
+      settings.photon_count,
+      settings.max_leaf_photons,
+      settings.photon_samples,
+    )
+    .unwrap(),
+  ));
+  let camera = Box::new(PerspectiveCamera::new(
     settings.width,
     settings.height,
     settings.camera_position,
@@ -158,11 +177,12 @@ fn main() {
     40.,
     settings.samples_per_pixel,
     settings.use_multisampling,
-  );
+  ));
 
+  let configuration = Arc::new(RenderConfiguration::new(photonmap, scn, Arc::new(camera)));
   let output = {
     let _t = Timing::new("Total Rendering");
-    let o = camera.render(scn, settings.photon_samples);
+    let o = configuration.camera().render(&configuration);
     o
   };
   output.save(settings.output_file).unwrap();
