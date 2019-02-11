@@ -89,9 +89,6 @@ pub struct Scene {
   material_map: HashMap<String, (MaterialIdx, bool)>,
   texture_map: HashMap<PathBuf, TextureIdx>,
   _scene: CompoundObject,
-  diffuse_photon_map: Option<PhotonMap<DiffuseSelector>>,
-  caustic_photon_map: Option<PhotonMap<CausticSelector>>,
-  light_samples: Vec<LightSample>,
 }
 
 impl Scene {
@@ -109,9 +106,6 @@ impl Scene {
       _scene: CompoundObject::new(),
       material_map: HashMap::new(),
       texture_map: HashMap::new(),
-      diffuse_photon_map: None,
-      caustic_photon_map: None,
-      light_samples: vec![],
     })
   }
 
@@ -190,38 +184,12 @@ impl Scene {
     Timing::time("Build scene graph", || {
       Arc::get_mut(this).unwrap()._scene.finalize();
     });
-    Arc::get_mut(this).unwrap().light_samples = this.get_light_samples(10000);
-    Self::rebuild_photon_map(this, max_elements_per_leaf);
   }
 
   pub fn get_normal(&self, idx: usize) -> Vector {
     let n = self.normals[idx];
     assert!(n.w() == 0.0);
     return n;
-  }
-
-  fn rebuild_photon_map(this: &mut Arc<Self>, max_elements_per_leaf: usize) {
-    if this.settings.photon_count == 0 {
-      return;
-    }
-    let diffuse_selector = Arc::new(DiffuseSelector::new(!this.settings.use_direct_lighting));
-    Arc::get_mut(this).unwrap().diffuse_photon_map = PhotonMap::new(
-      &diffuse_selector,
-      this,
-      &this.light_samples,
-      this.settings.photon_count,
-      max_elements_per_leaf,
-      this.settings.photon_samples,
-    );
-    let caustic_selector = Arc::new(CausticSelector::new());
-    Arc::get_mut(this).unwrap().caustic_photon_map = PhotonMap::new(
-      &caustic_selector,
-      this,
-      &this.light_samples,
-      this.settings.photon_count,
-      max_elements_per_leaf,
-      (this.settings.photon_samples / 100).max(5),
-    );
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {
@@ -238,7 +206,6 @@ impl Scene {
   }
 
   pub fn colour_and_depth_for_ray(&self, configuration: &RenderConfiguration, ray: &Ray) -> (Vector, f64) {
-    let lights = &self.light_samples;
     return self.intersect_ray(configuration, ray, 0);
   }
 

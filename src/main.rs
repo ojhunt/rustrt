@@ -152,7 +152,7 @@ fn load_settings() -> SceneSettings {
 }
 
 fn lighting_integrator(settings: &SceneSettings, scene: &Arc<Scene>) -> Box<LightingIntegrator> {
-  let lights = scene.get_light_samples(100000);
+  let lights = scene.get_light_samples(1000);
   let photon_map = if settings.photon_count != 0 && settings.photon_samples != 0 {
     let diffuse_map = Arc::new(DiffuseSelector::new(!settings.use_direct_lighting));
     PhotonMap::new(
