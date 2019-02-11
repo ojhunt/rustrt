@@ -88,17 +88,6 @@ impl<'a, T: Clone> ElementAccumulator<'a, T> {
 }
 
 impl<T: Clone + HasPosition> KDTreeNode<T> {
-  fn depth(&self) -> (usize, usize) {
-    match self {
-      KDTreeNode::Node(n) => {
-        let (left_min, left_max) = n.children[0].depth();
-        let (right_min, right_max) = n.children[1].depth();
-        (1 + left_min.min(right_min), 1 + left_max.max(right_max))
-      }
-      KDTreeNode::Leaf(_, _) => (1, 1),
-    }
-  }
-
   // Far from optimal -- the furthest node should start its calculation on top of the existing list
   fn nearest<F: FnMut(&T) -> Option<f64>>(
     &self,
@@ -155,12 +144,6 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
 #[derive(Debug)]
 pub struct KDTree<T: Clone + HasPosition> {
   root: KDTreeNode<T>,
-}
-
-impl<T: Clone + HasPosition> KDTree<T> {
-  pub fn depth(&self) -> (usize, usize) {
-    self.root.depth()
-  }
 }
 
 fn build_tree<T: Clone + HasBoundingBox + HasPosition>(

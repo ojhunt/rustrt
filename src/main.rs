@@ -1,4 +1,5 @@
 #![feature(stdsimd, async_await, futures_api, await_macro, drain_filter)]
+#![deny(warnings)]
 
 extern crate clap;
 extern crate genmesh;
@@ -151,7 +152,7 @@ fn load_settings() -> SceneSettings {
   return settings;
 }
 
-fn lighting_integrator(settings: &SceneSettings, scene: &Arc<Scene>) -> Box<LightingIntegrator> {
+fn lighting_integrator(settings: &SceneSettings, scene: &Arc<Scene>) -> Arc<LightingIntegrator> {
   let lights = scene.get_light_samples(1000);
   let photon_map = if settings.photon_count != 0 && settings.photon_samples != 0 {
     let diffuse_map = Arc::new(DiffuseSelector::new(!settings.use_direct_lighting));
@@ -168,24 +169,21 @@ fn lighting_integrator(settings: &SceneSettings, scene: &Arc<Scene>) -> Box<Ligh
   };
 
   if !settings.use_direct_lighting && photon_map.is_some() {
-    return Box::new(photon_map.unwrap());
+    return Arc::new(photon_map.unwrap());
   }
   let indirect_source: Option<Arc<IndirectLightingSource>> = photon_map.map(|p| {
     let p: Arc<IndirectLightingSource> = Arc::new(p);
     return p;
   });
-  return Box::new(DirectLighting::new(scene, lights, indirect_source));
+  return Arc::new(DirectLighting::new(scene, lights, indirect_source));
 }
 
 fn main() {
   let settings = load_settings();
 
-  let mut scn = load_scene(&settings);
-  {
-    Scene::finalize(&mut scn, settings.max_leaf_photons);
-  }
+  let scn = Arc::new(load_scene(&settings));
 
-  let lighting_integrator: Arc<Box<LightingIntegrator>> = Arc::new(lighting_integrator(&settings, &scn));
+  let lighting_integrator = lighting_integrator(&settings, &scn);
   let camera = Box::new(PerspectiveCamera::new(
     settings.width,
     settings.height,
@@ -197,10 +195,10 @@ fn main() {
     settings.use_multisampling,
   ));
 
-  let configuration = Arc::new(RenderConfiguration::new(lighting_integrator, scn, Arc::new(camera)));
+  let configuration = Arc::new(RenderConfiguration::new(lighting_integrator, scn));
   let output = {
     let _t = Timing::new("Total Rendering");
-    let o = configuration.camera().render(&configuration);
+    let o = camera.render(&configuration);
     o
   };
   output.save(settings.output_file).unwrap();

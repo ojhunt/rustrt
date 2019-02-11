@@ -15,7 +15,7 @@ use rand::{thread_rng, Rng};
 use crate::ray::Ray;
 use crate::scene::Scene;
 use crate::light::LightSample;
-use crate::vectors::{Point, Vector,VectorType};
+use crate::vectors::{Point, Vector};
 use crate::dispatch_queue::DispatchQueue;
 
 #[derive(Clone, Debug, Copy)]
@@ -101,7 +101,7 @@ fn random_in_hemisphere(normal: Vector) -> Vector {
 }
 fn make_photon(sample: &LightSample) -> (Ray, Colour) {
   loop {
-    let mut light_dir = {
+    let light_dir = {
       let u = random(0.0, 1.0);
       let v = 2.0 * 3.14127 * random(0.0, 1.0);
       Vector::vector(v.cos() * u.sqrt(), -(1.0 - u).sqrt(), v.sin() * u.sqrt())
@@ -131,10 +131,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
   let mut throughput = Colour::RGB(1.0, 1.0, 1.0);
   let mut path_length: usize = 0;
   let mut recorded = false;
-  let mut paths = 0;
-  let mut actual_paths = 0;
   let mut max_bounces = 0;
-  let mut bounces = 0;
   let mut photons = vec![];
   let mut photon_colour = initial_colour;
   let mut photon_ray = initial_ray.clone();
@@ -156,15 +153,11 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
       shadow_depth += 1;
       shadow_ray = Ray::new(new_position, shadow_ray.direction, None);
     }
-    shadow_depth += 1;
   }
   // println!("Photon colour {:?}", photon_colour);
   while path_length < 256 {
     let current_colour = photon_colour;
 
-    paths += 1;
-    actual_paths += 1;
-    bounces += 1;
     path_length += 1;
     max_bounces = max_bounces.max(path_length);
     let (c, shadable) = match scene.intersect(&photon_ray) {
@@ -229,7 +222,6 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
     let path_mode = selector.record_mode(&surface, path_length);
     let recorded_photon = if path_mode.should_record() {
       if !recorded {
-        actual_paths += 1;
         recorded = true;
       }
 
@@ -331,8 +323,6 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
     max_photon_samples: usize,
   ) -> Option<PhotonMap<Selector>> {
     assert!(!lights.is_empty());
-    let start = std::time::Instant::now();
-
     let initial_photons = Timing::time("Generating initial rays", || {
       let mut initial_photons = vec![];
       let total_power = lights.iter().fold(0.0, |a, b| a + b.output());
@@ -428,7 +418,7 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
 
 impl<Selector: PhotonSelector + 'static> LightingIntegrator for PhotonMap<Selector> {
   fn lighting(&self, _: &Scene, fragment: &Fragment, surface: &MaterialCollisionInfo) -> SampleLighting {
-    let (photons, shadows) = self.lighting(fragment, surface, self.max_photon_samples);
+    let (photons, _) = self.lighting(fragment, surface, self.max_photon_samples);
     let result_colour = photons.unwrap_or(Colour::new());
     return SampleLighting {
       ambient: result_colour,
@@ -491,6 +481,7 @@ impl PhotonSelector for DiffuseSelector {
 pub struct CausticSelector {}
 
 impl CausticSelector {
+  #[allow(dead_code)]
   pub fn new() -> CausticSelector {
     CausticSelector {}
   }

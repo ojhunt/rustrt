@@ -20,13 +20,6 @@ pub struct EmissionCoefficients {
 }
 
 impl EmissionCoefficients {
-  pub fn new() -> EmissionCoefficients {
-    return EmissionCoefficients {
-      ambient: 0.0,
-      diffuse: 0.0,
-      specular: 0.0,
-    };
-  }
   pub fn max_value(&self) -> f64 {
     return self.ambient.max(self.diffuse).max(self.specular);
   }

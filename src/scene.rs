@@ -1,6 +1,4 @@
 use crate::render_configuration::RenderConfiguration;
-use std::sync::Arc;
-use crate::photon_map::random;
 use std::collections::HashMap;
 use crate::material::Material;
 use crate::material::DefaultMaterial;
@@ -11,9 +9,6 @@ use crate::compound_object::CompoundObject;
 use image::*;
 use crate::intersectable::Intersectable;
 use crate::material;
-use crate::photon_map::CausticSelector;
-use crate::photon_map::DiffuseSelector;
-use crate::photon_map::PhotonMap;
 use crate::ray::Ray;
 use crate::light::LightSample;
 use crate::shader::Shadable;
@@ -92,9 +87,9 @@ pub struct Scene {
 }
 
 impl Scene {
-  pub fn new(settings: &SceneSettings) -> Arc<Scene> {
+  pub fn new(settings: &SceneSettings) -> Scene {
     let real_path = Path::new(&settings.scene_file).canonicalize().unwrap();
-    Arc::new(Scene {
+    return Scene {
       settings: settings.clone(),
       path: real_path.clone(),
       directory: real_path.parent().unwrap().to_owned(),
@@ -106,7 +101,7 @@ impl Scene {
       _scene: CompoundObject::new(),
       material_map: HashMap::new(),
       texture_map: HashMap::new(),
-    })
+    };
   }
 
   pub fn load_texture(&mut self, file: &str, need_bumpmap: bool) -> Option<TextureIdx> {
@@ -180,9 +175,9 @@ impl Scene {
     return self._scene.intersect(ray, ray.min, ray.max);
   }
 
-  pub fn finalize(this: &mut Arc<Self>, max_elements_per_leaf: usize) {
+  pub fn finalize(&mut self) {
     Timing::time("Build scene graph", || {
-      Arc::get_mut(this).unwrap()._scene.finalize();
+      self._scene.finalize();
     });
   }
 

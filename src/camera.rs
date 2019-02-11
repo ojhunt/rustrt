@@ -2,7 +2,6 @@ use crate::render_configuration::RenderConfiguration;
 use std::sync::Arc;
 use image::DynamicImage;
 use image::ImageRgb8;
-use crate::scene::Scene;
 use crate::photon_map::random;
 use crate::ray::Ray;
 use crate::vectors::{Point, Vector, VectorType};
