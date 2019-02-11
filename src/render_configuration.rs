@@ -1,3 +1,4 @@
+use crate::vectors::Vector;
 use crate::light::LightSample;
 use crate::camera::Camera;
 use crate::scene::Scene;
@@ -6,8 +7,23 @@ use crate::material::MaterialCollisionInfo;
 use crate::fragment::Fragment;
 use crate::colour::Colour;
 
+pub struct SampleLighting {
+  pub diffuse: Colour,
+  pub ambient: Colour,
+  pub specular: Colour,
+}
+
+impl SampleLighting {
+  pub fn new() -> Self {
+    SampleLighting {
+      ambient: Colour::new(),
+      diffuse: Colour::new(),
+      specular: Colour::new(),
+    }
+  }
+}
 pub trait LightingIntegrator: Sync + Send {
-  fn lighting(&self, fragment: &Fragment, surface: &MaterialCollisionInfo) -> (Option<Colour>, Option<bool>);
+  fn lighting(&self, configuration: &Scene, fragment: &Fragment, surface: &MaterialCollisionInfo) -> SampleLighting;
 }
 
 pub struct RenderConfiguration {

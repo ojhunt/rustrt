@@ -93,21 +93,7 @@ pub struct Scene {
   caustic_photon_map: Option<PhotonMap<CausticSelector>>,
   light_samples: Vec<LightSample>,
 }
-struct SampleLighting {
-  diffuse: Vector,
-  ambient: Vector,
-  specular: Vector,
-}
 
-impl SampleLighting {
-  fn new() -> Self {
-    SampleLighting {
-      ambient: Vector::new(),
-      diffuse: Vector::new(),
-      specular: Vector::new(),
-    }
-  }
-}
 impl Scene {
   pub fn new(settings: &SceneSettings) -> Arc<Scene> {
     let real_path = Path::new(&settings.scene_file).canonicalize().unwrap();
@@ -283,7 +269,6 @@ impl Scene {
     }
 
     let mut colour;
-    let (photon_lighting, had_shadow) = configuration.lighting_integrator().lighting(&fragment, &surface);
 
     let mut max_secondary_distance = 0.0f64;
     let mut remaining_weight = 1.0;
@@ -305,37 +290,13 @@ impl Scene {
       return (colour, collision.distance + max_secondary_distance);
     }
 
-    let direct_lighting = if self.settings.use_direct_lighting {
-      let mut direct_lighting = SampleLighting::new();
-      let light_samples = 50;
-      let lights = configuration.lights();
-      let light_scale = lights.len() as f64 / light_samples as f64;
-      for i in 0..light_samples {
-        let light = &lights[random(0.0, lights.len() as f64) as usize];
-        let mut ldir = light.position - surface.position;
-        let ldir_len = ldir.length();
-        ldir = ldir.normalize();
-        if had_shadow.unwrap_or(true) {
-          let shadow_test = Ray::new_bound(surface.position, ldir, 0.005, ldir_len - 0.001, None);
-          if self.intersect(&shadow_test).is_some() {
-            continue;
-          }
-        }
-        let diffuse_intensity = light_scale * light.weight * ldir.dot(surface.normal).max(0.0);
-        let ambient_intensity = light_scale * light.weight * light.ambient;
-        direct_lighting.diffuse = direct_lighting.diffuse + light.diffuse * diffuse_intensity;
-        direct_lighting.ambient = direct_lighting.ambient + light.ambient * ambient_intensity;
-      }
-      direct_lighting
-    } else {
-      SampleLighting::new()
-    };
+    let sample_lighting = configuration.lighting_integrator().lighting(self, &fragment, &surface);
 
     colour = colour
       + Vector::from(
-        Colour::from(diffuse_colour) * Colour::from(direct_lighting.diffuse)
-          + photon_lighting.unwrap_or(Colour::from(surface.ambient_colour) * Colour::from(direct_lighting.ambient))
-          + Colour::from(surface.specular_colour) * Colour::from(direct_lighting.specular),
+        Colour::from(diffuse_colour) * sample_lighting.diffuse
+          + Colour::from(surface.ambient_colour) * sample_lighting.ambient
+          + Colour::from(surface.specular_colour) * sample_lighting.specular,
       );
 
     return (colour, collision.distance + max_secondary_distance);

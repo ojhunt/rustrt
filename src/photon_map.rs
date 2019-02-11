@@ -1,3 +1,5 @@
+use crate::direct_lighting::IndirectLightingSource;
+use crate::render_configuration::SampleLighting;
 use crate::render_configuration::LightingIntegrator;
 use std::sync::Arc;
 use std::fmt::Debug;
@@ -371,7 +373,7 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
     });
   }
 
-  pub fn lighting(
+  fn lighting(
     &self,
     _fragment: &Fragment,
     surface: &MaterialCollisionInfo,
@@ -425,8 +427,14 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
 }
 
 impl<Selector: PhotonSelector + 'static> LightingIntegrator for PhotonMap<Selector> {
-  fn lighting(&self, fragment: &Fragment, surface: &MaterialCollisionInfo) -> (Option<Colour>, Option<bool>) {
-    return self.lighting(fragment, surface, self.max_photon_samples);
+  fn lighting(&self, _: &Scene, fragment: &Fragment, surface: &MaterialCollisionInfo) -> SampleLighting {
+    let (photons, shadows) = self.lighting(fragment, surface, self.max_photon_samples);
+    let result_colour = photons.unwrap_or(Colour::new());
+    return SampleLighting {
+      ambient: result_colour,
+      diffuse: result_colour,
+      specular: Colour::new(),
+    };
   }
 }
 
@@ -509,5 +517,22 @@ impl PhotonSelector for CausticSelector {
   }
   fn record_shadow_rays(&self) -> bool {
     return false;
+  }
+}
+
+impl<Selector: PhotonSelector + 'static> IndirectLightingSource for PhotonMap<Selector> {
+  fn lighting_and_shadow(
+    &self,
+    _: &Scene,
+    fragment: &Fragment,
+    surface: &MaterialCollisionInfo,
+  ) -> (Option<Colour>, Option<bool>) {
+    let (photons, shadows) = self.lighting(fragment, surface, self.max_photon_samples);
+    let lighting = if let Some(photon_lighting) = photons {
+      Some(photon_lighting)
+    } else {
+      None
+    };
+    return (lighting, shadows);
   }
 }

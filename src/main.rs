@@ -18,6 +18,7 @@ mod casefopen;
 mod collision;
 mod colour;
 mod compound_object;
+mod direct_lighting;
 mod dispatch_queue;
 mod fragment;
 mod heap;
@@ -39,9 +40,11 @@ mod wavefront_material;
 
 use crate::render_configuration::LightingIntegrator;
 use crate::camera::*;
+use crate::direct_lighting::DirectLighting;
 use crate::photon_map::DiffuseSelector;
 use crate::photon_map::PhotonMap;
 use crate::photon_map::Timing;
+use crate::direct_lighting::IndirectLightingSource;
 use crate::scene::Scene;
 use crate::scene::SceneSettings;
 use crate::wavefront_material::load_scene;
@@ -148,6 +151,32 @@ fn load_settings() -> SceneSettings {
   return settings;
 }
 
+fn lighting_integrator(settings: &SceneSettings, scene: &Arc<Scene>) -> Box<LightingIntegrator> {
+  let lights = scene.get_light_samples(100000);
+  let photon_map = if settings.photon_count != 0 && settings.photon_samples != 0 {
+    let diffuse_map = Arc::new(DiffuseSelector::new(!settings.use_direct_lighting));
+    PhotonMap::new(
+      &diffuse_map,
+      scene,
+      &lights,
+      settings.photon_count,
+      settings.max_leaf_photons,
+      settings.photon_samples,
+    )
+  } else {
+    None
+  };
+
+  if !settings.use_direct_lighting && photon_map.is_some() {
+    return Box::new(photon_map.unwrap());
+  }
+  let indirect_source: Option<Arc<IndirectLightingSource>> = photon_map.map(|p| {
+    let p: Arc<IndirectLightingSource> = Arc::new(p);
+    return p;
+  });
+  return Box::new(DirectLighting::new(scene, lights, indirect_source));
+}
+
 fn main() {
   let settings = load_settings();
 
@@ -156,18 +185,7 @@ fn main() {
     Scene::finalize(&mut scn, settings.max_leaf_photons);
   }
 
-  let diffuse_map = Arc::new(DiffuseSelector::new(!settings.use_direct_lighting));
-  let photonmap: Arc<Box<LightingIntegrator>> = Arc::new(Box::new(
-    PhotonMap::new(
-      &diffuse_map,
-      &scn,
-      &scn.get_light_samples(100000),
-      settings.photon_count,
-      settings.max_leaf_photons,
-      settings.photon_samples,
-    )
-    .unwrap(),
-  ));
+  let lighting_integrator: Arc<Box<LightingIntegrator>> = Arc::new(lighting_integrator(&settings, &scn));
   let camera = Box::new(PerspectiveCamera::new(
     settings.width,
     settings.height,
@@ -179,7 +197,7 @@ fn main() {
     settings.use_multisampling,
   ));
 
-  let configuration = Arc::new(RenderConfiguration::new(photonmap, scn, Arc::new(camera)));
+  let configuration = Arc::new(RenderConfiguration::new(lighting_integrator, scn, Arc::new(camera)));
   let output = {
     let _t = Timing::new("Total Rendering");
     let o = configuration.camera().render(&configuration);

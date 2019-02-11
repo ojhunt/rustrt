@@ -32,6 +32,9 @@ impl Colour {
     let Colour::RGB(_, _, b) = *self;
     return b as f64;
   }
+  pub fn new() -> Self {
+    return Colour::RGB(0.0, 0.0, 0.0);
+  }
 }
 
 impl From<Colour> for Vector {
