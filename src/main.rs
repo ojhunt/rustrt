@@ -11,6 +11,7 @@ extern crate faster;
 extern crate packed_simd;
 extern crate rayon;
 extern crate num_cpus;
+extern crate order_stat;
 
 mod bounding_box;
 mod bvh;

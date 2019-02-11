@@ -16,6 +16,7 @@ tokio-core="*"
 futures={ version = "*", features = ["nightly"] }
 futures-executor-preview="*"
 num_cpus="*"
+order-stat ="*"
 
 [dependencies.clap]
 features = ["yaml"]

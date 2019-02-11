@@ -1,5 +1,6 @@
 #[allow(dead_code)]
 use std::cmp::Ordering;
+use order_stat::kth_by;
 use crate::heap::Comparator;
 use crate::vectors::*;
 use crate::bounding_box::BoundingBox;
@@ -156,12 +157,20 @@ fn build_tree<T: Clone + HasBoundingBox + HasPosition>(
   }
   let max_axis = bounds.max_axis();
 
-  elements.sort_by(|l, r| {
-    let left = l.get_position().data.extract(max_axis);
-    let right = r.get_position().data.extract(max_axis);
-    return left.partial_cmp(&right).unwrap();
-  });
-  let split_point = elements[elements.len() / 2].get_position().data.extract(max_axis);
+  // elements.sort_by(|l, r| {
+  //   let left = l.get_position().data.extract(max_axis);
+  //   let right = r.get_position().data.extract(max_axis);
+  //   return left.partial_cmp(&right).unwrap();
+  // });
+  // let split_point = elements[elements.len() / 2].get_position().data.extract(max_axis);
+  let split_point = {
+    let split_node = kth_by(elements, elements.len() / 2, |l, r| {
+      let left = l.get_position().axis(max_axis);
+      let right = r.get_position().axis(max_axis);
+      return left.partial_cmp(&right).unwrap();
+    });
+    split_node.get_position().axis(max_axis)
+  };
 
   let (left, right) = elements.split_at_mut(elements.len() / 2);
 
