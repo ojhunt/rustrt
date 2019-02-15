@@ -35,6 +35,7 @@ mod ray;
 mod render_configuration;
 mod scene;
 mod shader;
+mod sphere;
 mod texture;
 mod triangle;
 mod vectors;

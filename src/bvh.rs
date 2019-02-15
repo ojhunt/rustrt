@@ -49,8 +49,8 @@ impl BVH {
     &self,
     elements: &'a [T],
     ray: &Ray,
-    min: f64,
-    max: f64,
+    min: f32,
+    max: f32,
   ) -> Option<(Collision, &'a Shadable)> {
     return intersect(&self.root, elements, ray, min, max);
   }
@@ -60,8 +60,8 @@ fn intersect_primitives<'a, T: Intersectable + 'a>(
   indices: &[usize],
   primitives: &'a [T],
   ray: &Ray,
-  min: f64,
-  max: f64,
+  min: f32,
+  max: f32,
 ) -> Option<(Collision, &'a Shadable)> {
   let mut closest = max;
   let mut result: Option<(Collision, &'a Shadable)> = None;
@@ -84,10 +84,10 @@ fn intersect<'a, T: Intersectable>(
   node: &BVHNode,
   elements: &'a [T],
   ray: &Ray,
-  parent_min: f64,
-  parent_max: f64,
+  parent_min: f32,
+  parent_max: f32,
 ) -> Option<(Collision, &'a Shadable)> {
-  let mut stack: Vec<(&BVHNode, /*min*/ f64, /*max*/ f64)> = Vec::new();
+  let mut stack: Vec<(&BVHNode, /*min*/ f32, /*max*/ f32)> = Vec::new();
   stack.push((node, parent_min, parent_max));
   let mut result: Option<(Collision, &'a Shadable)> = None;
   let mut nearest = parent_max;
@@ -110,7 +110,13 @@ fn intersect<'a, T: Intersectable>(
           None => continue,
           Some((min, max)) => {
             primitive_count += children.len();
-            match intersect_primitives(children, elements, ray, min.max(node_min), nearest.min(max)) {
+            match intersect_primitives(
+              children,
+              elements,
+              ray,
+              min.max(node_min) as f32,
+              nearest.min(max as f32),
+            ) {
               None => continue,
               Some((inner_collision, object)) => {
                 if inner_collision.distance < nearest {
@@ -167,7 +173,7 @@ struct BucketInfo {
   pub right_exclusive_bounds: BoundingBox,
   pub left_inclusive_centroid_bounds: BoundingBox,
   pub right_exclusive_centroid_bounds: BoundingBox,
-  pub split_cost: f64,
+  pub split_cost: f32,
 }
 
 fn bucket_for_primitive(
@@ -176,7 +182,7 @@ fn bucket_for_primitive(
   axis: usize,
   primitive: &BVHPrimitiveInfo,
 ) -> usize {
-  return ((bucket_count as f64 * centroid_bounds.offset(primitive.centroid).axis(axis) as f64) as usize)
+  return ((bucket_count as f32 * centroid_bounds.offset(primitive.centroid).axis(axis) as f32) as usize)
     .min(bucket_count - 1);
 }
 
@@ -274,14 +280,14 @@ fn recursive_build(depth: usize, primitives: &mut Vec<BVHPrimitiveInfo>) -> BVHN
     let leaf_surface = bounds.surface_area();
     for bucket in buckets.iter_mut() {
       assert!(bucket.left_inclusive_count + bucket.right_exclusive_count == initial_count);
-      let left_cost = bucket.left_inclusive_bounds.surface_area() / leaf_surface * bucket.left_inclusive_count as f64;
+      let left_cost = bucket.left_inclusive_bounds.surface_area() / leaf_surface * bucket.left_inclusive_count as f32;
       let right_cost =
-        bucket.right_exclusive_bounds.surface_area() / leaf_surface * bucket.right_exclusive_count as f64;
+        bucket.right_exclusive_bounds.surface_area() / leaf_surface * bucket.right_exclusive_count as f32;
       bucket.split_cost = 1.0 + left_cost * 2.0 + right_cost * 2.0;
     }
   }
 
-  let mut minimum_split_cost = std::f64::INFINITY;
+  let mut minimum_split_cost = std::f32::INFINITY;
   let mut minimum_split_bucket = 0;
   for i in 0..NUM_BUCKETS - 1 {
     if buckets[i].split_cost < minimum_split_cost {
@@ -290,7 +296,7 @@ fn recursive_build(depth: usize, primitives: &mut Vec<BVHPrimitiveInfo>) -> BVHN
     }
   }
 
-  let leaf_cost = initial_count as f64;
+  let leaf_cost = initial_count as f32;
   if leaf_cost < minimum_split_cost && initial_count <= MAX_PRIMS_PER_NODE {
     return make_leaf(&primitives);
   }

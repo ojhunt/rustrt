@@ -14,13 +14,13 @@ pub enum Transparency {
 
 #[derive(Debug, Clone, Copy)]
 pub struct EmissionCoefficients {
-  pub ambient: f64,
-  pub diffuse: f64,
-  pub specular: f64,
+  pub ambient: f32,
+  pub diffuse: f32,
+  pub specular: f32,
 }
 
 impl EmissionCoefficients {
-  pub fn max_value(&self) -> f64 {
+  pub fn max_value(&self) -> f32 {
     return self.ambient.max(self.diffuse).max(self.specular);
   }
 }
@@ -34,7 +34,7 @@ pub struct MaterialCollisionInfo {
   pub transparent_colour: Option<Colour>,
   pub position: Point,
   pub normal: Vector,
-  pub secondaries: Vec<(Ray, Colour, f64)>,
+  pub secondaries: Vec<(Ray, Colour, f32)>,
 }
 
 pub trait Material: Debug + Sync + Send {

@@ -27,7 +27,7 @@ pub struct PerspectiveCamera {
   do_multisampling: bool,
 }
 
-const DELTA: f64 = 0.1;
+const DELTA: f32 = 0.1;
 
 impl PerspectiveCamera {
   fn ray_for_coordinate(&self, x: f64, y: f64) -> Ray {
@@ -41,7 +41,7 @@ impl PerspectiveCamera {
     y: f64,
     radius: f64,
     depth: u32,
-  ) -> (Vector, f64, usize) {
+  ) -> (Vector, f32, usize) {
     let noise_radius = if radius > 0.9 { 0.01 } else { radius / 2.0 };
     let positions = [
       (x - 0.25 * radius, y - 0.25 * radius),
@@ -51,7 +51,7 @@ impl PerspectiveCamera {
       (x + 0.25 * radius, y + 0.25 * radius),
     ];
     let subsample_count = positions.len();
-    let subsample_weight = 1.0 / subsample_count as f64;
+    let subsample_weight = 1.0 / subsample_count as f32;
     let _max_distance = 0.0f64;
     let rays: Vec<((f64, f64), Ray)> = positions
       .iter()
@@ -66,7 +66,7 @@ impl PerspectiveCamera {
       })
       .collect();
 
-    let samples: Vec<((f64, f64), (Vector, f64))> = rays
+    let samples: Vec<((f64, f64), (Vector, f32))> = rays
       .iter()
       .map(|((x, y), r)| {
         (
@@ -75,7 +75,7 @@ impl PerspectiveCamera {
         )
       })
       .collect();
-    let (average_colour, average_distance): (Vector, f64) = samples.iter().fold(
+    let (average_colour, average_distance): (Vector, f32) = samples.iter().fold(
       (Vector::new(), 0.0),
       |(average_colour, average_distance), (_, (sample_colour, sample_distance))| {
         (
@@ -85,7 +85,7 @@ impl PerspectiveCamera {
       },
     );
     return samples.iter().fold(
-      (Vector::new(), 0.0f64, 0),
+      (Vector::new(), 0.0f32, 0),
       |(current_value, current_max_distance, current_count), ((x, y), (a, distance))| {
         let (value, distance, count) = if ((*a - average_colour).length() > DELTA && depth < 2)
           || ((average_distance - distance).abs() > DELTA && depth < 3)
@@ -195,7 +195,7 @@ impl Camera for PerspectiveCamera {
 
       let _t = Timing::new("Copy first render results");
       for (x, y, (v, i, f)) in result {
-        buffer.set(x, y, (v.clamp(Vector::splat(0.0), Vector::splat(1.0)), i, f));
+        buffer.set(x, y, (v.clamp(Vector::splat(0.0), Vector::splat(1.0)), i, f as f64));
       }
     }
 
@@ -218,7 +218,7 @@ impl Camera for PerspectiveCamera {
                   continue;
                 }
                 let (colour, _, distance) = buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize);
-                if (colour - sample_colour).length() > DELTA || (sample_distance - distance).abs() > DELTA {
+                if (colour - sample_colour).length() > DELTA || (sample_distance - distance).abs() > DELTA as f64 {
                   multisample_queue.add_task(&(x, y));
                   continue 'inner_loop;
                 }
@@ -242,7 +242,7 @@ impl Camera for PerspectiveCamera {
           let _t = Timing::new("Copying resample output");
           for (x, y, (colour, distance, count)) in results {
             max_resample_count = max_resample_count.max(count);
-            buffer.set(x, y, (colour, count, distance));
+            buffer.set(x, y, (colour, count, distance.into()));
           }
         }
       }

@@ -16,21 +16,21 @@ impl Colour {
     return Colour::RGB(r + rr, g + rg, b + rb);
   }
 
-  pub fn max_value(&self) -> f64 {
+  pub fn max_value(&self) -> f32 {
     let Colour::RGB(r, g, b) = self;
-    return r.max(*g).max(*b) as f64;
+    return r.max(*g).max(*b);
   }
-  pub fn r(&self) -> f64 {
+  pub fn r(&self) -> f32 {
     let Colour::RGB(r, _, _) = *self;
-    return r as f64;
+    return r;
   }
-  pub fn g(&self) -> f64 {
+  pub fn g(&self) -> f32 {
     let Colour::RGB(_, g, _) = *self;
-    return g as f64;
+    return g;
   }
-  pub fn b(&self) -> f64 {
+  pub fn b(&self) -> f32 {
     let Colour::RGB(_, _, b) = *self;
-    return b as f64;
+    return b;
   }
   pub fn new() -> Self {
     return Colour::RGB(0.0, 0.0, 0.0);
@@ -51,10 +51,10 @@ impl From<Vector> for Colour {
   }
 }
 
-impl ops::Mul<f64> for Colour {
+impl ops::Mul<f32> for Colour {
   type Output = Colour;
-  fn mul(self, rhs: f64) -> Colour {
-    return self.scale(rhs as f32);
+  fn mul(self, rhs: f32) -> Colour {
+    return self.scale(rhs);
   }
 }
 impl ops::Mul<Colour> for Colour {
@@ -65,10 +65,10 @@ impl ops::Mul<Colour> for Colour {
   }
 }
 
-impl ops::Mul<Colour> for f64 {
+impl ops::Mul<Colour> for f32 {
   type Output = Colour;
   fn mul(self, rhs: Colour) -> Colour {
-    return rhs.scale(self as f32);
+    return rhs.scale(self);
   }
 }
 

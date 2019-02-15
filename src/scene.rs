@@ -200,16 +200,16 @@ impl Scene {
     return &self.textures[idx];
   }
 
-  pub fn colour_and_depth_for_ray(&self, configuration: &RenderConfiguration, ray: &Ray) -> (Vector, f64) {
+  pub fn colour_and_depth_for_ray(&self, configuration: &RenderConfiguration, ray: &Ray) -> (Vector, f32) {
     return self.intersect_ray(configuration, ray, 0);
   }
 
-  fn intersect_ray(&self, configuration: &RenderConfiguration, ray: &Ray, depth: usize) -> (Vector, f64) {
+  fn intersect_ray(&self, configuration: &RenderConfiguration, ray: &Ray, depth: usize) -> (Vector, f32) {
     if depth > 10 {
       return (Vector::vector(1.0, 1.0, 1.0), 0.0);
     }
     let (collision, shadable) = match self.intersect(ray) {
-      None => return (Vector::new(), std::f64::INFINITY),
+      None => return (Vector::new(), std::f32::INFINITY),
       Some(collision) => collision,
     };
 
@@ -232,7 +232,7 @@ impl Scene {
 
     let mut colour;
 
-    let mut max_secondary_distance = 0.0f64;
+    let mut max_secondary_distance = 0.0f32;
     let mut remaining_weight = 1.0;
     let mut secondaries_colour = Vector::new();
     for (ray, secondary_colour, weight) in &surface.secondaries {
@@ -266,7 +266,7 @@ impl Scene {
 
   pub fn get_light_samples(&self, max_samples: usize) -> Vec<LightSample> {
     let light_objects = self._scene.get_lights(self);
-    let light_areas: &Vec<f64> = &light_objects.iter().map(|l| l.get_area()).collect();
+    let light_areas: &Vec<f32> = &light_objects.iter().map(|l| l.get_area()).collect();
     let total_area = {
       let mut area = 0.0;
       for light_area in light_areas {
@@ -280,14 +280,14 @@ impl Scene {
     for i in 0..light_areas.len() {
       let light_area = light_areas[i];
       let light_count = if i < light_areas.len() - 1 {
-        (max_lights as f64 * (light_area / total_area)) as usize
+        (max_lights as f32 * (light_area / total_area)) as usize
       } else {
         remaining_lights
       };
       remaining_lights -= light_count;
       let mut samples = light_objects[i].get_samples(light_count, self);
       for mut sample in samples.iter_mut() {
-        sample.weight *= light_count as f64 / max_lights as f64;
+        sample.weight *= light_count as f32 / max_lights as f32;
       }
       lights.append(&mut samples);
     }

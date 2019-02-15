@@ -9,12 +9,12 @@ pub struct BoundingBox {
 
 impl BoundingBox {
   pub fn centroid(&self) -> Point {
-    return self.min.add_elements(self.max).scale(0.5);
+    return self.min.add_elements(self.max).scale32(0.5);
   }
 
-  pub fn surface_area(&self) -> f64 {
+  pub fn surface_area(&self) -> f32 {
     let size = self.max - self.min;
-    return 2. * (size.x() * size.y() + size.x() * size.z() + size.y() * size.z()) as f64;
+    return 2. * (size.x() * size.y() + size.x() * size.z() + size.y() * size.z());
   }
 
   pub fn new() -> BoundingBox {
@@ -75,9 +75,9 @@ impl BoundingBox {
     return mask.select(o / scale_factor, o);
   }
 
-  pub fn intersect(&self, ray: &Ray, min: f64, max: f64) -> Option<(f64, f64)> {
-    let mut tmin = Vector::splat(min as f32);
-    let mut tmax = Vector::splat(max as f32);
+  pub fn intersect(&self, ray: &Ray, min: f32, max: f32) -> Option<(f32, f32)> {
+    let mut tmin = Vector::splat(min);
+    let mut tmax = Vector::splat(max);
 
     let direction = ray.direction;
     let origin = ray.origin;
@@ -94,7 +94,7 @@ impl BoundingBox {
     if tmin.gt(tmax).any() {
       return None;
     }
-    return Some((tmin.max_element() as f64, (tmax.min_element() + 0.01) as f64));
+    return Some((tmin.max_element(), tmax.min_element() + 0.01));
   }
 }
 

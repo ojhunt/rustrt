@@ -11,16 +11,16 @@ pub struct LightSample {
   pub diffuse: Vector,
   pub specular: Vector,
   pub emission: EmissionCoefficients,
-  pub weight: f64,
-  pub power: f64,
+  pub weight: f32,
+  pub power: f32,
 }
 
 pub trait Light {
-  fn get_area(&self) -> f64;
+  fn get_area(&self) -> f32;
   fn get_samples(&self, count: usize, scene: &Scene) -> Vec<LightSample>;
 }
 impl LightSample {
-  pub fn output(&self) -> f64 {
+  pub fn output(&self) -> f32 {
     self.power * self.weight
   }
 }

@@ -43,7 +43,7 @@ impl LightingIntegrator for DirectLighting {
 
     let light_samples = 50;
     let lights = &*self.lights;
-    let light_scale = lights.len() as f64 / light_samples as f64;
+    let light_scale = lights.len() as f32 / light_samples as f32;
     let mut diffuse_lighting = Vector::new();
     let mut ambient_lighting = Vector::new();
     let mut _specular_lighting = Vector::new();

@@ -32,30 +32,30 @@ fn orient_normal(normal: Vector, ray_direction: Vector) -> Vector {
 }
 
 impl Light for Triangle {
-  fn get_area(&self) -> f64 {
+  fn get_area(&self) -> f32 {
     return self.edges[0].cross(self.edges[1]).length() / 2.0;
   }
   fn get_samples(&self, count: usize, scene: &Scene) -> Vec<LightSample> {
     let mut lights: Vec<LightSample> = vec![];
     while lights.len() < count {
-      let r1: f64 = random(0.0, 1.0);
+      let r1 = random(0.0, 1.0) as f32;
       let r1_root = r1.sqrt();
-      let r2 = random(0.0, 1.0);
+      let r2 = random(0.0, 1.0) as f32;
       let a = self.origin;
       let b = self.origin + self.edges[0];
       let c = self.origin + self.edges[1];
       let point = a
-        .scale(1.0 - r1_root)
-        .add_elements(b.scale(r1_root * (1.0 - r2)))
-        .add_elements(c.scale(r1_root * r2));
+        .scale32(1.0 - r1_root)
+        .add_elements(b.scale32(r1_root * (1.0 - r2)))
+        .add_elements(c.scale32(r1_root * r2));
       let normal = self.true_normal();
       let (ray, collision) = {
         let ray = Ray::new(point + normal, normal * -1.0, None);
-        if let Some((collision, _)) = self.intersect(&ray, 0.0, std::f64::INFINITY) {
+        if let Some((collision, _)) = self.intersect(&ray, 0.0, std::f32::INFINITY) {
           (ray, collision)
         } else {
           let ray = Ray::new(point + normal, normal, None);
-          if let Some((collision, _)) = self.intersect(&ray, 0.0, std::f64::INFINITY) {
+          if let Some((collision, _)) = self.intersect(&ray, 0.0, std::f32::INFINITY) {
             (ray, collision)
           } else {
             continue;
@@ -74,7 +74,7 @@ impl Light for Triangle {
         diffuse: Vector::from(surface.diffuse_colour),
         ambient: Vector::from(surface.ambient_colour),
         emission: surface.emissive_colour.unwrap(),
-        weight: (1.0 / count as f64),
+        weight: (1.0 / count as f32),
         power: 1.0,
       };
       lights.push(sample);
@@ -190,7 +190,7 @@ impl Triangle {
     return result;
   }
 
-  pub fn intersects<'a>(&'a self, ray: &Ray, min: f64, max: f64) -> Option<(Collision, &'a Shadable)> {
+  pub fn intersects<'a>(&'a self, ray: &Ray, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
     let h = ray.direction.cross(self.edges[1]);
     let a = self.edges[0].dot(h);
     if a.abs() < 0.00001 {
@@ -215,7 +215,7 @@ impl Triangle {
       return None;
     }
 
-    return Some((Collision::new(t, Vec2d(u, v)), self));
+    return Some((Collision::new(t, Vec2d(u.into(), v.into())), self));
   }
 
   fn true_normal(&self) -> Vector {
@@ -236,7 +236,7 @@ impl Intersectable for Triangle {
     }
     return vec![];
   }
-  fn intersect<'a>(&'a self, ray: &Ray, min: f64, max: f64) -> Option<(Collision, &'a Shadable)> {
+  fn intersect<'a>(&'a self, ray: &Ray, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
     return self.intersects(ray, min, max);
   }
 }

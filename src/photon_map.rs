@@ -70,7 +70,7 @@ impl RecordMode {
 pub trait PhotonSelector: Debug + Clone + Sync + Send {
   fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode;
   fn weight_for_sample(&self, position: Point, photon: &Photon, photon_count: usize, sample_radius: f64)
-    -> Option<f64>;
+    -> Option<f32>;
   fn record_shadow_rays(&self) -> bool;
 }
 
@@ -173,7 +173,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
     let surface: MaterialCollisionInfo = material.compute_surface_properties(scene, &photon_ray, &fragment);
     let mut remaining_weight = 1.0;
     let mut next = {
-      let mut selection = random(0.0, 1.0);
+      let mut selection = random(0.0, 1.0) as f32;
       let mut result: Option<(Ray, Colour)> = None;
       for (_, _, secondary_weight) in &surface.secondaries {
         remaining_weight -= secondary_weight;
@@ -194,7 +194,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
     if next.is_none() {
       let prob_diffuse = (surface.diffuse_colour * photon_colour).max_value() / photon_colour.max_value();
       let prob_specular = (surface.specular_colour * photon_colour).max_value() / photon_colour.max_value();
-      let p = random(0.0, 1.0);
+      let p = random(0.0, 1.0) as f32;
       let (new_direction, new_colour) = if p * remaining_weight < prob_diffuse {
         (
           random_in_hemisphere(surface.normal),
@@ -244,7 +244,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
     if !recorded_photon {
       // Now we know the colour and direction of the next bounce, let's decide if we're keeping it.
       throughput = throughput * next_colour;
-      let p = random(0.0, 1.0);
+      let p = random(0.0, 1.0) as f32;
       if p > throughput.max_value().sqrt().sqrt() {
         break;
       }
@@ -328,7 +328,7 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
       let total_power = lights.iter().fold(0.0, |a, b| a + b.output());
       for light in lights {
         let power = light.output();
-        let photon_count = (power / total_power * target_photon_count as f64).ceil() as usize;
+        let photon_count = (power / total_power * target_photon_count as f32).ceil() as usize;
         for _ in 0..photon_count.max(1) {
           initial_photons.push(make_photon(&light));
         }
@@ -348,7 +348,7 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
       let _t = Timing::new("Normalising photon power");
       for i in 0..photons.len() {
         if let Some(ref mut photon_data) = photons[i].data {
-          photon_data.colour = photon_data.colour * (1.0 / initial_photon_count as f64);
+          photon_data.colour = photon_data.colour * (1.0 / initial_photon_count as f32);
         }
       }
     }
@@ -376,7 +376,7 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
     let surface_normal = surface.normal;
     let position = surface.position;
     let _radius_cutoff = 0.05;
-    let mut nearest_shadow = std::f64::INFINITY;
+    let mut nearest_shadow = std::f32::INFINITY;
     let (photons, radius) = self.tree.nearest(surface.position, photon_samples, &mut |p| {
       let to_vector = p.position - position;
 
@@ -387,12 +387,12 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
         nearest_shadow = nearest_shadow.min(length);
         return None;
       }
-      return Some(length);
+      return Some(length as f64);
     });
     if photons.len() == 0 {
       return (None, Some(false));
     }
-    let mut max_radius: f64 = 0.0;
+    let mut max_radius = 0.0f32;
     let _skipped = 0;
     for (photon, distance) in &photons {
       if let Some(contribution) = self
@@ -404,7 +404,7 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
         } else {
           continue;
         };
-        max_radius = max_radius.max(*distance);
+        max_radius = max_radius.max(*distance as f32);
         let weight = photon_data.in_direction.dot(-surface_normal).max(0.0);
         result = result + Vector::from(photon_data.colour) * (contribution * weight).max(0.0);
       }
@@ -444,7 +444,7 @@ fn is_specular(surface: &MaterialCollisionInfo) -> bool {
   for secondary in &surface.secondaries {
     secondary_weight += secondary.2;
   }
-  if random(0.0, 1.0) < secondary_weight {
+  if (random(0.0, 1.0) as f32) < secondary_weight {
     return true;
   }
   return false;
@@ -469,7 +469,7 @@ impl PhotonSelector for DiffuseSelector {
     _photon: &Photon,
     _photon_count: usize,
     _sample_radius: f64,
-  ) -> Option<f64> {
+  ) -> Option<f32> {
     Some(1.0)
   }
   fn record_shadow_rays(&self) -> bool {
@@ -503,7 +503,7 @@ impl PhotonSelector for CausticSelector {
     _photon: &Photon,
     _photon_count: usize,
     _sample_radius: f64,
-  ) -> Option<f64> {
+  ) -> Option<f32> {
     Some(1.0) // / photon_count as f64)
   }
   fn record_shadow_rays(&self) -> bool {

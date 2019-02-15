@@ -51,7 +51,7 @@ impl Intersectable for Mesh {
     return result;
   }
 
-  fn intersect<'a>(&'a self, ray: &Ray, min: f64, max: f64) -> Option<(Collision, &'a Shadable)> {
+  fn intersect<'a>(&'a self, ray: &Ray, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
     return self.tree.intersect(&self.triangles, ray, min, max);
   }
 }

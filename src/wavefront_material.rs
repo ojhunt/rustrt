@@ -21,7 +21,7 @@ trait RawSurfaceValue: Clone + Clone + Copy {
   type RawType;
   fn empty() -> Self;
   fn from_array(array: Option<[f32; 3]>) -> Option<Self>;
-  fn max_value(&self) -> f64;
+  fn max_value(&self) -> f32;
 }
 
 impl RawSurfaceValue for Colour {
@@ -29,7 +29,7 @@ impl RawSurfaceValue for Colour {
   fn empty() -> Self {
     return Colour::RGB(0.0, 0.0, 0.0);
   }
-  fn max_value(&self) -> f64 {
+  fn max_value(&self) -> f32 {
     return self.r().max(self.g().max(self.b()));
   }
 
@@ -59,14 +59,14 @@ impl RawSurfaceValue for EmissionCoefficients {
         return None;
       }
       return Some(EmissionCoefficients {
-        ambient: a as f64,
-        diffuse: d as f64,
-        specular: s as f64,
+        ambient: a,
+        diffuse: d,
+        specular: s,
       });
     }
     return None;
   }
-  fn max_value(&self) -> f64 {
+  fn max_value(&self) -> f32 {
     return self.diffuse.max(self.ambient.max(self.specular));
   }
 }
@@ -262,20 +262,20 @@ impl Material for WFMaterial {
     let (refracted_vector, new_context): (Vector, RayContext) = match self.index_of_refraction {
       None => (f.view, ray.ray_context.clone()),
       Some(ior) => {
-        let view = f.view * -1.0;
+        let view = f.view * -1.0f32;
         let in_object = view.dot(f.true_normal) > 0.0;
         let (ni, nt, new_context) = if in_object {
           let new_context = ray.ray_context.exit_material();
           (
-            ray.ray_context.current_ior_or(ior) as f64,
-            new_context.current_ior_or(1.0) as f64,
+            ray.ray_context.current_ior_or(ior),
+            new_context.current_ior_or(1.0),
             new_context,
           )
         } else {
           let new_context = ray.ray_context.enter_material(ior);
-          (ray.ray_context.current_ior_or(1.0) as f64, ior as f64, new_context)
+          (ray.ray_context.current_ior_or(1.0), ior, new_context)
         };
-        let nr = ni as f64 / nt as f64;
+        let nr = ni as f32 / nt as f32;
 
         let n_dot_v = normal.dot(view);
 

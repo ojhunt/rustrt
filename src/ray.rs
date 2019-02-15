@@ -28,8 +28,8 @@ impl RayContext {
 pub struct Ray {
   pub origin: Point,
   pub direction: Vector,
-  pub min: f64,
-  pub max: f64,
+  pub min: f32,
+  pub max: f32,
   pub ray_context: RayContext,
 }
 
@@ -46,12 +46,12 @@ impl Ray {
       origin: origin,
       direction: direction,
       min: 0.0,
-      max: std::f64::INFINITY,
+      max: std::f32::INFINITY,
       ray_context: clone_context(ctx),
     }
   }
 
-  pub fn new_bound(origin: Point, direction: Vector, min: f64, max: f64, ctx: Option<RayContext>) -> Ray {
+  pub fn new_bound(origin: Point, direction: Vector, min: f32, max: f32, ctx: Option<RayContext>) -> Ray {
     Ray {
       origin: origin,
       direction: direction,

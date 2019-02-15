@@ -46,7 +46,10 @@ pub trait VectorType: Sized + Copy {
   fn fdiv(self, divisor: f32) -> Self {
     Self::new(self.data() / divisor)
   }
-  fn scale(self, scale: f64) -> Self {
+  fn scale64(self, scale: f64) -> Self {
+    Self::new(self.data() * scale as f32)
+  }
+  fn scale32(self, scale: f32) -> Self {
     Self::new(self.data() * scale as f32)
   }
   fn divide_elements(self, _rhs: Self) -> Self {
@@ -133,15 +136,15 @@ impl Vector {
       data: lhs120 * rhs201 - lhs201 * rhs120,
     }
   }
-  pub fn square_length(&self) -> f64 {
+  pub fn square_length(&self) -> f32 {
     return self.dot(*self);
   }
-  pub fn length(&self) -> f64 {
+  pub fn length(&self) -> f32 {
     return self.square_length().sqrt();
   }
-  pub fn dot(&self, rhs: Vector) -> f64 {
+  pub fn dot(&self, rhs: Vector) -> f32 {
     let scaled = self.data * rhs.data;
-    return scaled.sum() as f64;
+    return scaled.sum();
   }
   pub fn normalize(&self) -> Vector {
     let scale = 1.0 / self.dot(*self).sqrt();
@@ -152,21 +155,34 @@ impl Vector {
 impl ops::Neg for Vector {
   type Output = Vector;
   fn neg(self) -> Vector {
-    return self.scale(-1.0);
+    return self.scale32(-1.0);
   }
 }
 
 impl ops::Mul<f64> for Vector {
   type Output = Vector;
   fn mul(self, rhs: f64) -> Vector {
-    return self.scale(rhs);
+    return self.scale64(rhs);
+  }
+}
+
+impl ops::Mul<f32> for Vector {
+  type Output = Vector;
+  fn mul(self, rhs: f32) -> Vector {
+    return self.scale32(rhs);
   }
 }
 
 impl ops::Mul<Vector> for f64 {
   type Output = Vector;
   fn mul(self, rhs: Vector) -> Vector {
-    return rhs.scale(self);
+    return rhs.scale64(self);
+  }
+}
+impl ops::Mul<Vector> for f32 {
+  type Output = Vector;
+  fn mul(self, rhs: Vector) -> Vector {
+    return rhs.scale32(self);
   }
 }
 
