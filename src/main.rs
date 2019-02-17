@@ -184,7 +184,6 @@ fn main() {
   let settings = load_settings();
 
   let scn = Arc::new(load_scene(&settings));
-
   let lighting_integrator = lighting_integrator(&settings, &scn);
   let camera = Box::new(PerspectiveCamera::new(
     settings.width,

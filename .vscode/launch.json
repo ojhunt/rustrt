@@ -37,6 +37,61 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Debug Empty Cornell",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=myrt",
+                    "--package=myrt"
+                ],
+                "filter": {
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "models/CornellBox-Empty-CO.obj",
+                "-p",
+                "(0,0.75,3.5)",
+                "-t",
+                "(0,0.75,0)",
+                "-o",
+                "${workspaceFolder}/test.png",
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug Empty Cornell - PM",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=myrt",
+                    "--package=myrt"
+                ],
+                "filter": {
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "models/CornellBox-Empty-CO.obj",
+                "-p",
+                "(0,0.75,3.5)",
+                "-t",
+                "(0,0.75,0)",
+                "-o",
+                "${workspaceFolder}/test.png",
+                "--photon-count",
+                "10",
+                "--photon-samples",
+                "1",
+                "--use-direct-lighting"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug unit tests in executable 'myrt'",
             "cargo": {
                 "args": [

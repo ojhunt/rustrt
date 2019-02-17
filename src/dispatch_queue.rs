@@ -23,7 +23,7 @@ where
   T: Send + Sync + Clone + 'static,
 {
   fn default() -> Self {
-    return DispatchQueue::new(num_cpus::get());
+    return DispatchQueue::new(10);
   }
 }
 

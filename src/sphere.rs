@@ -16,7 +16,7 @@ use crate::vectors::VectorType;
 use crate::vectors::Vec2d;
 
 #[derive(Debug)]
-struct Sphere {
+pub struct Sphere {
   position: Point,
   radius: f32,
   material: MaterialIdx,
@@ -34,46 +34,68 @@ impl HasBoundingBox for Sphere {
 
 impl Sphere {
   #[allow(dead_code)]
-  fn new(position: Point, radius: f32, material: MaterialIdx) -> Self {
+  pub fn new(position: Point, radius: f32, material: MaterialIdx) -> Self {
     return Sphere {
       position,
       radius,
       material,
     };
   }
-
+  #[allow(warnings)]
   fn intersects<'a>(&'a self, ray: &Ray, min: f32, max: f32) -> Option<Collision> {
-    let to_sphere = self.position - ray.origin;
-    let d = to_sphere.dot(ray.direction);
-    let nearest_point = ray.origin + d * ray.direction;
-    let c_to_nearest = nearest_point - self.position;
-    if c_to_nearest.square_length() > self.radius * self.radius {
+    let origin_to_center = self.position - ray.origin;
+    let distance_to_tangent_point = origin_to_center.dot(ray.direction);
+    let radius_at_tangent_point =
+      (origin_to_center.square_length() - distance_to_tangent_point * distance_to_tangent_point).sqrt();
+    if !(radius_at_tangent_point < self.radius) {
       return None;
     }
-    let step = (self.radius * self.radius - c_to_nearest.square_length()).sqrt();
-    let inside = to_sphere.square_length() < self.radius * self.radius;
-    let collision_distance = if inside { d + step } else { d - step };
-    if collision_distance < min || collision_distance > max {
+
+    let collision_to_tangent = (self.radius * self.radius - radius_at_tangent_point * radius_at_tangent_point).sqrt();
+
+    let true_distance = if distance_to_tangent_point < collision_to_tangent {
+      distance_to_tangent_point + collision_to_tangent
+    } else {
+      distance_to_tangent_point - collision_to_tangent
+    };
+
+    if distance_to_tangent_point < min {
       return None;
     }
-    let position = ray.origin + collision_distance * ray.direction;
-    let normal = (position - self.position) / self.radius;
+
+    if distance_to_tangent_point >= max {
+      return None;
+    }
+
+    let collision_point = ray.origin + ray.direction * true_distance;
+    assert!(collision_point.is_finite());
+
+    let normal = (collision_point - self.position).normalize();
+    assert!(normal.is_finite());
     let u = normal.z().atan2(normal.x());
     let v = normal.y().acos();
-    return Some(Collision::new(collision_distance, Vec2d(u.into(), v.into())));
+    return Some(Collision::new(true_distance, Vec2d(u.into(), v.into())));
   }
 }
 impl Shadable for Sphere {
+  #[allow(warnings)]
   fn compute_fragment(&self, _: &Scene, ray: &Ray, collision: &Collision) -> Fragment {
-    let position = self.position + collision.distance * ray.direction;
-    let normal = (position - self.position) / self.radius;
+    let position = ray.origin + collision.distance * ray.direction;
+    let c_to_c = position - self.position;
+    let _c2clen = c_to_c.length();
+    let normal = (c_to_c).normalize();
+    let position = self.position + (self.radius * 1.15) * normal;
     let u = normal.z().atan2(normal.x());
     let v = normal.y().acos();
     let dpdv = normal.cross(Vector::vector(0.0, 1.0, 0.0)).cross(normal);
     let dpdu = normal.cross(Vector::vector(1.0, 0.0, 0.0)).cross(normal);
     return Fragment {
       material: self.material,
-      normal,
+      normal: if ray.direction.dot(normal) > 0.0 {
+        -normal
+      } else {
+        normal
+      },
       position,
       true_normal: normal,
       uv: Vec2d(u.into(), v.into()),
@@ -122,10 +144,10 @@ impl Light for Sphere {
 }
 
 impl Intersectable for Sphere {
-  fn get_lights<'a>(&'a self, s: &Scene) -> Vec<&'a Light> {
-    if s.get_material(self.material).is_light() {
-      return vec![self];
-    }
+  fn get_lights<'a>(&'a self, _s: &Scene) -> Vec<&'a Light> {
+    // if s.get_material(self.material).is_light() {
+    //   return vec![self];
+    // }
     return vec![];
   }
   fn intersect<'a>(&'a self, ray: &Ray, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {

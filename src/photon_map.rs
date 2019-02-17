@@ -138,7 +138,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
   if selector.record_shadow_rays() {
     let mut shadow_depth = 0;
     let mut shadow_ray = Ray::new(
-      photon_ray.origin + photon_ray.direction * 0.01,
+      photon_ray.origin + photon_ray.direction * 0.02,
       photon_ray.direction,
       None,
     );
@@ -155,7 +155,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
     }
   }
   // println!("Photon colour {:?}", photon_colour);
-  while path_length < 256 {
+  while path_length < 26 {
     let current_colour = photon_colour;
 
     path_length += 1;

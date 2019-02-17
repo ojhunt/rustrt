@@ -53,12 +53,13 @@ impl LightingIntegrator for DirectLighting {
       let mut ldir = light.position - surface.position;
       let ldir_len = ldir.length();
       ldir = ldir.normalize();
-      if had_shadow.unwrap_or(true) {
-        let shadow_test = Ray::new_bound(surface.position, ldir, 0.005, ldir_len - 0.001, None);
+      if false && had_shadow.unwrap_or(true) {
+        let shadow_test = Ray::new_bound(surface.position, ldir, 0.02, ldir_len - 0.001, None);
         if scene.intersect(&shadow_test).is_some() {
           continue;
         }
       }
+
       let diffuse_intensity = light_scale * light.weight * ldir.dot(surface.normal).max(0.0);
       let ambient_intensity = light_scale * light.weight * light.ambient;
       diffuse_lighting = diffuse_lighting + light.diffuse * diffuse_intensity;

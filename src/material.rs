@@ -45,11 +45,12 @@ pub trait Material: Debug + Sync + Send {
 #[derive(Debug)]
 pub struct DefaultMaterial {
   colour: Colour,
+  reflection: Option<f32>,
 }
 
 impl DefaultMaterial {
-  pub fn new(colour: Colour) -> DefaultMaterial {
-    DefaultMaterial { colour }
+  pub fn new(colour: Colour, reflection: Option<f32>) -> DefaultMaterial {
+    DefaultMaterial { colour, reflection }
   }
 }
 impl Material for DefaultMaterial {
@@ -57,7 +58,13 @@ impl Material for DefaultMaterial {
     false
   }
 
-  fn compute_surface_properties(&self, _s: &Scene, _ray: &Ray, f: &Fragment) -> MaterialCollisionInfo {
+  fn compute_surface_properties(&self, _s: &Scene, ray: &Ray, f: &Fragment) -> MaterialCollisionInfo {
+    let reflected_direction = f.view.reflect(f.normal);
+    let reflected_ray = Ray::new(
+      f.position + (reflected_direction * 0.01),
+      reflected_direction,
+      Some(ray.ray_context.clone()),
+    );
     MaterialCollisionInfo {
       ambient_colour: self.colour,
       diffuse_colour: self.colour,
@@ -66,7 +73,11 @@ impl Material for DefaultMaterial {
       transparent_colour: None,
       position: f.position,
       normal: f.normal,
-      secondaries: vec![],
+      secondaries: if let Some(_) = self.reflection {
+        vec![(reflected_ray, Colour::RGB(0.95, 0.95, 0.95), 1.0)]
+      } else {
+        vec![]
+      },
     }
   }
 }

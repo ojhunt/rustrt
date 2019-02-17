@@ -95,7 +95,10 @@ impl Scene {
       directory: real_path.parent().unwrap().to_owned(),
       normals: Vec::new(),
       positions: Vec::new(),
-      materials: vec![Box::new(DefaultMaterial::new(Colour::RGB(0.7, 0.7, 0.7)))],
+      materials: vec![
+        Box::new(DefaultMaterial::new(Colour::RGB(0.7, 0.7, 0.7), None)),
+        Box::new(DefaultMaterial::new(Colour::RGB(0.01, 0.01, 0.01), Some(1.0))),
+      ],
       texture_coords: Vec::new(),
       textures: Vec::new(),
       _scene: CompoundObject::new(),
@@ -171,6 +174,10 @@ impl Scene {
   pub fn default_material(&self) -> MaterialIdx {
     MaterialIdx(0)
   }
+  #[allow(dead_code)]
+  pub fn mirror_material(&self) -> MaterialIdx {
+    MaterialIdx(1)
+  }
   pub fn intersect<'a>(&'a self, ray: &Ray) -> Option<(Collision, &'a Shadable)> {
     return self._scene.intersect(ray, ray.min, ray.max);
   }
@@ -206,7 +213,7 @@ impl Scene {
 
   fn intersect_ray(&self, configuration: &RenderConfiguration, ray: &Ray, depth: usize) -> (Vector, f32) {
     if depth > 10 {
-      return (Vector::vector(1.0, 1.0, 1.0), 0.0);
+      return (Vector::vector(0.0, 0.0, 1.0), 0.0);
     }
     let (collision, shadable) = match self.intersect(ray) {
       None => return (Vector::new(), std::f32::INFINITY),
@@ -217,6 +224,15 @@ impl Scene {
 
     let material = self.get_material(fragment.material);
     let surface = material.compute_surface_properties(self, ray, &fragment);
+
+    if false {
+      if true && surface.secondaries.len() != 0 {
+        let (r, _, _) = &surface.secondaries[0];
+        return ((r.direction + Vector::splat(1.0)) * 0.5, 0.0);
+      }
+      return ((fragment.normal + Vector::splat(1.0)) * 0.5, 0.0);
+    }
+
     // let ambient_colour = Vector::from(surface.ambient_colour);
     let mut diffuse_colour = Vector::from(surface.diffuse_colour);
     if let Some(emission) = surface.emissive_colour {

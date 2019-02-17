@@ -42,12 +42,10 @@ impl BoundingBox {
   }
 
   pub fn new_from_point(v: Point) -> BoundingBox {
-    assert!(v.w() == 1.);
     BoundingBox { min: v, max: v }
   }
 
   pub fn merge_with_point(&self, v: Point) -> BoundingBox {
-    assert!(v.w() == 1.);
     return self.merge_with_bbox(BoundingBox { min: v, max: v });
   }
   pub fn merge_with_bbox(&self, other: BoundingBox) -> BoundingBox {

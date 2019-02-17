@@ -35,6 +35,11 @@ pub trait VectorType: Sized + Copy {
   fn axis(&self, index: usize) -> f32 {
     self.data().extract(index)
   }
+
+  fn is_finite(&self) -> bool {
+    return self.x().is_finite() && self.y().is_finite() && self.z().is_finite() && self.w().is_finite();
+  }
+
   fn splat(value: f32) -> Self {
     Self::new(f32x4::splat(value))
   }

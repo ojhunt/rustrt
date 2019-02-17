@@ -1,3 +1,5 @@
+#[allow(unused_imports)]
+use crate::scene::MaterialIdx;
 use crate::material::EmissionCoefficients;
 use crate::scene::SceneSettings;
 use crate::colour::Colour;
@@ -14,6 +16,7 @@ use crate::scene::Scene;
 use crate::scene::TextureIdx;
 use std::path::Path;
 use crate::texture::TextureCoordinateIdx;
+use crate::sphere::Sphere;
 use crate::triangle::Triangle;
 use crate::vectors::*;
 
@@ -256,7 +259,7 @@ impl Material for WFMaterial {
     let transparent_colour = if let Some(transparent_colour) = result.transparent_colour {
       transparent_colour
     } else {
-      Colour::RGB(1.0, 1.0, 1.0) //return result;
+      Colour::RGB(1.0, 1.0, 1.0)
     };
     let mut refraction_weight = 1.0;
     let (refracted_vector, new_context): (Vector, RayContext) = match self.index_of_refraction {
@@ -452,6 +455,7 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
     let mut object_triangles: Vec<Triangle> = vec![];
 
     let group_count = object.groups.len();
+
     for group_index in 0..group_count {
       let ref group = &object.groups[group_index];
       let material_index = if let Some(ref mat) = group.material {
@@ -512,6 +516,9 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
 
     let new_object = Box::new(Mesh::new(&object_triangles));
     scn.add_object(new_object);
+
+    let sphere = Box::new(Sphere::new(Vector::point(0.0, 1.0, 0.0), 0.25, scn.mirror_material()));
+    scn.add_object(sphere);
   }
   scn.finalize();
   return scn;
