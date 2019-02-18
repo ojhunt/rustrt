@@ -1,3 +1,4 @@
+use crate::material::compute_secondaries;
 use crate::render_configuration::RenderConfiguration;
 use std::collections::HashMap;
 use crate::material::Material;
@@ -97,7 +98,7 @@ impl Scene {
       positions: Vec::new(),
       materials: vec![
         Box::new(DefaultMaterial::new(Colour::RGB(0.7, 0.7, 0.7), None)),
-        Box::new(DefaultMaterial::new(Colour::RGB(0.01, 0.01, 0.01), Some(1.0))),
+        Box::new(DefaultMaterial::new(Colour::RGB(1.0, 1.0, 1.0), Some(1.0))),
       ],
       texture_coords: Vec::new(),
       textures: Vec::new(),
@@ -226,10 +227,6 @@ impl Scene {
     let surface = material.compute_surface_properties(self, ray, &fragment);
 
     if false {
-      if true && surface.secondaries.len() != 0 {
-        let (r, _, _) = &surface.secondaries[0];
-        return ((r.direction + Vector::splat(1.0)) * 0.5, 0.0);
-      }
       return ((fragment.normal + Vector::splat(1.0)) * 0.5, 0.0);
     }
 
@@ -251,14 +248,14 @@ impl Scene {
     let mut max_secondary_distance = 0.0f32;
     let mut remaining_weight = 1.0;
     let mut secondaries_colour = Vector::new();
-    for (ray, secondary_colour, weight) in &surface.secondaries {
+    for (ray, secondary_colour, weight) in compute_secondaries(ray, &fragment, &surface) {
       if remaining_weight <= 0.0 {
         break;
       }
       remaining_weight -= weight;
-      let (secondary_intersection_colour, secondary_distance) = self.intersect_ray(configuration, ray, depth + 1);
+      let (secondary_intersection_colour, secondary_distance) = self.intersect_ray(configuration, &ray, depth + 1);
       secondaries_colour =
-        secondaries_colour + Vector::from(Colour::from(secondary_intersection_colour) * *secondary_colour * *weight);
+        secondaries_colour + Vector::from(Colour::from(secondary_intersection_colour) * secondary_colour * weight);
       max_secondary_distance = max_secondary_distance.max(secondary_distance);
     }
     colour = secondaries_colour;

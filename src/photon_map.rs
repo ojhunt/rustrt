@@ -1,3 +1,4 @@
+use crate::material::compute_secondaries;
 use crate::direct_lighting::IndirectLightingSource;
 use crate::render_configuration::SampleLighting;
 use crate::render_configuration::LightingIntegrator;
@@ -68,7 +69,12 @@ impl RecordMode {
 }
 
 pub trait PhotonSelector: Debug + Clone + Sync + Send {
-  fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode;
+  fn record_mode(
+    &self,
+    surface: &MaterialCollisionInfo,
+    secondaries: &[(Ray, Colour, f32)],
+    depth: usize,
+  ) -> RecordMode;
   fn weight_for_sample(&self, position: Point, photon: &Photon, photon_count: usize, sample_radius: f64)
     -> Option<f32>;
   fn record_shadow_rays(&self) -> bool;
@@ -172,14 +178,15 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
 
     let surface: MaterialCollisionInfo = material.compute_surface_properties(scene, &photon_ray, &fragment);
     let mut remaining_weight = 1.0;
+    let secondaries = compute_secondaries(&photon_ray, &fragment, &surface);
     let mut next = {
       let mut selection = random(0.0, 1.0) as f32;
       let mut result: Option<(Ray, Colour)> = None;
-      for (_, _, secondary_weight) in &surface.secondaries {
+      for (_, _, secondary_weight) in &secondaries {
         remaining_weight -= secondary_weight;
       }
       remaining_weight = remaining_weight.max(0.0);
-      for (secondary_ray, secondary_colour, secondary_weight) in &surface.secondaries {
+      for (secondary_ray, secondary_colour, secondary_weight) in &secondaries {
         if selection > *secondary_weight {
           selection -= secondary_weight;
           continue;
@@ -219,7 +226,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
       ));
     };
     let (next_ray, mut next_colour) = next.unwrap();
-    let path_mode = selector.record_mode(&surface, path_length);
+    let path_mode = selector.record_mode(&surface, &secondaries, path_length);
     let recorded_photon = if path_mode.should_record() {
       if !recorded {
         recorded = true;
@@ -439,9 +446,9 @@ impl DiffuseSelector {
   }
 }
 
-fn is_specular(surface: &MaterialCollisionInfo) -> bool {
+fn is_specular(secondaries: &[(Ray, Colour, f32)]) -> bool {
   let mut secondary_weight = 0.0;
-  for secondary in &surface.secondaries {
+  for secondary in secondaries {
     secondary_weight += secondary.2;
   }
   if (random(0.0, 1.0) as f32) < secondary_weight {
@@ -451,8 +458,8 @@ fn is_specular(surface: &MaterialCollisionInfo) -> bool {
 }
 
 impl PhotonSelector for DiffuseSelector {
-  fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
-    if depth == 1 && is_specular(surface) && false {
+  fn record_mode(&self, _: &MaterialCollisionInfo, secondaries: &[(Ray, Colour, f32)], depth: usize) -> RecordMode {
+    if depth == 1 && is_specular(secondaries) && false {
       return RecordMode::TerminatePath;
     }
 
@@ -488,9 +495,9 @@ impl CausticSelector {
 }
 
 impl PhotonSelector for CausticSelector {
-  fn record_mode(&self, surface: &MaterialCollisionInfo, depth: usize) -> RecordMode {
+  fn record_mode(&self, _: &MaterialCollisionInfo, secondaries: &[(Ray, Colour, f32)], depth: usize) -> RecordMode {
     if depth == 1 {
-      if is_specular(surface) {
+      if is_specular(secondaries) {
         return RecordMode::DontRecord;
       }
       return RecordMode::TerminatePath;

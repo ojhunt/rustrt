@@ -10,7 +10,6 @@ use crate::material::{Material, Transparency};
 use obj::{IndexTuple, Obj};
 use crate::objects::Mesh;
 use crate::ray::Ray;
-use crate::ray::RayContext;
 use crate::scene::NormalIdx;
 use crate::scene::Scene;
 use crate::scene::TextureIdx;
@@ -222,7 +221,7 @@ impl Material for WFMaterial {
     }
   }
 
-  fn compute_surface_properties(&self, s: &Scene, ray: &Ray, f: &Fragment) -> MaterialCollisionInfo {
+  fn compute_surface_properties(&self, s: &Scene, _: &Ray, f: &Fragment) -> MaterialCollisionInfo {
     let normal = perturb_normal(self.bump_map, f, s);
     let mut result = MaterialCollisionInfo {
       ambient_colour: self.ambient_colour.raw_for_fragment(s, f),
@@ -231,101 +230,18 @@ impl Material for WFMaterial {
       emissive_colour: self.emissive_colour.option_for_fragment(s, f),
       normal: normal,
       position: f.position,
+      reflectivity: None,
       transparent_colour: None,
-      secondaries: vec![],
+      index_of_refraction: None,
     };
-
-    if self.illumination_model < 5 {
-      return result;
-    }
-
-    // Basic reflection
-    let reflected_ray = f.view.reflect(normal);
 
     if self.illumination_model == 5 {
-      result.secondaries.push((
-        Ray::new(
-          f.position + (reflected_ray * 0.01),
-          reflected_ray,
-          Some(ray.ray_context.clone()),
-        ),
-        result.specular_colour,
-        1.0,
-      ));
-
+      result.reflectivity = Some((1.0, result.specular_colour));
       return result;
     }
 
-    let transparent_colour = if let Some(transparent_colour) = result.transparent_colour {
-      transparent_colour
-    } else {
-      Colour::RGB(1.0, 1.0, 1.0)
-    };
-    let mut refraction_weight = 1.0;
-    let (refracted_vector, new_context): (Vector, RayContext) = match self.index_of_refraction {
-      None => (f.view, ray.ray_context.clone()),
-      Some(ior) => {
-        let view = f.view * -1.0f32;
-        let in_object = view.dot(f.true_normal) > 0.0;
-        let (ni, nt, new_context) = if in_object {
-          let new_context = ray.ray_context.exit_material();
-          (
-            ray.ray_context.current_ior_or(ior),
-            new_context.current_ior_or(1.0),
-            new_context,
-          )
-        } else {
-          let new_context = ray.ray_context.enter_material(ior);
-          (ray.ray_context.current_ior_or(1.0), ior, new_context)
-        };
-        let nr = ni as f32 / nt as f32;
-
-        let n_dot_v = normal.dot(view);
-
-        let inner = 1.0 - nr * nr * (1.0 - n_dot_v * n_dot_v);
-        if inner < 0.0 {
-          (reflected_ray, ray.ray_context.clone())
-        } else {
-          // Schlick approximation of fresnel term
-          let r0 = {
-            let r0root = (nt - ni) / (nt + ni);
-            r0root * r0root
-          };
-          let fresnel_weight = {
-            let one_minus_cos_theta = 1.0 - n_dot_v;
-            let squared = one_minus_cos_theta * one_minus_cos_theta;
-            let quintupled = squared * squared * one_minus_cos_theta;
-            r0 + (1.0 - r0) * quintupled
-          };
-          if fresnel_weight > 0.02 {
-            result.secondaries.push((
-              Ray::new(
-                f.position + reflected_ray * 0.01,
-                reflected_ray,
-                Some(ray.ray_context.clone()),
-              ),
-              result.specular_colour,
-              fresnel_weight,
-            ));
-            refraction_weight -= fresnel_weight;
-          }
-          (
-            ((nr * n_dot_v - inner.sqrt()) * normal - nr * view).normalize(),
-            new_context,
-          )
-        }
-      }
-    };
-    result.secondaries.push((
-      Ray::new(
-        f.position + refracted_vector * 0.01,
-        refracted_vector,
-        Some(new_context),
-      ),
-      transparent_colour,
-      refraction_weight,
-    ));
-
+    result.index_of_refraction = self.index_of_refraction;
+    result.transparent_colour = self.transparent_colour;
     return result;
   }
 }
