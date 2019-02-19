@@ -1,5 +1,4 @@
 #![feature(stdsimd, async_await, futures_api, await_macro, drain_filter)]
-#![deny(warnings)]
 
 extern crate clap;
 extern crate genmesh;
@@ -34,6 +33,7 @@ mod photon_map;
 mod ray;
 mod render_configuration;
 mod scene;
+mod scene_loader;
 mod shader;
 mod sphere;
 mod texture;
