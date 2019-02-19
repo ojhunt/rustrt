@@ -18,7 +18,6 @@ use std::path::PathBuf;
 use crate::texture::Texture;
 use crate::vectors::*;
 use crate::photon_map::Timing;
-use crate::bounding_box::HasBoundingBox;
 
 #[derive(Debug, Copy, Clone)]
 pub struct MaterialIdx(pub usize);
@@ -110,6 +109,7 @@ impl Scene {
   }
 
   pub fn load_texture(&mut self, file: &str, need_bumpmap: bool) -> Option<TextureIdx> {
+    println!("Looking for {} ", file);
     let resolved_path = self.directory.clone().join(file.replace("\\", "/"));
     if let Some(result) = self.texture_map.get(&resolved_path) {
       if need_bumpmap {
@@ -189,8 +189,6 @@ impl Scene {
   pub fn finalize(&mut self) {
     Timing::time("Build scene graph", || {
       self._scene.finalize();
-      println!("Bounds: {:?}", self._scene.bounds());
-      println!("Midpoint: {:?}", self._scene.bounds().centroid());
     });
   }
 
@@ -231,8 +229,8 @@ impl Scene {
     let material = self.get_material(fragment.material);
     let surface = material.compute_surface_properties(self, ray, &fragment);
 
-    if true {
-      return ((fragment.normal + Vector::splat(1.0)) * 0.5, 0.0);
+    if false {
+      return ((fragment.normal + Vector::splat(1.0)) * 0.5, collision.distance);
     }
 
     // let ambient_colour = Vector::from(surface.ambient_colour);
@@ -264,7 +262,7 @@ impl Scene {
       max_secondary_distance = max_secondary_distance.max(secondary_distance);
     }
     colour = secondaries_colour;
-    Vector::new();
+
     diffuse_colour = diffuse_colour * remaining_weight;
     if diffuse_colour.length() <= 0.01 {
       return (colour, collision.distance + max_secondary_distance);

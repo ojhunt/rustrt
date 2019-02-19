@@ -424,6 +424,7 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
             let n = nidx.get(&scn);
             assert!(n.dot(n) != 0.0);
           };
+
           Triangle::new(material_index.unwrap_or(default_material), x, y, z)
         })
         .collect();

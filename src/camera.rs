@@ -249,10 +249,17 @@ impl Camera for PerspectiveCamera {
     }
     let _t = Timing::new("Creating output image");
     let mut result = image::RgbImage::new(self._width as u32, self._height as u32);
+    let mut max_d = 0.0;
+
+    for (x, y, _pixel) in result.enumerate_pixels() {
+      let (_, _, d) = buffer.data[x as usize + y as usize * self._width];
+      max_d = d.max(max_d);
+    }
+    println!("Max depth: {}", max_d);
     for (x, y, _pixel) in result.enumerate_pixels_mut() {
       let (value, sample_count, d) = buffer.data[x as usize + y as usize * self._width];
       if false {
-        let d_colour = (d * d / 25.0 * 255.).max(0.).min(255.) as u8;
+        let d_colour = (d / max_d * 255.).max(0.).min(255.) as u8;
         *_pixel = image::Rgb([d_colour, d_colour, d_colour]);
       } else if false {
         let proportion = sample_count as f64 / max_resample_count as f64;

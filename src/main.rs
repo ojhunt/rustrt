@@ -152,10 +152,9 @@ fn load_settings() -> SceneSettings {
     Ok(value) => settings.camera_direction = (value.as_point() - settings.camera_position).normalize(),
     _ => {}
   }
-  println!("matches: {:?}", matches);
   match value_t!(matches, "direction", VecArg) {
     Ok(value) => settings.camera_direction = value.as_vector().normalize(),
-    _ => panic!(),
+    _ => {}
   }
   return settings;
 }
