@@ -18,6 +18,7 @@ use std::path::PathBuf;
 use crate::texture::Texture;
 use crate::vectors::*;
 use crate::photon_map::Timing;
+use crate::bounding_box::HasBoundingBox;
 
 #[derive(Debug, Copy, Clone)]
 pub struct MaterialIdx(pub usize);
@@ -40,7 +41,7 @@ pub struct SceneSettings {
   pub output_file: String,
   pub scene_file: String,
   pub camera_position: Point,
-  pub camera_target: Point,
+  pub camera_direction: Vector,
   pub camera_up: Vector,
   pub max_leaf_photons: usize,
   pub photon_samples: usize,
@@ -58,7 +59,7 @@ impl SceneSettings {
       output_file: String::new(),
       scene_file: String::new(),
       camera_position: Vector::point(0., 0.5, 0.),
-      camera_target: Vector::point(0., 0., 10000000.),
+      camera_direction: Vector::vector(0., 0., 1.),
       camera_up: Vector::vector(0.0, 1.0, 0.0),
       max_leaf_photons: 8,
       width: 700,
@@ -124,6 +125,7 @@ impl Scene {
         "pnm" => ImageFormat::PNG,
         "jpeg" => ImageFormat::JPEG,
         "jpg" => ImageFormat::JPEG,
+        "tga" => ImageFormat::TGA,
         x => panic!("Extension {}", x),
       }
     } else {
@@ -140,6 +142,7 @@ impl Scene {
       }
       Err(msg) => panic!("Fopen({:?}) failed with {}", resolved_path, msg),
     };
+
     let texture = Texture::new(resolved_path.to_str().unwrap(), &image);
 
     let texture_idx = TextureIdx(self.textures.len());
@@ -186,6 +189,8 @@ impl Scene {
   pub fn finalize(&mut self) {
     Timing::time("Build scene graph", || {
       self._scene.finalize();
+      println!("Bounds: {:?}", self._scene.bounds());
+      println!("Midpoint: {:?}", self._scene.bounds().centroid());
     });
   }
 
@@ -226,7 +231,7 @@ impl Scene {
     let material = self.get_material(fragment.material);
     let surface = material.compute_surface_properties(self, ray, &fragment);
 
-    if false {
+    if true {
       return ((fragment.normal + Vector::splat(1.0)) * 0.5, 0.0);
     }
 

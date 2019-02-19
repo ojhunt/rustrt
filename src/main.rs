@@ -101,10 +101,6 @@ fn load_settings() -> SceneSettings {
     Ok(value) => settings.camera_position = value.as_point(),
     _ => {}
   }
-  match value_t!(matches, "target", VecArg) {
-    Ok(value) => settings.camera_target = value.as_point(),
-    _ => {}
-  }
   match value_t!(matches, "max_leaf_photons", usize) {
     Ok(value) => {
       settings.max_leaf_photons = value.max(4);
@@ -152,6 +148,15 @@ fn load_settings() -> SceneSettings {
   if matches.is_present("multisampling") {
     settings.use_multisampling = true;
   }
+  match value_t!(matches, "target", VecArg) {
+    Ok(value) => settings.camera_direction = (value.as_point() - settings.camera_position).normalize(),
+    _ => {}
+  }
+  println!("matches: {:?}", matches);
+  match value_t!(matches, "direction", VecArg) {
+    Ok(value) => settings.camera_direction = value.as_vector().normalize(),
+    _ => panic!(),
+  }
   return settings;
 }
 
@@ -190,7 +195,7 @@ fn main() {
     settings.width,
     settings.height,
     settings.camera_position,
-    settings.camera_target,
+    settings.camera_direction,
     settings.camera_up,
     40.,
     settings.samples_per_pixel,

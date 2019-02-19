@@ -110,13 +110,13 @@ impl PerspectiveCamera {
     width: usize,
     height: usize,
     position: Point,
-    target: Point,
+    direction: Vector,
     up: Vector,
     fov: f64,
     samples_per_pixel: usize,
     do_multisampling: bool,
   ) -> PerspectiveCamera {
-    let direction = (target - position).normalize();
+    let direction = direction.normalize();
     let right = direction.cross(up).normalize();
 
     // Technically we already have an "up" vector, but for out purposes

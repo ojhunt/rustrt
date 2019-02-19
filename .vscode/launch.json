@@ -92,6 +92,31 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Sponza Clean",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=myrt",
+                    "--package=myrt"
+                ],
+                "filter": {
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "models/sponza-clean/sponza_clean.obj",
+                "-p",
+                "(-9,6.25,2)",
+                "-d",
+                "(0,6,2)",
+                "-o",
+                "${workspaceFolder}/test.png",
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug unit tests in executable 'myrt'",
             "cargo": {
                 "args": [

@@ -26,6 +26,11 @@ args:
         short: t
         long: target
         takes_value: true
+    - direction:
+        help: Camera direction
+        short: d
+        long: direction
+        takes_value: true
     - max_leaf_photons:
         help: Maximum number of photons in each leaf of the photon map
         long: max-leaf-photons
@@ -58,6 +63,7 @@ args:
     - multisampling:
         help: Use adpative multisampling
         long: multisampling
+
 
 
 
