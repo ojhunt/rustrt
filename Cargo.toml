@@ -17,6 +17,7 @@ futures={ version = "*", features = ["nightly"] }
 futures-executor-preview="*"
 num_cpus="*"
 order-stat ="*"
+xml-rs="*"
 
 [dependencies.clap]
 features = ["yaml"]

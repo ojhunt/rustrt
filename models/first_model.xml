@@ -1,0 +1,3 @@
+<scene name="first">
+<object name="cornell-box" path="./CornellBox-Empty.obj"/>
+</scene>
