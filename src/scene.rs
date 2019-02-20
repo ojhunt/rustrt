@@ -109,7 +109,6 @@ impl Scene {
   }
 
   pub fn load_texture(&mut self, file: &str, need_bumpmap: bool) -> Option<TextureIdx> {
-    println!("Looking for {} ", file);
     let resolved_path = self.directory.clone().join(file.replace("\\", "/"));
     if let Some(result) = self.texture_map.get(&resolved_path) {
       if need_bumpmap {

@@ -161,7 +161,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
     }
   }
   // println!("Photon colour {:?}", photon_colour);
-  while path_length < 26 {
+  loop {
     let current_colour = photon_colour;
 
     path_length += 1;
@@ -173,10 +173,10 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
       Some(x) => x,
     };
 
-    let fragment: Fragment = shadable.compute_fragment(scene, &photon_ray, &c);
+    let fragment = shadable.compute_fragment(scene, &photon_ray, &c);
     let material = scene.get_material(fragment.material);
 
-    let surface: MaterialCollisionInfo = material.compute_surface_properties(scene, &photon_ray, &fragment);
+    let surface = material.compute_surface_properties(scene, &photon_ray, &fragment);
     let mut remaining_weight = 1.0;
     let secondaries = compute_secondaries(&photon_ray, &fragment, &surface);
     let mut next = {
@@ -199,7 +199,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
     };
 
     if next.is_none() {
-      let prob_diffuse = (surface.diffuse_colour * photon_colour).max_value() / photon_colour.max_value();
+      let prob_diffuse = surface.diffuse_colour.max_value(); // (surface.diffuse_colour * photon_colour).max_value() / photon_colour.max_value();
       let prob_specular = (surface.specular_colour * photon_colour).max_value() / photon_colour.max_value();
       let p = random(0.0, 1.0) as f32;
       let (new_direction, new_colour) = if p * remaining_weight < prob_diffuse {

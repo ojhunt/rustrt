@@ -214,5 +214,5 @@ newmtl light
   Ka 0.78 0.78 0.78 # White
   Kd 0.78 0.78 0.78
   Ks 1 1 1
-  Ke 500 250 50
+  Ke 50 25 0
 

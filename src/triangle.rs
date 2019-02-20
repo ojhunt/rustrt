@@ -66,14 +66,15 @@ impl Light for Triangle {
 
       let material = scene.get_material(fragment.material);
       let surface = material.compute_surface_properties(scene, &ray, &fragment);
-
+      let mut emission = surface.emissive_colour.unwrap();
+      emission.diffuse *= self.get_area();
       let sample = LightSample {
         position: point,
         direction: Some(fragment.normal),
         specular: Vector::from(surface.specular_colour),
         diffuse: Vector::from(surface.diffuse_colour),
         ambient: Vector::from(surface.ambient_colour),
-        emission: surface.emissive_colour.unwrap(),
+        emission,
         weight: (1.0 / count as f32),
         power: 1.0,
       };

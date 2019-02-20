@@ -315,7 +315,6 @@ impl WFMaterial {
       specular_exponent: mat.ns,
       index_of_refraction: mat.ni,
       transparency: if let Some(d) = mat.d {
-        println!("Transparency {}", d);
         Transparency::Constant(d as f64)
       } else {
         Transparency::Opaque
