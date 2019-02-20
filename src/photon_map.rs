@@ -213,6 +213,15 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
           surface.specular_colour * photon_colour * (1.0 / prob_specular),
         )
       } else {
+        photons.push(Photon {
+          data: Some(PhotonData {
+            colour: current_colour,
+            in_direction: photon_ray.direction,
+            out_direction: photon_ray.direction.reflect(surface.normal),
+            is_direct: path_length == 1,
+          }),
+          position: fragment.position,
+        });
         break;
       };
 
