@@ -239,9 +239,10 @@ impl Material for WFMaterial {
       result.reflectivity = Some((1.0, result.specular_colour));
       return result;
     }
-
-    result.index_of_refraction = self.index_of_refraction;
-    result.transparent_colour = self.transparent_colour;
+    if let Transparency::Opaque = self.transparency {
+      result.index_of_refraction = self.index_of_refraction;
+      result.transparent_colour = self.transparent_colour;
+    }
     return result;
   }
 }
@@ -314,6 +315,7 @@ impl WFMaterial {
       specular_exponent: mat.ns,
       index_of_refraction: mat.ni,
       transparency: if let Some(d) = mat.d {
+        println!("Transparency {}", d);
         Transparency::Constant(d as f64)
       } else {
         Transparency::Opaque
@@ -425,7 +427,20 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
             assert!(n.dot(n) != 0.0);
           };
 
-          Triangle::new(material_index.unwrap_or(default_material), x, y, z)
+          Triangle::new(
+            if let Some(material) = material_index {
+              if true || scn.get_material(material).is_light() {
+                material
+              } else {
+                default_material
+              }
+            } else {
+              default_material
+            },
+            x,
+            y,
+            z,
+          )
         })
         .collect();
       object_triangles.append(&mut triangles);
