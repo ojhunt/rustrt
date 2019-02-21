@@ -3,3 +3,4 @@
 /*.png
 *.orig
 *.rej
+.DS_Store

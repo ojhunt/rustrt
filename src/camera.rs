@@ -27,7 +27,7 @@ pub struct PerspectiveCamera {
   do_multisampling: bool,
 }
 
-const DELTA: f32 = 0.1;
+const DELTA: f32 = 0.2;
 
 impl PerspectiveCamera {
   fn ray_for_coordinate(&self, x: f64, y: f64) -> Ray {
@@ -88,7 +88,7 @@ impl PerspectiveCamera {
       (Vector::new(), 0.0f32, 0),
       |(current_value, current_max_distance, current_count), ((x, y), (a, distance))| {
         let (value, distance, count) = if ((*a - average_colour).length() > DELTA && depth < 2)
-          || ((average_distance - distance).abs() > DELTA && depth < 3)
+          || ((average_distance - distance).abs() > DELTA && depth < 2)
         {
           let (v, distance, count) = self.multisample(configuration, *x, *y, radius / 2.0, depth + 1);
           let one = Vector::splat(1.0);
