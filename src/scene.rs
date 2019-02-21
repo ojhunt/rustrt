@@ -228,10 +228,37 @@ impl Scene {
     let material = self.get_material(fragment.material);
     let surface = material.compute_surface_properties(self, ray, &fragment);
 
-    if false {
-      return ((fragment.normal + Vector::splat(1.0)) * 0.5, collision.distance);
+    match 0 {
+      1 => {
+        return ((fragment.normal + Vector::splat(1.0)) * 0.5, collision.distance);
+      }
+      2 => {
+        return ((fragment.true_normal + Vector::splat(1.0)) * 0.5, collision.distance);
+      }
+      3 => {
+        return ((surface.normal + Vector::splat(1.0)) * 0.5, collision.distance);
+      }
+      4 => {
+        let uv = fragment.uv;
+        return (
+          (Vector::vector(uv.0, uv.1, 0.0) + Vector::splat(1.0)) * 0.5,
+          collision.distance,
+        );
+      }
+      5 => {
+        return ((fragment.dpdu + Vector::splat(1.0)) * 0.5, collision.distance);
+      }
+      6 => {
+        return ((fragment.dpdv + Vector::splat(1.0)) * 0.5, collision.distance);
+      }
+      7 => {
+        return (
+          Vector::vector(0.7, 0.7, 0.7) * surface.normal.dot(Vector::vector(1.0, 1.0, 0.0).normalize()).max(0.0),
+          collision.distance,
+        );
+      }
+      _ => {}
     }
-
     // let ambient_colour = Vector::from(surface.ambient_colour);
     let mut diffuse_colour = Vector::from(surface.diffuse_colour);
     if let Some(emission) = surface.emissive_colour {

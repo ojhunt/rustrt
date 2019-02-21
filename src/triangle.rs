@@ -118,24 +118,24 @@ impl Shadable for Triangle {
 
         let uv_edge0 = t1 - t0;
         let uv_edge1 = t2 - t0;
-        let determinant = uv_edge0.0 * uv_edge1.1 - uv_edge0.1 * uv_edge1.0;
+        let determinant = (uv_edge0.0 * uv_edge1.1 - uv_edge0.1 * uv_edge1.0).abs();
         if determinant == 0.0 {
           let uv_edge0 = t0 - t1;
           let uv_edge1 = t2 - t1;
-          let determinant = uv_edge0.0 * uv_edge1.1 - uv_edge0.1 * uv_edge1.0;
+          let determinant = (uv_edge0.0 * uv_edge1.1 - uv_edge0.1 * uv_edge1.0).abs();
           if determinant != 0. {
             let edge0 = -self.edges[0];
             let edge1 = self.edges[1] - self.edges[0];
-            dpdu = ((uv_edge1.1 * edge0 - uv_edge0.1 * edge1) * (1.0 / determinant)).normalize();
+            dpdu = Vector::vector(0.0, 1.0, 0.0); //((uv_edge1.1 * edge0 - uv_edge0.1 * edge1) * (1.0 / determinant)).normalize();
             dpdv = ((uv_edge0.0 * edge1 - uv_edge1.0 * edge0) * (1.0 / determinant)).normalize();
           } else {
             let uv_edge0 = t0 - t2;
             let uv_edge1 = t1 - t2;
             let edge0 = -self.edges[1];
             let edge1 = self.edges[0] - self.edges[1];
-            let determinant = uv_edge0.0 * uv_edge1.1 - uv_edge0.1 * uv_edge1.0;
+            let determinant = (uv_edge0.0 * uv_edge1.1 - uv_edge0.1 * uv_edge1.0).abs();
             if determinant != 0.0 {
-              dpdu = ((uv_edge1.1 * edge0 - uv_edge0.1 * edge1) * (1.0 / determinant)).normalize();
+              dpdu = Vector::vector(1.0, 0.0, 0.0); //((uv_edge1.1 * edge0 - uv_edge0.1 * edge1) * (1.0 / determinant)).normalize();
               dpdv = ((uv_edge0.0 * edge1 - uv_edge1.0 * edge0) * (1.0 / determinant)).normalize();
             }
           }
