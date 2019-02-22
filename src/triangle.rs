@@ -89,7 +89,6 @@ impl Shadable for Triangle {
     let u = collision.uv.0;
     let v = collision.uv.1;
     let w = 1.0 - u - v;
-    let geometry_normal = self.edges[0].normalize().cross(self.edges[1].normalize()).normalize();
     let true_normal: Vector = match (self.normals[0], self.normals[1], self.normals[2]) {
       (Some(n_idx0), Some(n_idx1), Some(n_idx2)) => {
         let true_normal = self.edges[0].normalize().cross(self.edges[1].normalize()).normalize();
@@ -104,7 +103,7 @@ impl Shadable for Triangle {
       (Some(idx), None, None) => idx.get(s),
       (None, Some(idx), None) => idx.get(s),
       (None, None, Some(idx)) => idx.get(s),
-      _ => geometry_normal,
+      _ => self.edges[0].normalize().cross(self.edges[1].normalize()).normalize(),
     };
     let normal = orient_normal(true_normal, r.direction);
     let mut dpdu = Vector::new();
@@ -163,7 +162,7 @@ impl Shadable for Triangle {
       position: r.origin + r.direction * collision.distance,
       normal: normal,
       uv: texture_coords,
-      true_normal: geometry_normal,
+      true_normal: self.edges[1].normalize().cross(self.edges[0].normalize()),
       dpdu: dpdu,
       dpdv: dpdv,
       view: r.direction,
