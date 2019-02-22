@@ -82,5 +82,5 @@ newmtl water
     Ks 0.30 0.30 0.30
     Tf 0.10 0.10 0.10
     Ns 200
-    Ni 1.33
+    Ni 1.5
     illum 7

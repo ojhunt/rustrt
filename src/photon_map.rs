@@ -75,8 +75,13 @@ pub trait PhotonSelector: Debug + Clone + Sync + Send {
     secondaries: &[(Ray, Colour, f32)],
     depth: usize,
   ) -> RecordMode;
-  fn weight_for_sample(&self, position: Point, photon: &Photon, photon_count: usize, sample_radius: f64)
-    -> Option<f32>;
+  fn weight_for_sample(
+    &self,
+    surface: &MaterialCollisionInfo,
+    photon: &Photon,
+    photon_count: usize,
+    sample_radius: f64,
+  ) -> Option<f32>;
   fn record_shadow_rays(&self) -> bool;
 }
 
@@ -161,7 +166,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
     }
   }
   // println!("Photon colour {:?}", photon_colour);
-  loop {
+  while path_length < 32 {
     let current_colour = photon_colour;
 
     path_length += 1;
@@ -409,17 +414,14 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
     let mut max_radius = 0.0f32;
     let _skipped = 0;
     for (photon, distance) in &photons {
-      if let Some(contribution) = self
-        .selector
-        .weight_for_sample(surface.position, &photon, photons.len(), radius)
-      {
+      if let Some(contribution) = self.selector.weight_for_sample(surface, &photon, photons.len(), radius) {
         let photon_data = if let Some(ref data) = photon.data {
           data
         } else {
           continue;
         };
         max_radius = max_radius.max(*distance as f32);
-        let weight = photon_data.in_direction.dot(-surface_normal).max(0.0);
+        let weight = 1.0;
         result = result + Vector::from(photon_data.colour) * (contribution * weight).max(0.0);
       }
     }
@@ -479,12 +481,18 @@ impl PhotonSelector for DiffuseSelector {
 
   fn weight_for_sample(
     &self,
-    _position: Point,
-    _photon: &Photon,
+    surface: &MaterialCollisionInfo,
+    photon: &Photon,
     _photon_count: usize,
     _sample_radius: f64,
   ) -> Option<f32> {
-    Some(1.0)
+    if let Some(photon_data) = photon.data {
+      if self.include_first_bounce {
+        return Some(photon_data.in_direction.dot(-surface.normal).max(0.0));
+      }
+      return Some(1.0);
+    }
+    return None;
   }
   fn record_shadow_rays(&self) -> bool {
     return !self.include_first_bounce;
@@ -513,7 +521,7 @@ impl PhotonSelector for CausticSelector {
   }
   fn weight_for_sample(
     &self,
-    _position: Point,
+    _surface: &MaterialCollisionInfo,
     _photon: &Photon,
     _photon_count: usize,
     _sample_radius: f64,
