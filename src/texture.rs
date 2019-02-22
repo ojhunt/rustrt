@@ -142,7 +142,7 @@ impl Texture {
       + self.get_pixel(&self.data, x - 1., y + 1.)
       + self.get_pixel(&self.data, x + 1., y + 1.);
     let Colour::RGB(fv, _, _) = top - bottom;
-    return (fu as f64, fv as f64);
+    return (fu as f64 * 2.0, fv as f64 * 2.0);
   }
 
   pub fn generate_derivate_maps(&mut self) {
