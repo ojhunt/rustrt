@@ -23,7 +23,6 @@ use crate::dispatch_queue::DispatchQueue;
 struct PhotonData {
   colour: Colour,
   in_direction: Vector,
-  out_direction: Vector,
   is_direct: bool,
 }
 
@@ -222,7 +221,6 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
           data: Some(PhotonData {
             colour: current_colour,
             in_direction: photon_ray.direction,
-            out_direction: photon_ray.direction.reflect(surface.normal),
             is_direct: path_length == 1,
           }),
           position: fragment.position,
@@ -250,7 +248,6 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
         data: Some(PhotonData {
           colour: current_colour,
           in_direction: photon_ray.direction,
-          out_direction: next_ray.direction,
           is_direct: path_length == 1,
         }),
         position: fragment.position,
@@ -266,7 +263,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
       // Now we know the colour and direction of the next bounce, let's decide if we're keeping it.
       throughput = throughput * next_colour;
       let p = random(0.0, 1.0) as f32;
-      if p > throughput.max_value().sqrt().sqrt() {
+      if p > throughput.max_value() {
         break;
       }
       throughput = throughput * (1.0 / p);
