@@ -28,7 +28,8 @@ pub struct PerspectiveCamera {
   gamma: f32,
 }
 
-const DELTA: f32 = 0.2;
+const DELTA: f32 = 0.05;
+const MAX_DEPTH: u32 = 3;
 
 impl PerspectiveCamera {
   fn ray_for_coordinate(&self, x: f64, y: f64) -> Ray {
@@ -43,13 +44,14 @@ impl PerspectiveCamera {
     radius: f64,
     depth: u32,
   ) -> (Vector, f32, usize) {
-    let noise_radius = if radius > 0.9 { 0.01 } else { radius / 2.0 };
+    let sample_radius = radius / 4.0;
+    let noise_radius = sample_radius / 2.0;;
     let positions = [
-      (x - 0.25 * radius, y - 0.25 * radius),
-      (x - 0.25 * radius, y + 0.25 * radius),
+      (x - sample_radius, y - sample_radius),
+      (x - sample_radius, y + sample_radius),
       // (x, y),
-      (x + 0.25 * radius, y - 0.25 * radius),
-      (x + 0.25 * radius, y + 0.25 * radius),
+      (x + sample_radius, y - sample_radius),
+      (x + sample_radius, y + sample_radius),
     ];
     let subsample_count = positions.len();
     let subsample_weight = 1.0 / subsample_count as f32;
@@ -60,8 +62,8 @@ impl PerspectiveCamera {
         (
           (*x, *y),
           self.ray_for_coordinate(
-            x + random(-noise_radius, noise_radius),
-            y + random(-noise_radius, noise_radius),
+            x + 0.0 * random(-noise_radius, noise_radius),
+            y + 0.0 * random(-noise_radius, noise_radius),
           ),
         )
       })
@@ -86,7 +88,7 @@ impl PerspectiveCamera {
     return samples.iter().fold(
       (Vector::new(), 0.0f32, 0),
       |(current_value, current_max_distance, current_count), ((x, y), (a, distance))| {
-        let (value, distance, count) = if ((*a - average_colour).length() > DELTA && depth < 1)
+        let (value, distance, count) = if ((*a - average_colour).length() > DELTA && depth < MAX_DEPTH)
           || ((average_distance - distance).abs() > DELTA && depth < 2)
         {
           let (v, distance, count) = self.multisample(configuration, *x, *y, radius / 2.0, depth + 1);
