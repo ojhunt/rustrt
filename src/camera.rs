@@ -70,10 +70,8 @@ impl PerspectiveCamera {
     let samples: Vec<((f64, f64), (Vector, f32))> = rays
       .iter()
       .map(|((x, y), r)| {
-        (
-          (*x, *y),
-          configuration.scene().colour_and_depth_for_ray(configuration, r),
-        )
+        let (c, d) = configuration.scene().colour_and_depth_for_ray(configuration, r);
+        return ((*x, *y), (c.powf(self.gamma), d));
       })
       .collect();
     let (average_colour, average_distance): (Vector, f32) = samples.iter().fold(
@@ -198,7 +196,15 @@ impl Camera for PerspectiveCamera {
 
       let _t = Timing::new("Copy first render results");
       for (x, y, (v, i, f)) in result {
-        buffer.set(x, y, (v.clamp(Vector::splat(0.0), Vector::splat(1.0)), i, f as f64));
+        buffer.set(
+          x,
+          y,
+          (
+            v.powf(self.gamma).clamp(Vector::splat(0.0), Vector::splat(1.0)),
+            i,
+            f as f64,
+          ),
+        );
       }
     }
 
@@ -270,14 +276,6 @@ impl Camera for PerspectiveCamera {
         let proportion = sample_count as f64 / max_resample_count as f64;
         let d_colour = (proportion.sqrt() * 255.).max(0.).min(255.) as u8;
         *_pixel = image::Rgb([d_colour, d_colour, d_colour]);
-      } else if true {
-        let clamped = value.clamp(Vector::splat(0.0), Vector::splat(std::f32::MAX));
-
-        *_pixel = image::Rgb([
-          (clamped.x().powf(1.0 / self.gamma) * 255.).max(0.).min(255.) as u8,
-          (clamped.y().powf(1.0 / self.gamma) * 255.).max(0.).min(255.) as u8,
-          (clamped.z().powf(1.0 / self.gamma) * 255.).max(0.).min(255.) as u8,
-        ]);
       } else {
         *_pixel = image::Rgb([
           (value.x() * 255.).max(0.).min(255.) as u8,

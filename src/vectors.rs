@@ -155,6 +155,11 @@ impl Vector {
     let scale = 1.0 / self.dot(*self).sqrt();
     return *self * scale;
   }
+  pub fn powf(&self, gamma: f32) -> Self {
+    return Vector {
+      data: self.data.powf(f32x4::splat(1.0 / gamma)),
+    };
+  }
 }
 
 impl ops::Neg for Vector {
