@@ -28,8 +28,8 @@ pub struct PerspectiveCamera {
   gamma: f32,
 }
 
-const DELTA: f32 = 0.05;
-const MAX_DEPTH: u32 = 3;
+const DELTA: f32 = 0.1;
+const MAX_DEPTH: u32 = 2;
 
 impl PerspectiveCamera {
   fn ray_for_coordinate(&self, x: f64, y: f64) -> Ray {
