@@ -47,7 +47,7 @@ impl PerspectiveCamera {
     let positions = [
       (x - 0.25 * radius, y - 0.25 * radius),
       (x - 0.25 * radius, y + 0.25 * radius),
-      (x, y),
+      // (x, y),
       (x + 0.25 * radius, y - 0.25 * radius),
       (x + 0.25 * radius, y + 0.25 * radius),
     ];
@@ -88,7 +88,7 @@ impl PerspectiveCamera {
     return samples.iter().fold(
       (Vector::new(), 0.0f32, 0),
       |(current_value, current_max_distance, current_count), ((x, y), (a, distance))| {
-        let (value, distance, count) = if ((*a - average_colour).length() > DELTA && depth < 2)
+        let (value, distance, count) = if ((*a - average_colour).length() > DELTA && depth < 1)
           || ((average_distance - distance).abs() > DELTA && depth < 2)
         {
           let (v, distance, count) = self.multisample(configuration, *x, *y, radius / 2.0, depth + 1);
@@ -221,7 +221,9 @@ impl Camera for PerspectiveCamera {
                   continue;
                 }
                 let (colour, _, distance) = buffer.get((x as i32 + i) as usize, (y as i32 + j) as usize);
-                if (colour - sample_colour).length() > DELTA || (sample_distance - distance).abs() > DELTA as f64 {
+                if (colour - sample_colour).length() > DELTA
+                  || (sample_distance - distance).abs().sqrt() > 4.0 * DELTA as f64
+                {
                   multisample_queue.add_task(&(x, y));
                   continue 'inner_loop;
                 }
