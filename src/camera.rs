@@ -25,6 +25,7 @@ pub struct PerspectiveCamera {
   samples_per_pixel: usize,
   view_origin: Point,
   do_multisampling: bool,
+  gamma: f32,
 }
 
 const DELTA: f32 = 0.2;
@@ -115,6 +116,7 @@ impl PerspectiveCamera {
     fov: f64,
     samples_per_pixel: usize,
     do_multisampling: bool,
+    gamma: f32,
   ) -> PerspectiveCamera {
     let direction = direction.normalize();
     let right = direction.cross(up).normalize();
@@ -143,6 +145,7 @@ impl PerspectiveCamera {
       y_delta,
       samples_per_pixel,
       do_multisampling,
+      gamma,
     };
   }
 }
@@ -265,6 +268,14 @@ impl Camera for PerspectiveCamera {
         let proportion = sample_count as f64 / max_resample_count as f64;
         let d_colour = (proportion.sqrt() * 255.).max(0.).min(255.) as u8;
         *_pixel = image::Rgb([d_colour, d_colour, d_colour]);
+      } else if true {
+        let clamped = value.clamp(Vector::splat(0.0), Vector::splat(std::f32::MAX));
+
+        *_pixel = image::Rgb([
+          (clamped.x().powf(1.0 / self.gamma) * 255.).max(0.).min(255.) as u8,
+          (clamped.y().powf(1.0 / self.gamma) * 255.).max(0.).min(255.) as u8,
+          (clamped.z().powf(1.0 / self.gamma) * 255.).max(0.).min(255.) as u8,
+        ]);
       } else {
         *_pixel = image::Rgb([
           (value.x() * 255.).max(0.).min(255.) as u8,

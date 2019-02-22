@@ -63,6 +63,12 @@ args:
     - multisampling:
         help: Use adpative multisampling
         long: multisampling
+    - gamma:
+        help: Gamma correction
+        long: gamma
+        short: g
+        takes_value: true
+
 
 
 

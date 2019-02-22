@@ -50,6 +50,7 @@ pub struct SceneSettings {
   pub photon_count: usize,
   pub use_direct_lighting: bool,
   pub use_multisampling: bool,
+  pub gamma: f32,
 }
 
 impl SceneSettings {
@@ -68,6 +69,7 @@ impl SceneSettings {
       photon_count: 0,
       use_direct_lighting: false,
       use_multisampling: false,
+      gamma: 1.0,
     };
   }
 }

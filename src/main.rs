@@ -156,6 +156,10 @@ fn load_settings() -> SceneSettings {
     Ok(value) => settings.camera_direction = value.as_vector().normalize(),
     _ => {}
   }
+  match value_t!(matches, "gamma", f32) {
+    Ok(value) => settings.gamma = value,
+    _ => {}
+  }
   return settings;
 }
 
@@ -199,6 +203,7 @@ fn main() {
     40.,
     settings.samples_per_pixel,
     settings.use_multisampling,
+    settings.gamma,
   ));
 
   let configuration = Arc::new(RenderConfiguration::new(lighting_integrator, scn));

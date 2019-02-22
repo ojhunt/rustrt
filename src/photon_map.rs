@@ -397,8 +397,6 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
       let to_vector = p.position - position;
 
       let length = to_vector.length();
-
-      let _overlap = (to_vector / length).dot(surface_normal);
       if p.data.is_none() {
         nearest_shadow = nearest_shadow.min(length);
         return None;

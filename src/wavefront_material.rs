@@ -15,7 +15,6 @@ use crate::scene::Scene;
 use crate::scene::TextureIdx;
 use std::path::Path;
 use crate::texture::TextureCoordinateIdx;
-use crate::sphere::Sphere;
 use crate::triangle::Triangle;
 use crate::vectors::*;
 
