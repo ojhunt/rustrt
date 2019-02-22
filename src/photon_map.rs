@@ -22,6 +22,7 @@ use crate::dispatch_queue::DispatchQueue;
 #[derive(Clone, Debug, Copy)]
 struct PhotonData {
   colour: Colour,
+  surface_normal: Vector,
   in_direction: Vector,
   is_direct: bool,
 }
@@ -221,6 +222,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
           data: Some(PhotonData {
             colour: current_colour,
             in_direction: photon_ray.direction,
+            surface_normal: surface.normal,
             is_direct: path_length == 1,
           }),
           position: fragment.position,
@@ -247,6 +249,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
       photons.push(Photon {
         data: Some(PhotonData {
           colour: current_colour,
+          surface_normal: surface.normal,
           in_direction: photon_ray.direction,
           is_direct: path_length == 1,
         }),
@@ -484,10 +487,10 @@ impl PhotonSelector for DiffuseSelector {
     _sample_radius: f64,
   ) -> Option<f32> {
     if let Some(photon_data) = photon.data {
-      if self.include_first_bounce {
+      if false && self.include_first_bounce {
         return Some(photon_data.in_direction.dot(-surface.normal).max(0.0));
       }
-      return Some(1.0);
+      return Some(surface.normal.dot(photon_data.surface_normal));
     }
     return None;
   }
