@@ -18,6 +18,7 @@ futures-executor-preview="*"
 num_cpus="*"
 order-stat ="*"
 xml-rs="*"
+sdl2="*"
 
 [dependencies.clap]
 features = ["yaml"]

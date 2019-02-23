@@ -9,7 +9,7 @@ use crate::dispatch_queue::DispatchQueue;
 use crate::photon_map::Timing;
 
 pub trait Camera: Sync + Send {
-  fn render(&self, configuration: &Arc<RenderConfiguration>) -> DynamicImage;
+  fn render(&self, configuration: &Arc<RenderConfiguration>) -> RenderBuffer;
 }
 
 #[derive(Clone)]
@@ -150,9 +150,10 @@ impl PerspectiveCamera {
   }
 }
 
-struct RenderBuffer {
+pub struct RenderBuffer {
   data: Vec<(Vector, usize, f64)>,
-  width: usize,
+  pub width: usize,
+  pub height: usize,
 }
 
 impl RenderBuffer {
@@ -161,7 +162,7 @@ impl RenderBuffer {
     for _ in 0..width * height {
       data.push((Vector::new(), 0, std::f64::INFINITY));
     }
-    return RenderBuffer { width, data };
+    return RenderBuffer { width, height, data };
   }
   pub fn get(&self, x: usize, y: usize) -> (Vector, usize, f64) {
     return self.data[y * self.width + x];
@@ -169,10 +170,28 @@ impl RenderBuffer {
   pub fn set(&mut self, x: usize, y: usize, sample: (Vector, usize, f64)) {
     self.data[y * self.width + x] = sample;
   }
+  pub fn to_pixel_array(&self, gamma: f32) -> Vec<u8> {
+    let stride = 3;
+    let pitch = stride * self.width;
+    let mut result = vec![255; pitch * self.height];
+    for y in 0..self.height {
+      let in_row_start = y * self.width;
+      let out_row_start = y * pitch;
+      for x in 0..self.width {
+        let (value, sample_count, d) = self.data[x + in_row_start];
+        let pixel_start = out_row_start + x * stride;
+        let corrected_value: Vector = (value.powf(gamma) * 255.0f32).clamp32(0.0, 255.0);
+        result[pixel_start + 0] = corrected_value.x() as u8;
+        result[pixel_start + 1] = corrected_value.y() as u8;
+        result[pixel_start + 2] = corrected_value.z() as u8;
+      }
+    }
+    return result;
+  }
 }
 
 impl Camera for PerspectiveCamera {
-  fn render(&self, configuration: &Arc<RenderConfiguration>) -> DynamicImage {
+  fn render(&self, configuration: &Arc<RenderConfiguration>) -> RenderBuffer {
     let mut buffer = RenderBuffer::new(self._width, self._height);
     let mut first_sample_queue = DispatchQueue::default();
     {
@@ -260,33 +279,6 @@ impl Camera for PerspectiveCamera {
         }
       }
     }
-    let _t = Timing::new("Creating output image");
-    let mut result = image::RgbImage::new(self._width as u32, self._height as u32);
-    let mut max_d = 0.0;
-
-    for (x, y, _pixel) in result.enumerate_pixels() {
-      let (_, _, d) = buffer.data[x as usize + y as usize * self._width];
-      max_d = d.max(max_d);
-    }
-    println!("Max depth: {}", max_d);
-    for (x, y, _pixel) in result.enumerate_pixels_mut() {
-      let (value, sample_count, d) = buffer.data[x as usize + y as usize * self._width];
-      if false {
-        let d_colour = (d / max_d * 255.).max(0.).min(255.) as u8;
-        *_pixel = image::Rgb([d_colour, d_colour, d_colour]);
-      } else if false {
-        let proportion = sample_count as f64 / max_resample_count as f64;
-        let d_colour = (proportion.sqrt() * 255.).max(0.).min(255.) as u8;
-        *_pixel = image::Rgb([d_colour, d_colour, d_colour]);
-      } else {
-        *_pixel = image::Rgb([
-          (value.x() * 255.).max(0.).min(255.) as u8,
-          (value.y() * 255.).max(0.).min(255.) as u8,
-          (value.z() * 255.).max(0.).min(255.) as u8,
-        ]);
-      }
-    }
-
-    return ImageRgb8(result);
+    return buffer;
   }
 }

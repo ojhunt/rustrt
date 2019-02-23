@@ -1,5 +1,5 @@
 #![feature(stdsimd, async_await, futures_api, await_macro, drain_filter)]
-
+#![allow(unused)]
 extern crate clap;
 extern crate genmesh;
 extern crate image;
@@ -12,6 +12,7 @@ extern crate rayon;
 extern crate num_cpus;
 extern crate order_stat;
 extern crate xml;
+extern crate sdl2;
 
 mod bounding_box;
 mod bvh;
@@ -42,6 +43,7 @@ mod triangle;
 mod vectors;
 mod wavefront_material;
 
+use crate::camera::RenderBuffer;
 use crate::render_configuration::LightingIntegrator;
 use crate::camera::*;
 use crate::direct_lighting::DirectLighting;
@@ -54,9 +56,17 @@ use crate::scene::SceneSettings;
 use crate::wavefront_material::load_scene;
 use crate::render_configuration::RenderConfiguration;
 use crate::vectors::*;
+use std::result::Result;
 use clap::*;
 use std::str::FromStr;
 use std::sync::Arc;
+use sdl2::pixels::Color;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+use sdl2::pixels::PixelFormatEnum;
+use sdl2::rect::Rect;
+use std::thread;
+use std::sync::mpsc;
 
 #[derive(Debug)]
 struct VecArg {
@@ -77,7 +87,7 @@ impl VecArg {
 impl FromStr for VecArg {
   type Err = clap::Error;
 
-  fn from_str(s: &str) -> Result<Self> {
+  fn from_str(s: &str) -> clap::Result<Self> {
     let coords: Vec<&str> = s.trim_matches(|p| p == '(' || p == ')').split(',').collect();
 
     let x = coords[0].parse::<f64>().unwrap();
@@ -189,28 +199,110 @@ fn lighting_integrator(settings: &SceneSettings, scene: &Arc<Scene>) -> Arc<Ligh
   return Arc::new(DirectLighting::new(scene, lights, indirect_source));
 }
 
-fn main() {
+fn main() -> Result<(), String> {
+  let sdl_context = sdl2::init()?;
+  let video_subsystem = sdl_context.video()?;
+
+  let window = video_subsystem
+    .window("rust-sdl2 demo: Window", 800, 600)
+    .resizable()
+    .build()
+    .map_err(|e| e.to_string())?;
+
   let settings = load_settings();
 
-  let scn = Arc::new(load_scene(&settings));
-  let lighting_integrator = lighting_integrator(&settings, &scn);
-  let camera = Box::new(PerspectiveCamera::new(
-    settings.width,
-    settings.height,
-    settings.camera_position,
-    settings.camera_direction,
-    settings.camera_up,
-    40.,
-    settings.samples_per_pixel,
-    settings.use_multisampling,
-    settings.gamma,
-  ));
+  let mut canvas = window
+    .into_canvas()
+    .present_vsync()
+    .build()
+    .map_err(|e| e.to_string())?;
 
-  let configuration = Arc::new(RenderConfiguration::new(lighting_integrator, scn));
-  let output = {
-    let _t = Timing::new("Total Rendering");
-    let o = camera.render(&configuration);
-    o
-  };
-  output.save(settings.output_file).unwrap();
+  let mut tick = 0;
+
+  let mut event_pump = sdl_context.event_pump().map_err(|e| e.to_string())?;
+
+  let (result_transmitter, result_receiver) = mpsc::channel();
+  let (render_parameter_transmitter, render_parameter_receiver) = mpsc::channel();
+  let mut rendering = false;
+  let mut should_render = true;
+  {
+    let scn = Arc::new(load_scene(&settings));
+    let settings = settings.clone();
+    thread::spawn(move || {
+      let lighting_integrator = lighting_integrator(&settings, &scn);
+      let configuration = Arc::new(RenderConfiguration::new(lighting_integrator, scn));
+      while let Ok(Some((camera, gamma))) = render_parameter_receiver.recv() {
+        let camera: Box<Camera> = camera;
+        let output = {
+          let _t = Timing::new("Total Rendering");
+          let o = camera.render(&configuration);
+          o
+        };
+
+        result_transmitter.send((output.width, output.height, output.to_pixel_array(gamma)));
+      }
+    });
+  }
+
+  'running: loop {
+    for event in event_pump.poll_iter() {
+      match event {
+        Event::Quit { .. }
+        | Event::KeyDown {
+          keycode: Some(Keycode::Escape),
+          ..
+        } => break 'running,
+        _ => {}
+      }
+    }
+    {
+      // Update the window title.
+      let window = canvas.window_mut();
+      let position = window.position();
+      let size = window.size();
+      let title = format!(
+        "Window - pos({}x{}), size({}x{}): {}",
+        position.0, position.1, size.0, size.1, tick
+      );
+      window.set_title(&title).map_err(|e| e.to_string())?;
+
+      tick += 1;
+    }
+
+    if !rendering {
+      if should_render {
+        let window = canvas.window();
+        let (width, height) = window.size();
+
+        let camera = Box::new(PerspectiveCamera::new(
+          width as usize,
+          height as usize,
+          settings.camera_position,
+          settings.camera_direction,
+          settings.camera_up,
+          40.,
+          settings.samples_per_pixel,
+          settings.use_multisampling,
+          settings.gamma,
+        ));
+        render_parameter_transmitter.send(Some((camera, settings.gamma)));
+        rendering = true;
+        should_render = false;
+      }
+    } else if let Ok((width, height, result_buffer)) =
+      result_receiver.recv_timeout(std::time::Duration::from_millis(50))
+    {
+      rendering = false;
+      let texture_creator = canvas.texture_creator();
+      let mut texture = texture_creator
+        .create_texture_streaming(PixelFormatEnum::RGB24, width as u32, height as u32)
+        .map_err(|e| e.to_string())?;
+      texture.update(Rect::new(0, 0, width as u32, height as u32), &result_buffer, width * 3);
+      canvas.clear();
+
+      canvas.copy(&texture, None, None)?;
+      canvas.present();
+    }
+  }
+  return Ok(());
 }
