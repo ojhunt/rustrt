@@ -62,6 +62,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use sdl2::pixels::Color;
 use sdl2::event::Event;
+use sdl2::event::WindowEvent;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
@@ -295,6 +296,26 @@ fn main() -> Result<(), String> {
           should_render = true;
           pitch -= 0.1;
         }
+        Event::KeyDown {
+          keycode: Some(Keycode::W),
+          ..
+        } => {
+          should_render = true;
+          position = position + orientation_to_vector(yaw, pitch) * 10.0;
+        }
+        Event::KeyDown {
+          keycode: Some(Keycode::S),
+          ..
+        } => {
+          should_render = true;
+          position = position - orientation_to_vector(yaw, pitch) * 10.0;
+        }
+        Event::Window {
+          win_event: WindowEvent::Resized(..),
+          ..
+        } => {
+          should_render = true;
+        }
         _ => {}
       }
     }
@@ -320,7 +341,7 @@ fn main() -> Result<(), String> {
         let camera = Box::new(PerspectiveCamera::new(
           width as usize,
           height as usize,
-          settings.camera_position,
+          position,
           orientation_to_vector(yaw, pitch),
           settings.camera_up,
           40.,

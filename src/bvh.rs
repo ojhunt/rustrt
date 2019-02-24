@@ -160,7 +160,7 @@ fn intersect<'a, T: Intersectable>(
 }
 
 const NUM_BUCKETS: usize = 4;
-const MAX_PRIMS_PER_NODE: usize = 4;
+const MAX_PRIMS_PER_NODE: usize = 20;
 
 #[derive(Copy, Clone, Debug)]
 struct BucketInfo {
