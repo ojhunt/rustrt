@@ -43,6 +43,7 @@ mod triangle;
 mod vectors;
 mod wavefront_material;
 
+use std::time::Instant;
 use crate::camera::RenderBuffer;
 use crate::render_configuration::LightingIntegrator;
 use crate::camera::*;
@@ -248,6 +249,7 @@ fn main() -> Result<(), String> {
       let lighting_integrator = lighting_integrator(&settings, &scn);
       let configuration = Arc::new(RenderConfiguration::new(lighting_integrator, scn));
       while let Ok(Some((camera, gamma))) = render_parameter_receiver.recv() {
+        let start = Instant::now();
         let camera: Box<Camera> = camera;
         let output = {
           let _t = Timing::new("Total Rendering");
@@ -255,13 +257,20 @@ fn main() -> Result<(), String> {
           o
         };
 
-        result_transmitter.send((output.width, output.height, output.to_pixel_array(gamma)));
+        result_transmitter.send((
+          output.width,
+          output.height,
+          output.to_pixel_array(gamma),
+          Instant::now() - start,
+        ));
       }
     });
   }
 
   let step_size = 0.3;
   let mut position = settings.camera_position;
+  let mut render_count = 0;
+  let mut render_time = 0;
   let (mut yaw, mut pitch) = vector_to_orientation(settings.camera_direction);
   'running: loop {
     if let Some(event) = event_pump.wait_event_timeout(1000 / 24) {
@@ -394,10 +403,11 @@ fn main() -> Result<(), String> {
         rendering = true;
         should_render = false;
       }
-    } else if let Ok((width, height, result_buffer)) =
+    } else if let Ok((width, height, result_buffer, time)) =
       result_receiver.recv_timeout(std::time::Duration::from_millis(50))
     {
       rendering = false;
+      should_render = true;
       let texture_creator = canvas.texture_creator();
       let mut texture = texture_creator
         .create_texture_streaming(PixelFormatEnum::RGB24, width as u32, height as u32)
@@ -407,7 +417,10 @@ fn main() -> Result<(), String> {
 
       canvas.copy(&texture, None, None)?;
       canvas.present();
+      render_count += 1;
+      render_time += time.as_millis();
     }
   }
+  println!("Average render time: {}", render_time as f64 / render_count as f64);
   return Ok(());
 }
