@@ -240,6 +240,7 @@ fn main() -> Result<(), String> {
   let (render_parameter_transmitter, render_parameter_receiver) = mpsc::channel();
   let mut rendering = false;
   let mut should_render = true;
+  let mut gamma = settings.gamma;
   {
     let settings = settings.clone();
     thread::spawn(move || {
@@ -258,6 +259,7 @@ fn main() -> Result<(), String> {
       }
     });
   }
+
   let step_size = 0.3;
   let mut position = settings.camera_position;
   let (mut yaw, mut pitch) = vector_to_orientation(settings.camera_direction);
@@ -300,6 +302,20 @@ fn main() -> Result<(), String> {
         } => {
           should_render = true;
           pitch -= 0.1;
+        }
+        Event::KeyDown {
+          keycode: Some(Keycode::LeftBracket),
+          ..
+        } => {
+          should_render = true;
+          gamma -= 0.1;
+        }
+        Event::KeyDown {
+          keycode: Some(Keycode::RightBracket),
+          ..
+        } => {
+          should_render = true;
+          gamma += 0.1;
         }
         Event::KeyDown {
           keycode: Some(Keycode::W),
@@ -372,7 +388,7 @@ fn main() -> Result<(), String> {
           40.,
           settings.samples_per_pixel,
           settings.use_multisampling,
-          settings.gamma,
+          gamma,
         ));
         render_parameter_transmitter.send(Some((camera, settings.gamma)));
         rendering = true;
