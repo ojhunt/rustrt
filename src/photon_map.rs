@@ -487,7 +487,7 @@ impl PhotonSelector for DiffuseSelector {
     _sample_radius: f64,
   ) -> Option<f32> {
     if let Some(photon_data) = photon.data {
-      if false && self.include_first_bounce {
+      if self.include_first_bounce {
         return Some(photon_data.in_direction.dot(-surface.normal).max(0.0));
       }
       return Some(surface.normal.dot(photon_data.surface_normal));

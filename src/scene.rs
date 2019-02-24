@@ -295,16 +295,17 @@ impl Scene {
     if diffuse_colour.length() <= 0.01 {
       return (colour, collision.distance + max_secondary_distance);
     }
-
-    let sample_lighting = configuration.lighting_integrator().lighting(self, &fragment, &surface);
-
-    colour = colour
-      + Vector::from(
-        Colour::from(diffuse_colour) * sample_lighting.diffuse
-          + Colour::from(surface.ambient_colour) * sample_lighting.ambient
-          + Colour::from(surface.specular_colour) * sample_lighting.specular,
-      );
-
+    if true {
+      let sample_lighting = configuration.lighting_integrator().lighting(self, &fragment, &surface);
+      colour = colour
+        + Vector::from(
+          Colour::from(diffuse_colour) * sample_lighting.diffuse
+            + Colour::from(surface.ambient_colour) * sample_lighting.ambient
+            + Colour::from(surface.specular_colour) * sample_lighting.specular,
+        );
+    } else {
+      colour = diffuse_colour;
+    }
     return (colour, collision.distance + max_secondary_distance);
   }
 

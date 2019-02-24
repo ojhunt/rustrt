@@ -258,6 +258,7 @@ fn main() -> Result<(), String> {
       }
     });
   }
+  let step_size = 0.3;
   let mut position = settings.camera_position;
   let (mut yaw, mut pitch) = vector_to_orientation(settings.camera_direction);
   'running: loop {
@@ -266,6 +267,10 @@ fn main() -> Result<(), String> {
         Event::Quit { .. }
         | Event::KeyDown {
           keycode: Some(Keycode::Escape),
+          ..
+        }
+        | Event::KeyDown {
+          keycode: Some(Keycode::Q),
           ..
         } => break 'running,
         Event::KeyDown {
@@ -301,14 +306,34 @@ fn main() -> Result<(), String> {
           ..
         } => {
           should_render = true;
-          position = position + orientation_to_vector(yaw, pitch) * 10.0;
+          position = position + orientation_to_vector(yaw, pitch) * step_size;
+        }
+        Event::KeyDown {
+          keycode: Some(Keycode::A),
+          ..
+        } => {
+          should_render = true;
+          let up = Vector::vector(0.0, 1.0, 0.0);
+          let forward = orientation_to_vector(yaw, pitch);
+          let left = up.cross(forward);
+          position = position + left * step_size;
+        }
+        Event::KeyDown {
+          keycode: Some(Keycode::D),
+          ..
+        } => {
+          should_render = true;
+          let up = Vector::vector(0.0, 1.0, 0.0);
+          let forward = orientation_to_vector(yaw, pitch);
+          let left = up.cross(forward);
+          position = position - left * step_size;
         }
         Event::KeyDown {
           keycode: Some(Keycode::S),
           ..
         } => {
           should_render = true;
-          position = position - orientation_to_vector(yaw, pitch) * 10.0;
+          position = position - orientation_to_vector(yaw, pitch) * step_size;
         }
         Event::Window {
           win_event: WindowEvent::Resized(..),
