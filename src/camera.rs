@@ -181,9 +181,9 @@ impl RenderBuffer {
         let (value, sample_count, d) = self.data[x + in_row_start];
         let pixel_start = out_row_start + x * stride;
         let corrected_value: Vector = (value.powf(gamma) * 255.0f32).clamp32(0.0, 255.0);
-        result[pixel_start + 0] = corrected_value.x() as u8;
-        result[pixel_start + 1] = corrected_value.y() as u8;
-        result[pixel_start + 2] = corrected_value.z() as u8;
+        result[pixel_start + 0] = corrected_value.x().max(0.0).min(255.0) as u8;
+        result[pixel_start + 1] = corrected_value.y().max(0.0).min(255.0) as u8;
+        result[pixel_start + 2] = corrected_value.z().max(0.0).min(255.0) as u8;
       }
     }
     return result;

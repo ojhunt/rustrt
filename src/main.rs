@@ -199,6 +199,20 @@ fn lighting_integrator(settings: &SceneSettings, scene: &Arc<Scene>) -> Arc<Ligh
   return Arc::new(DirectLighting::new(scene, lights, indirect_source));
 }
 
+fn vector_to_orientation(vector: Vector) -> (f32, f32) {
+  let yaw = vector.x().atan2(vector.z());
+  let pitch = (-vector.y()).asin();
+  return (yaw, pitch);
+}
+
+fn orientation_to_vector(yaw: f32, pitch: f32) -> Vector {
+  return Vector::vector(
+    (yaw.sin() * pitch.cos()).into(),
+    pitch.sin().into(),
+    (yaw.cos() * pitch.cos()).into(),
+  );
+}
+
 fn main() -> Result<(), String> {
   let sdl_context = sdl2::init()?;
   let video_subsystem = sdl_context.video()?;
@@ -226,9 +240,9 @@ fn main() -> Result<(), String> {
   let mut rendering = false;
   let mut should_render = true;
   {
-    let scn = Arc::new(load_scene(&settings));
     let settings = settings.clone();
     thread::spawn(move || {
+      let scn = Arc::new(load_scene(&settings));
       let lighting_integrator = lighting_integrator(&settings, &scn);
       let configuration = Arc::new(RenderConfiguration::new(lighting_integrator, scn));
       while let Ok(Some((camera, gamma))) = render_parameter_receiver.recv() {
@@ -243,15 +257,44 @@ fn main() -> Result<(), String> {
       }
     });
   }
-
+  let mut position = settings.camera_position;
+  let (mut yaw, mut pitch) = vector_to_orientation(settings.camera_direction);
   'running: loop {
-    for event in event_pump.poll_iter() {
+    if let Some(event) = event_pump.wait_event_timeout(1000 / 24) {
       match event {
         Event::Quit { .. }
         | Event::KeyDown {
           keycode: Some(Keycode::Escape),
           ..
         } => break 'running,
+        Event::KeyDown {
+          keycode: Some(Keycode::Left),
+          ..
+        } => {
+          yaw += 0.1;
+          should_render = true;
+        }
+        Event::KeyDown {
+          keycode: Some(Keycode::Right),
+          ..
+        } => {
+          should_render = true;
+          yaw -= 0.1;
+        }
+        Event::KeyDown {
+          keycode: Some(Keycode::Up),
+          ..
+        } => {
+          pitch += 0.1;
+          should_render = true;
+        }
+        Event::KeyDown {
+          keycode: Some(Keycode::Down),
+          ..
+        } => {
+          should_render = true;
+          pitch -= 0.1;
+        }
         _ => {}
       }
     }
@@ -278,7 +321,7 @@ fn main() -> Result<(), String> {
           width as usize,
           height as usize,
           settings.camera_position,
-          settings.camera_direction,
+          orientation_to_vector(yaw, pitch),
           settings.camera_up,
           40.,
           settings.samples_per_pixel,
