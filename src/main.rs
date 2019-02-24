@@ -219,13 +219,12 @@ fn main() -> Result<(), String> {
   let sdl_context = sdl2::init()?;
   let video_subsystem = sdl_context.video()?;
 
+  let settings = load_settings();
   let window = video_subsystem
-    .window("rust-sdl2 demo: Window", 800, 600)
+    .window("rust-sdl2 demo: Window", settings.width as u32, settings.height as u32)
     .resizable()
     .build()
     .map_err(|e| e.to_string())?;
-
-  let settings = load_settings();
 
   let mut canvas = window
     .into_canvas()
