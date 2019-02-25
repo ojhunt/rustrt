@@ -10,7 +10,7 @@ use crate::scene::Scene;
 use crate::bounding_box::BoundingBox;
 use crate::bounding_box::HasBoundingBox;
 use crate::vectors::Point;
-use crate::intersectable::Intersectable;
+use crate::intersectable::*;
 use crate::vectors::Vector;
 use crate::vectors::VectorType;
 use crate::vectors::Vec2d;
@@ -150,13 +150,7 @@ impl Intersectable for Sphere {
     // }
     return vec![];
   }
-  fn intersect<'a>(
-    &'a self,
-    ray: &Ray,
-    _first_hit_only: bool,
-    min: f32,
-    max: f32,
-  ) -> Option<(Collision, &'a Shadable)> {
+  fn intersect<'a>(&'a self, ray: &Ray, _: HitMode, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
     return self.intersects(ray, min, max).map(|c| (c, self as &Shadable));
   }
 }

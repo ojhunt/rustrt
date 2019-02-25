@@ -8,7 +8,7 @@ use crate::casefopen;
 use crate::colour::Colour;
 use crate::compound_object::CompoundObject;
 use image::*;
-use crate::intersectable::Intersectable;
+use crate::intersectable::*;
 use crate::material;
 use crate::ray::Ray;
 use crate::light::LightSample;
@@ -184,7 +184,11 @@ impl Scene {
     MaterialIdx(1)
   }
   pub fn intersect<'a>(&'a self, ray: &Ray) -> Option<(Collision, &'a Shadable)> {
-    return self._scene.intersect(ray, true, ray.min, ray.max);
+    return self._scene.intersect(ray, HitMode::Nearest, ray.min, ray.max);
+  }
+
+  pub fn has_intersection(&self, ray: &Ray) -> bool {
+    return self._scene.intersect(ray, HitMode::AnyHit, ray.min, ray.max).is_some();
   }
 
   pub fn finalize(&mut self) {

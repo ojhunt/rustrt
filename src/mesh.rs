@@ -2,7 +2,7 @@ use crate::light::Light;
 use crate::bounding_box::*;
 use crate::bvh::BVH;
 use crate::collision::Collision;
-use crate::intersectable::Intersectable;
+use crate::intersectable::*;
 use crate::ray::Ray;
 use crate::scene::Scene;
 use crate::shader::*;
@@ -51,7 +51,7 @@ impl Intersectable for Mesh {
     return result;
   }
 
-  fn intersect<'a>(&'a self, ray: &Ray, first_hit_only: bool, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
-    return self.tree.intersect(&self.triangles, ray, first_hit_only, min, max);
+  fn intersect<'a>(&'a self, ray: &Ray, hit_mode: HitMode, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
+    return self.tree.intersect(&self.triangles, ray, hit_mode, min, max);
   }
 }

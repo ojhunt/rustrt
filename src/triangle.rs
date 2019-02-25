@@ -4,7 +4,7 @@ use crate::photon_map::random;
 use crate::bounding_box::*;
 use crate::collision::Collision;
 use crate::fragment::Fragment;
-use crate::intersectable::Intersectable;
+use crate::intersectable::*;
 use crate::ray::Ray;
 use crate::scene::MaterialIdx;
 use crate::scene::NormalIdx;
@@ -51,11 +51,11 @@ impl Light for Triangle {
       let normal = self.true_normal();
       let (ray, collision) = {
         let ray = Ray::new(point + normal, normal * -1.0, None);
-        if let Some((collision, _)) = self.intersect(&ray, false, ray.min, ray.max) {
+        if let Some((collision, _)) = self.intersect(&ray, HitMode::Nearest, ray.min, ray.max) {
           (ray, collision)
         } else {
           let ray = Ray::new(point + normal, normal, None);
-          if let Some((collision, _)) = self.intersect(&ray, false, ray.min, ray.max) {
+          if let Some((collision, _)) = self.intersect(&ray, HitMode::Nearest, ray.min, ray.max) {
             (ray, collision)
           } else {
             continue;
@@ -194,7 +194,7 @@ impl Triangle {
   pub fn intersects<'a>(
     &'a self,
     ray: &Ray,
-    first_hit_only: bool,
+    hit_mode: HitMode,
     min: f32,
     max: f32,
   ) -> Option<(Collision, &'a Shadable)> {
@@ -243,7 +243,7 @@ impl Intersectable for Triangle {
     }
     return vec![];
   }
-  fn intersect<'a>(&'a self, ray: &Ray, first_hit_only: bool, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
-    return self.intersects(ray, first_hit_only, min, max);
+  fn intersect<'a>(&'a self, ray: &Ray, hit_mode: HitMode, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
+    return self.intersects(ray, hit_mode, min, max);
   }
 }

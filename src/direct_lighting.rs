@@ -58,7 +58,7 @@ impl LightingIntegrator for DirectLighting {
       }
       if had_shadow.unwrap_or(true) {
         let shadow_test = Ray::new_bound(surface.position, ldir, 0.005, ldir_len - 0.001, None);
-        if scene.intersect(&shadow_test).is_some() {
+        if scene.has_intersection(&shadow_test) {
           continue;
         }
       }

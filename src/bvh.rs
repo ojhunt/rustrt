@@ -1,6 +1,6 @@
 use crate::bounding_box::BoundingBox;
 use crate::collision::Collision;
-use crate::intersectable::Intersectable;
+use crate::intersectable::*;
 use crate::ray::Ray;
 use crate::shader::Shadable;
 use crate::vectors::{Point, VectorType};
@@ -49,11 +49,11 @@ impl BVH {
     &self,
     elements: &'a [T],
     ray: &Ray,
-    first_hit_only: bool,
+    hit_mode: HitMode,
     min: f32,
     max: f32,
   ) -> Option<(Collision, &'a Shadable)> {
-    return intersect(&self.root, elements, ray, first_hit_only, min, max);
+    return intersect(&self.root, elements, ray, hit_mode, min, max);
   }
 }
 
@@ -61,7 +61,7 @@ fn intersect_primitives<'a, T: Intersectable + 'a>(
   indices: &[usize],
   primitives: &'a [T],
   ray: &Ray,
-  first_hit_only: bool,
+  hit_mode: HitMode,
   min: f32,
   max: f32,
 ) -> Option<(Collision, &'a Shadable)> {
@@ -69,12 +69,15 @@ fn intersect_primitives<'a, T: Intersectable + 'a>(
   let mut result: Option<(Collision, &'a Shadable)> = None;
   for index in indices {
     let element = &primitives[*index];
-    match element.intersect(ray, first_hit_only, min, closest) {
+    match element.intersect(ray, hit_mode, min, closest) {
       None => continue,
       Some((collision, object)) => {
         if collision.distance < closest {
           closest = collision.distance;
           result = Some((collision, object));
+          if hit_mode == HitMode::AnyHit {
+            return result;
+          }
         }
       }
     }
@@ -86,7 +89,7 @@ fn intersect<'a, T: Intersectable>(
   node: &BVHNode,
   elements: &'a [T],
   ray: &Ray,
-  first_hit_only: bool,
+  hit_mode: HitMode,
   parent_min: f32,
   parent_max: f32,
 ) -> Option<(Collision, &'a Shadable)> {
@@ -117,7 +120,7 @@ fn intersect<'a, T: Intersectable>(
               children,
               elements,
               ray,
-              first_hit_only,
+              hit_mode,
               min.max(node_min) as f32,
               nearest.min(max as f32),
             ) {
@@ -126,6 +129,9 @@ fn intersect<'a, T: Intersectable>(
                 if inner_collision.distance < nearest {
                   nearest = inner_collision.distance;
                   result = Some((inner_collision, object));
+                  if hit_mode == HitMode::AnyHit {
+                    return result;
+                  }
                 }
               }
             };
