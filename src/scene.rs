@@ -184,7 +184,7 @@ impl Scene {
     MaterialIdx(1)
   }
   pub fn intersect<'a>(&'a self, ray: &Ray) -> Option<(Collision, &'a Shadable)> {
-    return self._scene.intersect(ray, ray.min, ray.max);
+    return self._scene.intersect(ray, true, ray.min, ray.max);
   }
 
   pub fn finalize(&mut self) {

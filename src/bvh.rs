@@ -49,10 +49,11 @@ impl BVH {
     &self,
     elements: &'a [T],
     ray: &Ray,
+    first_hit_only: bool,
     min: f32,
     max: f32,
   ) -> Option<(Collision, &'a Shadable)> {
-    return intersect(&self.root, elements, ray, min, max);
+    return intersect(&self.root, elements, ray, first_hit_only, min, max);
   }
 }
 
@@ -60,6 +61,7 @@ fn intersect_primitives<'a, T: Intersectable + 'a>(
   indices: &[usize],
   primitives: &'a [T],
   ray: &Ray,
+  first_hit_only: bool,
   min: f32,
   max: f32,
 ) -> Option<(Collision, &'a Shadable)> {
@@ -67,7 +69,7 @@ fn intersect_primitives<'a, T: Intersectable + 'a>(
   let mut result: Option<(Collision, &'a Shadable)> = None;
   for index in indices {
     let element = &primitives[*index];
-    match element.intersect(ray, min, closest) {
+    match element.intersect(ray, first_hit_only, min, closest) {
       None => continue,
       Some((collision, object)) => {
         if collision.distance < closest {
@@ -84,6 +86,7 @@ fn intersect<'a, T: Intersectable>(
   node: &BVHNode,
   elements: &'a [T],
   ray: &Ray,
+  first_hit_only: bool,
   parent_min: f32,
   parent_max: f32,
 ) -> Option<(Collision, &'a Shadable)> {
@@ -114,6 +117,7 @@ fn intersect<'a, T: Intersectable>(
               children,
               elements,
               ray,
+              first_hit_only,
               min.max(node_min) as f32,
               nearest.min(max as f32),
             ) {

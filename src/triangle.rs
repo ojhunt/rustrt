@@ -51,11 +51,11 @@ impl Light for Triangle {
       let normal = self.true_normal();
       let (ray, collision) = {
         let ray = Ray::new(point + normal, normal * -1.0, None);
-        if let Some((collision, _)) = self.intersect(&ray, 0.0, std::f32::INFINITY) {
+        if let Some((collision, _)) = self.intersect(&ray, false, ray.min, ray.max) {
           (ray, collision)
         } else {
           let ray = Ray::new(point + normal, normal, None);
-          if let Some((collision, _)) = self.intersect(&ray, 0.0, std::f32::INFINITY) {
+          if let Some((collision, _)) = self.intersect(&ray, false, ray.min, ray.max) {
             (ray, collision)
           } else {
             continue;
@@ -191,7 +191,13 @@ impl Triangle {
     return result;
   }
 
-  pub fn intersects<'a>(&'a self, ray: &Ray, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
+  pub fn intersects<'a>(
+    &'a self,
+    ray: &Ray,
+    first_hit_only: bool,
+    min: f32,
+    max: f32,
+  ) -> Option<(Collision, &'a Shadable)> {
     let h = ray.direction.cross(self.edges[1]);
     let a = self.edges[0].dot(h);
     if a.abs() < 0.00001 {
@@ -237,7 +243,7 @@ impl Intersectable for Triangle {
     }
     return vec![];
   }
-  fn intersect<'a>(&'a self, ray: &Ray, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
-    return self.intersects(ray, min, max);
+  fn intersect<'a>(&'a self, ray: &Ray, first_hit_only: bool, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
+    return self.intersects(ray, first_hit_only, min, max);
   }
 }

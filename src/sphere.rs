@@ -150,7 +150,13 @@ impl Intersectable for Sphere {
     // }
     return vec![];
   }
-  fn intersect<'a>(&'a self, ray: &Ray, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
+  fn intersect<'a>(
+    &'a self,
+    ray: &Ray,
+    _first_hit_only: bool,
+    min: f32,
+    max: f32,
+  ) -> Option<(Collision, &'a Shadable)> {
     return self.intersects(ray, min, max).map(|c| (c, self as &Shadable));
   }
 }

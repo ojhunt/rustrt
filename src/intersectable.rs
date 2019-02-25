@@ -8,7 +8,7 @@ use std::fmt::Debug;
 
 pub trait Intersectable: Debug + HasBoundingBox + Sync + Send {
   fn get_lights<'a>(&'a self, s: &Scene) -> Vec<&'a Light>;
-  fn intersect<'a>(&'a self, ray: &Ray, min: f32, max: f32) -> Option<(Collision, &'a Shadable)>;
+  fn intersect<'a>(&'a self, ray: &Ray, first_hit_only: bool, min: f32, max: f32) -> Option<(Collision, &'a Shadable)>;
 }
 
 impl<T: Intersectable + ?Sized> Intersectable for Box<T> {
@@ -16,7 +16,7 @@ impl<T: Intersectable + ?Sized> Intersectable for Box<T> {
     return (**self).get_lights(s);
   }
 
-  fn intersect<'a>(&'a self, ray: &Ray, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
-    return (**self).intersect(ray, min, max);
+  fn intersect<'a>(&'a self, ray: &Ray, first_hit_only: bool, min: f32, max: f32) -> Option<(Collision, &'a Shadable)> {
+    return (**self).intersect(ray, first_hit_only, min, max);
   }
 }
