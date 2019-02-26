@@ -7,26 +7,17 @@ edition = "2018"
 [dependencies]
 image = "*"
 genmesh = "*"
-itertools = "*"
 rand = "*"
 packed_simd = "*"
-rayon = "*"
 obj = { version = "*", features = ["genmesh"]}
-tokio-core="*"
-futures={ version = "*", features = ["nightly"] }
-futures-executor-preview="*"
 num_cpus="*"
-order-stat ="*"
 xml-rs="*"
 sdl2="*"
+order-stat ="*"
 
 [dependencies.clap]
 features = ["yaml"]
 git = "https://github.com/clap-rs/clap.git"
-branch = "master"
-
-[dependencies.faster]
-git = "https://github.com/AdamNiederer/faster.git"
 branch = "master"
 
 [profile.release]

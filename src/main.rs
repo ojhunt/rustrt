@@ -3,14 +3,11 @@
 extern crate clap;
 extern crate genmesh;
 extern crate image;
-extern crate itertools;
 extern crate obj;
 extern crate rand;
-extern crate faster;
 extern crate packed_simd;
-extern crate rayon;
-extern crate num_cpus;
 extern crate order_stat;
+extern crate num_cpus;
 extern crate xml;
 extern crate sdl2;
 
