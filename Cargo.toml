@@ -22,4 +22,3 @@ branch = "master"
 
 [profile.release]
 debug = true
-lto = true
