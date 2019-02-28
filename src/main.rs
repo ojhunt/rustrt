@@ -26,6 +26,7 @@ mod intersectable;
 mod kdtree;
 mod light;
 mod material;
+mod media;
 mod mesh;
 mod objects;
 mod photon_map;
