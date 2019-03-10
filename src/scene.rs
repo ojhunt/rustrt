@@ -3,6 +3,7 @@ use crate::render_configuration::RenderConfiguration;
 use std::collections::HashMap;
 use crate::material::Material;
 use crate::material::DefaultMaterial;
+use crate::material::TransparentMaterial;
 use crate::collision::Collision;
 use crate::casefopen;
 use crate::colour::Colour;
@@ -86,6 +87,9 @@ pub struct Scene {
   pub textures: Vec<Texture>,
   material_map: HashMap<String, (MaterialIdx, bool)>,
   texture_map: HashMap<PathBuf, TextureIdx>,
+  default_material: MaterialIdx,
+  mirror_material: MaterialIdx,
+  glass_material: MaterialIdx,
   _scene: CompoundObject,
 }
 
@@ -101,12 +105,16 @@ impl Scene {
       materials: vec![
         Box::new(DefaultMaterial::new(Colour::RGB(0.7, 0.7, 0.7), None)),
         Box::new(DefaultMaterial::new(Colour::RGB(1.0, 1.0, 1.0), Some(1.0))),
+        Box::new(TransparentMaterial::new(2.5)),
       ],
       texture_coords: Vec::new(),
       textures: Vec::new(),
       _scene: CompoundObject::new(),
       material_map: HashMap::new(),
       texture_map: HashMap::new(),
+      default_material: MaterialIdx(0),
+      mirror_material: MaterialIdx(1),
+      glass_material: MaterialIdx(2),
     };
   }
 
@@ -177,11 +185,15 @@ impl Scene {
     self._scene.add_object(object)
   }
   pub fn default_material(&self) -> MaterialIdx {
-    MaterialIdx(0)
+    self.default_material
   }
   #[allow(dead_code)]
   pub fn mirror_material(&self) -> MaterialIdx {
-    MaterialIdx(1)
+    self.mirror_material
+  }
+  #[allow(dead_code)]
+  pub fn glass_material(&self) -> MaterialIdx {
+    self.glass_material
   }
   pub fn intersect<'a>(&'a self, ray: &Ray) -> Option<(Collision, &'a Shadable)> {
     return self._scene.intersect(ray, HitMode::Nearest, ray.min, ray.max);

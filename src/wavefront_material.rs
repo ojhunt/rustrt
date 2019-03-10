@@ -445,7 +445,7 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
     let new_object = Box::new(Mesh::new(&object_triangles));
     scn.add_object(new_object);
 
-    let sphere = box Sphere::new(Vector::point(0.5, 0.4, 0.5), 0.399, scn.mirror_material());
+    let sphere = box Sphere::new(Vector::point(0.5, 0.4, 0.5), 0.399, scn.glass_material());
     scn.add_object(sphere);
   }
   scn.finalize();

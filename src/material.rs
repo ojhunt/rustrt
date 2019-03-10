@@ -55,6 +55,7 @@ impl DefaultMaterial {
     DefaultMaterial { colour, reflection }
   }
 }
+
 impl Material for DefaultMaterial {
   fn is_light(&self) -> bool {
     false
@@ -71,6 +72,40 @@ impl Material for DefaultMaterial {
       normal: f.normal,
       index_of_refraction: None,
       reflectivity: self.reflection.map(|p| (p, self.colour)),
+    }
+  }
+}
+
+#[derive(Debug)]
+pub struct TransparentMaterial {
+  ior: f32,
+  colour: Colour,
+}
+
+impl Material for TransparentMaterial {
+  fn is_light(&self) -> bool {
+    false
+  }
+
+  fn compute_surface_properties(&self, _s: &Scene, _: &Ray, f: &Fragment) -> MaterialCollisionInfo {
+    MaterialCollisionInfo {
+      ambient_colour: self.colour,
+      diffuse_colour: self.colour,
+      specular_colour: self.colour,
+      emissive_colour: None,
+      transparent_colour: Some(self.colour),
+      position: f.position,
+      normal: f.normal,
+      index_of_refraction: Some(self.ior),
+      reflectivity: None,
+    }
+  }
+}
+impl TransparentMaterial {
+  pub fn new(ior: f32) -> TransparentMaterial {
+    TransparentMaterial {
+      ior,
+      colour: Colour::RGB(1.0, 1.0, 1.0),
     }
   }
 }
