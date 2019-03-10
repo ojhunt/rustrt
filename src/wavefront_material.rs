@@ -16,6 +16,7 @@ use crate::scene::TextureIdx;
 use std::path::Path;
 use crate::texture::TextureCoordinateIdx;
 use crate::triangle::Triangle;
+use crate::sphere::Sphere;
 use crate::vectors::*;
 
 trait RawSurfaceValue: Clone + Clone + Copy {
@@ -443,6 +444,9 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
 
     let new_object = Box::new(Mesh::new(&object_triangles));
     scn.add_object(new_object);
+
+    let sphere = box Sphere::new(Vector::point(0.5, 0.4, 0.5), 0.399, scn.mirror_material());
+    scn.add_object(sphere);
   }
   scn.finalize();
   return scn;
