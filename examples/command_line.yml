@@ -14,8 +14,11 @@ args:
         help: the output file
         short: o
         long: output
-        required: true
         takes_value: true
+    - interactive:
+        help: run in interactive mode
+        short: i
+        long: interactive
     - position:
         help: Camera position
         short: p

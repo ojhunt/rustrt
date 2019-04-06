@@ -71,15 +71,19 @@ impl FromStr for VecArg {
 }
 
 /// Load the settings
-fn load_settings() -> SceneSettings {
+struct RunSettings {
+  scene_settings: SceneSettings,
+  interactive: bool,
+  output: Option<String>,
+}
+fn load_settings() -> RunSettings {
   let commandline_yaml = load_yaml!("command_line.yml");
   let matches = App::from_yaml(commandline_yaml).get_matches();
-  let output_file = matches.value_of("output").unwrap();
-  let scene_file = matches.value_of("scene").unwrap();
+  let output_file = matches.value_of("output").map(|o| o.to_string());
+  let scene_file = matches.value_of("scene").unwrap().to_string();
 
   let mut settings = SceneSettings::new();
-  settings.output_file = output_file.to_string();
-  settings.scene_file = scene_file.to_string();
+  settings.scene_file = scene_file;
   match value_t!(matches, "position", VecArg) {
     Ok(value) => settings.camera_position = value.as_point(),
     _ => {}
@@ -143,7 +147,12 @@ fn load_settings() -> SceneSettings {
     Ok(value) => settings.gamma = value,
     _ => {}
   }
-  return settings;
+
+  return RunSettings {
+    scene_settings: settings,
+    interactive: matches.is_present("interactive") || output_file.is_none(),
+    output: output_file,
+  };
 }
 
 fn lighting_integrator(settings: &SceneSettings, scene: &Arc<Scene>) -> Arc<LightingIntegrator> {
@@ -187,12 +196,42 @@ fn orientation_to_vector(yaw: f32, pitch: f32) -> Vector {
 }
 
 fn main() -> Result<(), String> {
+  let settings = load_settings();
+  if settings.interactive {
+    return run_interactive(&settings);
+  }
+
+  let settings = settings.scene_settings;
+  let scn = Arc::new(load_scene(&settings));
+  let lighting_integrator = lighting_integrator(&settings, &scn);
+  let configuration = Arc::new(RenderConfiguration::new(lighting_integrator, scn));
+
+  let camera = Box::new(PerspectiveCamera::new(
+    settings.width as usize,
+    settings.height as usize,
+    settings.camera_position,
+    settings.camera_direction,
+    settings.camera_up,
+    40.,
+    settings.samples_per_pixel,
+    settings.use_multisampling,
+    settings.gamma,
+  ));
+  let output = camera.render(&configuration);
+
+  return Ok(());
+}
+
+fn run_interactive(settings: &RunSettings) -> Result<(), String> {
   let sdl_context = sdl2::init()?;
   let video_subsystem = sdl_context.video()?;
 
-  let settings = load_settings();
   let window = video_subsystem
-    .window("rust-sdl2 demo: Window", settings.width as u32, settings.height as u32)
+    .window(
+      "rust-sdl2 demo: Window",
+      settings.scene_settings.width as u32,
+      settings.scene_settings.height as u32,
+    )
     .resizable()
     .build()
     .map_err(|e| e.to_string())?;
@@ -211,9 +250,9 @@ fn main() -> Result<(), String> {
   let (render_parameter_transmitter, render_parameter_receiver) = mpsc::channel();
   let mut rendering = false;
   let mut should_render = true;
-  let mut gamma = settings.gamma;
+  let mut gamma = settings.scene_settings.gamma;
   {
-    let settings = settings.clone();
+    let settings = settings.scene_settings.clone();
     thread::spawn(move || {
       let scn = Arc::new(load_scene(&settings));
       let lighting_integrator = lighting_integrator(&settings, &scn);
@@ -238,10 +277,10 @@ fn main() -> Result<(), String> {
   }
 
   let step_size = 0.3;
-  let mut position = settings.camera_position;
+  let mut position = settings.scene_settings.camera_position;
   let mut render_count = 0;
   let mut render_time = 0;
-  let (mut yaw, mut pitch) = vector_to_orientation(settings.camera_direction);
+  let (mut yaw, mut pitch) = vector_to_orientation(settings.scene_settings.camera_direction);
   'running: loop {
     if let Some(event) = event_pump.wait_event_timeout(1000 / 24) {
       match event {
@@ -363,13 +402,13 @@ fn main() -> Result<(), String> {
           height as usize,
           position,
           orientation_to_vector(yaw, pitch),
-          settings.camera_up,
+          settings.scene_settings.camera_up,
           40.,
-          settings.samples_per_pixel,
-          settings.use_multisampling,
+          settings.scene_settings.samples_per_pixel,
+          settings.scene_settings.use_multisampling,
           gamma,
         ));
-        render_parameter_transmitter.send(Some((camera, settings.gamma)));
+        render_parameter_transmitter.send(Some((camera, settings.scene_settings.gamma)));
         rendering = true;
         should_render = false;
       }
@@ -377,7 +416,6 @@ fn main() -> Result<(), String> {
       result_receiver.recv_timeout(std::time::Duration::from_millis(50))
     {
       rendering = false;
-      should_render = true;
       let texture_creator = canvas.texture_creator();
       let mut texture = texture_creator
         .create_texture_streaming(PixelFormatEnum::RGB24, width as u32, height as u32)

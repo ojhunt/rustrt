@@ -38,7 +38,6 @@ impl NormalIdx {
 
 #[derive(Clone, Debug)]
 pub struct SceneSettings {
-  pub output_file: String,
   pub scene_file: String,
   pub camera_position: Point,
   pub camera_direction: Vector,
@@ -57,7 +56,6 @@ pub struct SceneSettings {
 impl SceneSettings {
   pub fn new() -> SceneSettings {
     return SceneSettings {
-      output_file: String::new(),
       scene_file: String::new(),
       camera_position: Vector::point(0., 0.5, 0.),
       camera_direction: Vector::vector(0., 0., 1.),
