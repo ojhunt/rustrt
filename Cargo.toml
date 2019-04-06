@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Oliver Hunt <github@nerget.com>"]
 edition = "2018"
 
+[lib]
+name = "raytrace_rs"
+path = "src/lib.rs"
+
 [dependencies]
 image = "*"
 genmesh = "*"
@@ -12,7 +16,6 @@ packed_simd = "*"
 obj = { version = "*", features = ["genmesh"]}
 num_cpus="*"
 xml-rs="*"
-sdl2="*"
 order-stat ="*"
 
 [dependencies.clap]
@@ -22,3 +25,10 @@ branch = "master"
 
 [profile.release]
 debug = true
+
+[[example]]
+name = "myrt"
+path = "examples/myrt.rs"
+
+[dev-dependencies]
+sdl2 = "*"

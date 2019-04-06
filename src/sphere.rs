@@ -45,25 +45,27 @@ impl Sphere {
   fn intersects<'a>(&'a self, ray: &Ray, min: f32, max: f32) -> Option<Collision> {
     let origin_to_center = self.position - ray.origin;
     let distance_to_tangent_point = origin_to_center.dot(ray.direction);
-    let radius_at_tangent_point =
-      (origin_to_center.square_length() - distance_to_tangent_point * distance_to_tangent_point).sqrt();
+
+    let tangent_point = ray.origin + ray.direction * distance_to_tangent_point;
+    let to_tangent_point = tangent_point - self.position;
+    let radius_at_tangent_point = to_tangent_point.length();
     if !(radius_at_tangent_point < self.radius) {
       return None;
     }
 
     let collision_to_tangent = (self.radius * self.radius - radius_at_tangent_point * radius_at_tangent_point).sqrt();
 
-    let true_distance = if distance_to_tangent_point < collision_to_tangent {
+    let true_distance = if origin_to_center.length() < self.radius {
       distance_to_tangent_point + collision_to_tangent
     } else {
       distance_to_tangent_point - collision_to_tangent
     };
 
-    if distance_to_tangent_point < min {
+    if true_distance < min {
       return None;
     }
 
-    if distance_to_tangent_point >= max {
+    if true_distance >= max {
       return None;
     }
 
@@ -84,7 +86,6 @@ impl Shadable for Sphere {
     let c_to_c = position - self.position;
     let _c2clen = c_to_c.length();
     let normal = (c_to_c).normalize();
-    let position = self.position + (self.radius * 1.15) * normal;
     let u = normal.z().atan2(normal.x());
     let v = normal.y().acos();
     let dpdv = normal.cross(Vector::vector(0.0, 1.0, 0.0)).cross(normal);

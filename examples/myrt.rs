@@ -1,5 +1,6 @@
 #![feature(stdsimd, async_await, futures_api, await_macro, drain_filter, box_syntax)]
 #![allow(unused)]
+
 extern crate clap;
 extern crate genmesh;
 extern crate image;
@@ -10,51 +11,22 @@ extern crate order_stat;
 extern crate num_cpus;
 extern crate xml;
 extern crate sdl2;
-
-mod bounding_box;
-mod bvh;
-mod camera;
-mod casefopen;
-mod collision;
-mod colour;
-mod compound_object;
-mod direct_lighting;
-mod dispatch_queue;
-mod fragment;
-mod heap;
-mod intersectable;
-mod kdtree;
-mod light;
-mod material;
-mod media;
-mod mesh;
-mod objects;
-mod photon_map;
-mod ray;
-mod render_configuration;
-mod scene;
-mod scene_loader;
-mod shader;
-mod sphere;
-mod texture;
-mod triangle;
-mod vectors;
-mod wavefront_material;
+extern crate raytrace_rs;
 
 use std::time::Instant;
-use crate::camera::RenderBuffer;
-use crate::render_configuration::LightingIntegrator;
-use crate::camera::*;
-use crate::direct_lighting::DirectLighting;
-use crate::photon_map::DiffuseSelector;
-use crate::photon_map::PhotonMap;
-use crate::photon_map::Timing;
-use crate::direct_lighting::IndirectLightingSource;
-use crate::scene::Scene;
-use crate::scene::SceneSettings;
-use crate::wavefront_material::load_scene;
-use crate::render_configuration::RenderConfiguration;
-use crate::vectors::*;
+use raytrace_rs::RenderBuffer;
+
+use raytrace_rs::cameras::*;
+use raytrace_rs::integrators::*;
+use raytrace_rs::photon_map::DiffuseSelector;
+use raytrace_rs::photon_map::PhotonMap;
+use raytrace_rs::photon_map::Timing;
+use raytrace_rs::scene::Scene;
+use raytrace_rs::scene::SceneSettings;
+use raytrace_rs::wavefront::load_scene;
+use raytrace_rs::RenderConfiguration;
+use raytrace_rs::vectors::*;
+
 use std::result::Result;
 use clap::*;
 use std::str::FromStr;
@@ -98,6 +70,7 @@ impl FromStr for VecArg {
   }
 }
 
+/// Load the settings
 fn load_settings() -> SceneSettings {
   let commandline_yaml = load_yaml!("command_line.yml");
   let matches = App::from_yaml(commandline_yaml).get_matches();
