@@ -18,8 +18,6 @@ newmtl leftSphere
     Ks 0.95 0.95 0.95
     Ns 1000
     illum 5
-	map_bump VRATA_KO.JPG
-	bump VRATA_KO.JPG
     
 newmtl rightSphere
     Ka 0.01 0.01 0.01
