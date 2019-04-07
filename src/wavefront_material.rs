@@ -190,10 +190,7 @@ fn perturb_normal(bump: Option<TextureIdx>, f: &Fragment, s: &Scene) -> Vector {
     return f.normal;
   }
   let map = s.get_texture(bump.unwrap());
-  let (fu, fv) = {
-    let (u, v) = map.gradient(f.uv);
-    (u, v)
-  };
+  let (fu, fv) = map.gradient(f.uv);
   let normal = f.normal;
   let ndpdv = normal.cross(f.dpdv);
   let ndpdu = normal.cross(f.dpdu);
