@@ -34,7 +34,7 @@ pub struct MaterialCollisionInfo {
   pub emissive_colour: Option<EmissionCoefficients>,
   pub transparent_colour: Option<Colour>,
   pub reflectivity: Option<(f32, Colour)>,
-  pub index_of_refraction: Option<f32>,
+  pub index_of_refraction: Option<(f32, f32)>,
   pub position: Point,
   pub normal: Vector,
 }
@@ -96,7 +96,7 @@ impl Material for TransparentMaterial {
       transparent_colour: Some(self.colour),
       position: f.position,
       normal: f.normal,
-      index_of_refraction: Some(self.ior),
+      index_of_refraction: Some((self.ior, 1.0)),
       reflectivity: None,
     }
   }
@@ -143,16 +143,16 @@ pub fn compute_secondaries(ray: &Ray, fragment: &Fragment, surface: &MaterialCol
   let mut exiting_object = false;
   let (refracted_vector, new_context): (Vector, RayContext) = match surface.index_of_refraction {
     None => (fragment.view, ray.ray_context.clone()),
-    Some(ior) => {
+    Some((internal_ior, external_ior)) => {
       let view = fragment.view * -1.0;
       let in_object = fragment.view.dot(fragment.true_normal) < 0.0;
       let (ni, nt, new_context) = if in_object {
         exiting_object = true;
         let new_context = ray.ray_context.exit_material();
-        (ior, 1.0, new_context)
+        (internal_ior, external_ior, new_context)
       } else {
         let new_context = ray.ray_context.enter_material();
-        (1.0, ior, new_context)
+        (external_ior, internal_ior, new_context)
       };
       let nr = ni as f32 / nt as f32;
 

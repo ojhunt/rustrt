@@ -237,7 +237,7 @@ impl Material for WFMaterial {
       return result;
     }
     if let Transparency::Opaque = self.transparency {
-      result.index_of_refraction = self.index_of_refraction;
+      result.index_of_refraction = self.index_of_refraction.map(|ior| (ior, 1.0));
       result.transparent_colour = self.transparent_colour;
     }
     return result;
