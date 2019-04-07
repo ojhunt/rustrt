@@ -425,11 +425,7 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
 
           Triangle::new(
             if let Some(material) = material_index {
-              if true || scn.get_material(material).is_light() {
-                material
-              } else {
-                default_material
-              }
+              material
             } else {
               default_material
             },
