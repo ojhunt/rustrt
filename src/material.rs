@@ -135,12 +135,14 @@ pub fn compute_secondaries(ray: &Ray, fragment: &Fragment, surface: &MaterialCol
 
   let mut result = vec![];
   let mut refraction_weight = 1.0;
+  let mut exiting_object = false;
   let (refracted_vector, new_context): (Vector, RayContext) = match surface.index_of_refraction {
     None => (fragment.view, ray.ray_context.clone()),
     Some(ior) => {
       let view = fragment.view * -1.0;
       let in_object = fragment.view.dot(fragment.true_normal) < 0.0;
       let (ni, nt, new_context) = if in_object {
+        exiting_object = true;
         let new_context = ray.ray_context.exit_material();
         (
           ray.ray_context.current_ior_or(ior),

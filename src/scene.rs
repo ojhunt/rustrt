@@ -103,7 +103,7 @@ impl Scene {
       materials: vec![
         Box::new(DefaultMaterial::new(Colour::RGB(0.7, 0.7, 0.7), None)),
         Box::new(DefaultMaterial::new(Colour::RGB(1.0, 1.0, 1.0), Some(1.0))),
-        Box::new(TransparentMaterial::new(1.0)),
+        Box::new(TransparentMaterial::new(2.5)),
       ],
       texture_coords: Vec::new(),
       textures: Vec::new(),

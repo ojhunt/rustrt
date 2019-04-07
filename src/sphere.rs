@@ -49,7 +49,7 @@ impl Sphere {
     let tangent_point = ray.origin + ray.direction * distance_to_tangent_point;
     let to_tangent_point = tangent_point - self.position;
     let radius_at_tangent_point = to_tangent_point.length();
-    if !(radius_at_tangent_point < self.radius) {
+    if radius_at_tangent_point > self.radius {
       return None;
     }
 
@@ -84,7 +84,7 @@ impl Shadable for Sphere {
   fn compute_fragment(&self, _: &Scene, ray: &Ray, collision: &Collision) -> Fragment {
     let position = ray.origin + collision.distance * ray.direction;
     let c_to_c = position - self.position;
-    let _c2clen = c_to_c.length();
+    let internal = c_to_c.length() + 0.0001 < self.radius;
     let normal = (c_to_c).normalize();
     let u = normal.z().atan2(normal.x());
     let v = normal.y().acos();
@@ -98,7 +98,7 @@ impl Shadable for Sphere {
         normal
       },
       position,
-      true_normal: normal,
+      true_normal: if internal { normal } else { -normal },
       uv: Vec2d(u.into(), v.into()),
       dpdv,
       dpdu,
