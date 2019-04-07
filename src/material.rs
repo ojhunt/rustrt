@@ -127,10 +127,15 @@ pub fn compute_secondaries(ray: &Ray, fragment: &Fragment, surface: &MaterialCol
 
   let normal = surface.normal;
   let reflected_ray = fragment.view.reflect(normal);
-  let transparent_colour = if let Some(_transparent_colour) = surface.transparent_colour {
-    Colour::RGB(1.0, 1.0, 1.0) //transparent_colour
+  let transparent_colour = if let Some(transparent_colour) = surface.transparent_colour {
+    Colour::RGB(1.0, 1.0, 1.0) - transparent_colour
   } else {
     Colour::RGB(1.0, 1.0, 1.0)
+  };
+  let reflected_colour = if let Some((_, reflected_colour)) = surface.reflectivity {
+    reflected_colour
+  } else {
+    surface.diffuse_colour
   };
 
   let mut result = vec![];
@@ -144,14 +149,10 @@ pub fn compute_secondaries(ray: &Ray, fragment: &Fragment, surface: &MaterialCol
       let (ni, nt, new_context) = if in_object {
         exiting_object = true;
         let new_context = ray.ray_context.exit_material();
-        (
-          ray.ray_context.current_ior_or(ior),
-          new_context.current_ior_or(1.0),
-          new_context,
-        )
+        (ior, 1.0, new_context)
       } else {
-        let new_context = ray.ray_context.enter_material(ior);
-        (ray.ray_context.current_ior_or(1.0), ior, new_context)
+        let new_context = ray.ray_context.enter_material();
+        (1.0, ior, new_context)
       };
       let nr = ni as f32 / nt as f32;
 

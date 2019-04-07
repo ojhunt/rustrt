@@ -1,26 +1,19 @@
 use crate::vectors::*;
 
 #[derive(Debug, Clone)]
-pub struct RayContext {
-  ior: Vec<f32>,
-}
+pub struct RayContext {}
 
 impl RayContext {
   pub fn new() -> RayContext {
-    RayContext { ior: vec![] }
+    RayContext {}
   }
 
-  pub fn enter_material(&self, _ior: f32) -> RayContext {
+  pub fn enter_material(&self) -> RayContext {
     self.clone()
   }
 
-  pub fn current_ior_or(&self, _or: f32) -> f32 {
-    *self.ior.last().unwrap_or(&1.0)
-  }
   pub fn exit_material(&self) -> RayContext {
-    let mut result = self.clone();
-    result.ior.pop();
-    return result;
+    return self.clone();
   }
 }
 
