@@ -1,3 +1,4 @@
+use crate::media::Media;
 use crate::ray::RayContext;
 use crate::colour::Colour;
 use crate::fragment::Fragment;
@@ -39,9 +40,17 @@ pub struct MaterialCollisionInfo {
   pub normal: Vector,
 }
 
+pub struct MediaTransition<'a> {
+  pub internal: Option<&'a Media>,
+  pub external: Option<&'a Media>,
+}
+
 pub trait Material: Debug + Sync + Send {
   fn is_light(&self) -> bool;
   fn compute_surface_properties(&self, s: &Scene, ray: &Ray, f: &Fragment) -> MaterialCollisionInfo;
+  fn media_transition<'a>(&'a self) -> Option<MediaTransition<'a>> {
+    None
+  }
 }
 
 #[derive(Debug)]

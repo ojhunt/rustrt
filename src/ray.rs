@@ -1,3 +1,4 @@
+use crate::media::Media;
 use crate::vectors::*;
 
 #[derive(Debug, Clone)]
