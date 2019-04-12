@@ -43,7 +43,7 @@ pub struct MaterialCollisionInfo {
   pub media_transition: Option<MediaTransition>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct MediaTransition {
   pub internal: Option<MediaIdx>,
   pub external: Option<MediaIdx>,
@@ -163,7 +163,9 @@ pub fn compute_secondaries(ray: &Ray, fragment: &Fragment, surface: &MaterialCol
         let new_context = ray.ray_context.exit_material();
         (internal_ior, external_ior, new_context)
       } else {
-        let new_context = ray.ray_context.enter_material();
+        let new_context = ray
+          .ray_context
+          .enter_material(surface.media_transition.map(|m| m.internal).unwrap_or(None));
         (external_ior, internal_ior, new_context)
       };
       let nr = ni as f32 / nt as f32;

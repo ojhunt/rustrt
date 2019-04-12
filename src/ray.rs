@@ -1,15 +1,18 @@
+use crate::scene::MediaIdx;
 use crate::media::Media;
 use crate::vectors::*;
 
 #[derive(Debug, Clone)]
-pub struct RayContext {}
+pub struct RayContext {
+  media: Option<MediaIdx>,
+}
 
 impl RayContext {
   pub fn new() -> RayContext {
-    RayContext {}
+    RayContext { media: None }
   }
 
-  pub fn enter_material(&self) -> RayContext {
+  pub fn enter_material(&self, media: Option<MediaIdx>) -> RayContext {
     self.clone()
   }
 
