@@ -230,6 +230,7 @@ impl Material for WFMaterial {
       reflectivity: None,
       transparent_colour: None,
       index_of_refraction: None,
+      media_transition: None,
     };
 
     if self.illumination_model == 5 {

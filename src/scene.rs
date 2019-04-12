@@ -1,3 +1,4 @@
+use crate::media::Media;
 use crate::material::compute_secondaries;
 use crate::render_configuration::RenderConfiguration;
 use std::collections::HashMap;
@@ -28,6 +29,16 @@ pub struct TextureIdx(pub usize);
 
 #[derive(Debug, Copy, Clone)]
 pub struct NormalIdx(pub usize);
+
+#[derive(Debug, Copy, Clone)]
+pub struct MediaIdx(pub usize);
+
+impl MediaIdx {
+  pub fn get<'a>(&self, s: &'a Scene) -> &'a Media {
+    let MediaIdx(idx) = *self;
+    return s.get_media(idx);
+  }
+}
 
 impl NormalIdx {
   pub fn get(&self, s: &Scene) -> Vector {
@@ -81,6 +92,7 @@ pub struct Scene {
   pub normals: Vec<Vector>,
   pub positions: Vec<Point>,
   pub materials: Vec<Box<material::Material>>,
+  pub medias: Vec<Box<dyn Media>>,
   pub texture_coords: Vec<Vec2d>,
   pub textures: Vec<Texture>,
   material_map: HashMap<String, (MaterialIdx, bool)>,
@@ -105,6 +117,7 @@ impl Scene {
         Box::new(DefaultMaterial::new(Colour::RGB(1.0, 1.0, 1.0), Some(1.0))),
         Box::new(TransparentMaterial::new(2.5)),
       ],
+      medias: Vec::new(),
       texture_coords: Vec::new(),
       textures: Vec::new(),
       _scene: CompoundObject::new(),
@@ -211,6 +224,9 @@ impl Scene {
     let n = self.normals[idx];
     assert!(n.w() == 0.0);
     return n;
+  }
+  pub fn get_media<'a>(&'a self, idx: usize) -> &'a Media {
+    return &*self.medias[idx];
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {

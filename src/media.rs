@@ -16,10 +16,11 @@ pub struct MediaFragment {
   density: f32,
 }
 
-pub trait Media {
+pub trait Media: Debug + Send + Sync {
   fn compute_fragment(&self, s: &Scene, r: &Ray, collision: &Collision) -> MediaFragment;
 }
 
+#[derive(Debug)]
 struct HomogenousMedia {
   density: f32,
   colour: Colour,

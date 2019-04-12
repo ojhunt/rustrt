@@ -1,3 +1,5 @@
+use crate::scene::MediaIdx;
+use std::sync::Arc;
 use crate::media::Media;
 use crate::ray::RayContext;
 use crate::colour::Colour;
@@ -38,19 +40,18 @@ pub struct MaterialCollisionInfo {
   pub index_of_refraction: Option<(f32, f32)>,
   pub position: Point,
   pub normal: Vector,
+  pub media_transition: Option<MediaTransition>,
 }
 
-pub struct MediaTransition<'a> {
-  pub internal: Option<&'a Media>,
-  pub external: Option<&'a Media>,
+#[derive(Clone)]
+pub struct MediaTransition {
+  pub internal: Option<MediaIdx>,
+  pub external: Option<MediaIdx>,
 }
 
 pub trait Material: Debug + Sync + Send {
   fn is_light(&self) -> bool;
   fn compute_surface_properties(&self, s: &Scene, ray: &Ray, f: &Fragment) -> MaterialCollisionInfo;
-  fn media_transition<'a>(&'a self) -> Option<MediaTransition<'a>> {
-    None
-  }
 }
 
 #[derive(Debug)]
@@ -81,6 +82,7 @@ impl Material for DefaultMaterial {
       normal: f.normal,
       index_of_refraction: None,
       reflectivity: self.reflection.map(|p| (p, self.colour)),
+      media_transition: None,
     }
   }
 }
@@ -107,6 +109,7 @@ impl Material for TransparentMaterial {
       normal: f.normal,
       index_of_refraction: Some((self.ior, 1.0)),
       reflectivity: None,
+      media_transition: None,
     }
   }
 }
@@ -212,4 +215,33 @@ pub fn compute_secondaries(ray: &Ray, fragment: &Fragment, surface: &MaterialCol
   ));
 
   return result;
+}
+
+#[derive(Debug)]
+struct Fog {
+  media: MediaIdx,
+}
+
+impl Material for Fog {
+  fn is_light(&self) -> bool {
+    false
+  }
+  fn compute_surface_properties(&self, s: &Scene, ray: &Ray, f: &Fragment) -> MaterialCollisionInfo {
+    let transition = MediaTransition {
+      internal: Some(self.media),
+      external: None,
+    };
+    return MaterialCollisionInfo {
+      ambient_colour: Colour::RGB(1.0, 1.0, 1.0),
+      diffuse_colour: Colour::RGB(1.0, 1.0, 1.0),
+      specular_colour: Colour::RGB(1.0, 1.0, 1.0),
+      emissive_colour: None,
+      transparent_colour: Some(Colour::RGB(1.0, 1.0, 1.0)),
+      position: f.position,
+      normal: f.normal,
+      index_of_refraction: Some((1.0, 1.0)),
+      reflectivity: None,
+      media_transition: Some(transition),
+    };
+  }
 }
