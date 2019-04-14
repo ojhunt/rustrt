@@ -1,3 +1,4 @@
+use crate::either::left;
 use crate::media::Media;
 use crate::material::compute_secondaries;
 use crate::render_configuration::RenderConfiguration;
@@ -20,6 +21,7 @@ use std::path::PathBuf;
 use crate::texture::Texture;
 use crate::vectors::*;
 use crate::photon_map::Timing;
+use crate::either::Either;
 
 #[derive(Debug, Copy, Clone)]
 pub struct MaterialIdx(pub u32);
@@ -100,7 +102,7 @@ pub struct Scene {
   default_material: MaterialIdx,
   mirror_material: MaterialIdx,
   glass_material: MaterialIdx,
-  _scene: CompoundObject,
+  root_object: CompoundObject,
 }
 
 impl Scene {
@@ -120,7 +122,7 @@ impl Scene {
       medias: Vec::new(),
       texture_coords: Vec::new(),
       textures: Vec::new(),
-      _scene: CompoundObject::new(),
+      root_object: CompoundObject::new(),
       material_map: HashMap::new(),
       texture_map: HashMap::new(),
       default_material: MaterialIdx(0),
@@ -193,7 +195,7 @@ impl Scene {
     return (MaterialIdx(0), false);
   }
   pub fn add_object(&mut self, object: Box<Intersectable>) {
-    self._scene.add_object(object)
+    self.root_object.add_object(object)
   }
   pub fn default_material(&self) -> MaterialIdx {
     self.default_material
@@ -206,20 +208,26 @@ impl Scene {
   pub fn glass_material(&self) -> MaterialIdx {
     self.glass_material
   }
-  pub fn intersect<'a>(&'a self, ray: &Ray) -> Option<(Collision, &'a Shadable)> {
+  pub fn intersect<'a>(&'a self, ray: &Ray) -> Option<(Collision, Either<&'a Shadable, &'a Media>)> {
     if let Some(media) = ray.ray_context.media {
       let media = media.get(self);
     }
-    return self._scene.intersect(ray, HitMode::Nearest, ray.min, ray.max);
+    return self
+      .root_object
+      .intersect(ray, HitMode::Nearest, ray.min, ray.max)
+      .map(|(d, c)| (d, left(c)));
   }
 
   pub fn has_intersection(&self, ray: &Ray) -> bool {
-    return self._scene.intersect(ray, HitMode::AnyHit, ray.min, ray.max).is_some();
+    return self
+      .root_object
+      .intersect(ray, HitMode::AnyHit, ray.min, ray.max)
+      .is_some();
   }
 
   pub fn finalize(&mut self) {
     Timing::time("Build scene graph", || {
-      self._scene.finalize();
+      self.root_object.finalize();
     });
   }
 
@@ -256,7 +264,7 @@ impl Scene {
 
     let (collision, shadable) = match self.intersect(ray) {
       None => return (Vector::new(), std::f32::INFINITY),
-      Some(collision) => collision,
+      Some((c, e)) => (c, e.unwrap_left()),
     };
 
     let (surface_colour, surface_distance) = {
@@ -299,24 +307,20 @@ impl Scene {
       if diffuse_colour.length() <= 0.01 {
         return (colour, collision.distance + max_secondary_distance);
       }
-      if true {
-        let sample_lighting = configuration.lighting_integrator().lighting(self, &fragment, &surface);
-        colour = colour
-          + Vector::from(
-            Colour::from(diffuse_colour) * sample_lighting.diffuse
-              + Colour::from(surface.ambient_colour) * sample_lighting.ambient
-              + Colour::from(surface.specular_colour) * sample_lighting.specular,
-          );
-      } else {
-        colour = diffuse_colour;
-      }
+      let sample_lighting = configuration.lighting_integrator().lighting(self, &fragment, &surface);
+      colour = colour
+        + Vector::from(
+          Colour::from(diffuse_colour) * sample_lighting.diffuse
+            + Colour::from(surface.ambient_colour) * sample_lighting.ambient
+            + Colour::from(surface.specular_colour) * sample_lighting.specular,
+        );
       return (colour, collision.distance + max_secondary_distance);
     };
     return (surface_colour, surface_distance);
   }
 
   pub fn get_light_samples(&self, max_samples: usize) -> Vec<LightSample> {
-    let light_objects = self._scene.get_lights(self);
+    let light_objects = self.root_object.get_lights(self);
     let light_areas: &Vec<f32> = &light_objects.iter().map(|l| l.get_area()).collect();
     let total_area = {
       let mut area = 0.0;

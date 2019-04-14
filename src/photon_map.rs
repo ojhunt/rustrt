@@ -178,7 +178,7 @@ fn bounce_photon<Selector: PhotonSelector + 'static>(
       Some(x) => x,
     };
 
-    let fragment = shadable.compute_fragment(scene, &photon_ray, &c);
+    let fragment = shadable.unwrap_left().compute_fragment(scene, &photon_ray, &c);
     let material = scene.get_material(fragment.material);
 
     let surface = material.compute_surface_properties(scene, &photon_ray, &fragment);

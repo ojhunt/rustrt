@@ -1,10 +1,10 @@
-enum Either<U, V> {
+pub enum Either<U, V> {
   Left(U),
   Right(V),
 }
 
 impl<U, V> Either<U, V> {
-  fn map_left<F, R>(self, f: F) -> Either<R, V>
+  pub fn map_left<F, R>(self, f: F) -> Either<R, V>
   where
     F: Fn(U) -> R,
   {
@@ -13,14 +13,20 @@ impl<U, V> Either<U, V> {
       Either::Right(r) => Either::Right(r),
     };
   }
-  fn left_or(self, u: U) -> U {
+  pub fn left_or(self, u: U) -> U {
     return match self {
       Either::Left(l) => l,
       _ => u,
     };
   }
+  pub fn unwrap_left(self) -> U {
+    match self {
+      Either::Left(l) => l,
+      _ => panic!(),
+    }
+  }
 
-  fn map_right<F, R>(self, f: F) -> Either<U, R>
+  pub fn map_right<F, R>(self, f: F) -> Either<U, R>
   where
     F: Fn(V) -> R,
   {
@@ -29,18 +35,24 @@ impl<U, V> Either<U, V> {
       Either::Right(r) => Either::Right(f(r)),
     };
   }
-  fn right_or(self, v: V) -> V {
+  pub fn right_or(self, v: V) -> V {
     return match self {
       Either::Right(r) => r,
       _ => v,
     };
   }
+  pub fn unwrap_right(self) -> V {
+    match self {
+      Either::Right(r) => r,
+      _ => panic!(),
+    }
+  }
 }
 
-fn left<U, V>(u: U) -> Either<U, V> {
+pub fn left<U, V>(u: U) -> Either<U, V> {
   Either::Left(u)
 }
 
-fn right<U, V>(v: V) -> Either<U, V> {
+pub fn right<U, V>(v: V) -> Either<U, V> {
   Either::Right(v)
 }
