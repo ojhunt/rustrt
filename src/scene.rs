@@ -207,6 +207,9 @@ impl Scene {
     self.glass_material
   }
   pub fn intersect<'a>(&'a self, ray: &Ray) -> Option<(Collision, &'a Shadable)> {
+    if let Some(media) = ray.ray_context.media {
+      let media = media.get(self);
+    }
     return self._scene.intersect(ray, HitMode::Nearest, ray.min, ray.max);
   }
 
@@ -250,93 +253,66 @@ impl Scene {
     if depth > 10 {
       return (Vector::vector(0.0, 0.0, 1.0), 0.0);
     }
+
     let (collision, shadable) = match self.intersect(ray) {
       None => return (Vector::new(), std::f32::INFINITY),
       Some(collision) => collision,
     };
 
-    let fragment = shadable.compute_fragment(self, ray, &collision);
+    let (surface_colour, surface_distance) = {
+      let fragment = shadable.compute_fragment(self, ray, &collision);
 
-    let material = self.get_material(fragment.material);
-    let surface = material.compute_surface_properties(self, ray, &fragment);
+      let material = self.get_material(fragment.material);
+      let surface = material.compute_surface_properties(self, ray, &fragment);
 
-    match 0 {
-      1 => {
-        return ((fragment.normal + Vector::splat(1.0)) * 0.5, collision.distance);
-      }
-      2 => {
-        return ((fragment.true_normal + Vector::splat(1.0)) * 0.5, collision.distance);
-      }
-      3 => {
-        return ((surface.normal + Vector::splat(1.0)) * 0.5, collision.distance);
-      }
-      4 => {
-        let uv = fragment.uv;
+      // let ambient_colour = Vector::from(surface.ambient_colour);
+      let mut diffuse_colour = Vector::from(surface.diffuse_colour);
+      if let Some(emission) = surface.emissive_colour {
         return (
-          (Vector::vector(uv.0, uv.1, 0.0) + Vector::splat(1.0)) * 0.5,
+          Vector::from(
+            emission.ambient * surface.ambient_colour
+              + emission.diffuse * surface.diffuse_colour
+              + emission.specular * surface.specular_colour,
+          ),
           collision.distance,
         );
       }
-      5 => {
-        return ((fragment.dpdu + Vector::splat(1.0)) * 0.5, collision.distance);
-      }
-      6 => {
-        return ((fragment.dpdv + Vector::splat(1.0)) * 0.5, collision.distance);
-      }
-      7 => {
-        return (
-          Vector::vector(0.7, 0.7, 0.7) * surface.normal.dot(Vector::vector(1.0, 1.0, 0.0).normalize()).max(0.0),
-          collision.distance,
-        );
-      }
-      _ => {}
-    }
-    // let ambient_colour = Vector::from(surface.ambient_colour);
-    let mut diffuse_colour = Vector::from(surface.diffuse_colour);
-    if let Some(emission) = surface.emissive_colour {
-      return (
-        Vector::from(
-          emission.ambient * surface.ambient_colour
-            + emission.diffuse * surface.diffuse_colour
-            + emission.specular * surface.specular_colour,
-        ),
-        collision.distance,
-      );
-    }
 
-    let mut colour;
+      let mut colour;
 
-    let mut max_secondary_distance = 0.0f32;
-    let mut remaining_weight = 1.0;
-    let mut secondaries_colour = Vector::new();
-    for (ray, secondary_colour, weight) in compute_secondaries(ray, &fragment, &surface) {
-      if remaining_weight <= 0.0 {
-        break;
+      let mut max_secondary_distance = 0.0f32;
+      let mut remaining_weight = 1.0;
+      let mut secondaries_colour = Vector::new();
+      for (ray, secondary_colour, weight) in compute_secondaries(ray, &fragment, &surface) {
+        if remaining_weight <= 0.0 {
+          break;
+        }
+        remaining_weight -= weight;
+        let (secondary_intersection_colour, secondary_distance) = self.intersect_ray(configuration, &ray, depth + 1);
+        secondaries_colour =
+          secondaries_colour + Vector::from(Colour::from(secondary_intersection_colour) * secondary_colour * weight);
+        max_secondary_distance = max_secondary_distance.max(secondary_distance);
       }
-      remaining_weight -= weight;
-      let (secondary_intersection_colour, secondary_distance) = self.intersect_ray(configuration, &ray, depth + 1);
-      secondaries_colour =
-        secondaries_colour + Vector::from(Colour::from(secondary_intersection_colour) * secondary_colour * weight);
-      max_secondary_distance = max_secondary_distance.max(secondary_distance);
-    }
-    colour = secondaries_colour;
+      colour = secondaries_colour;
 
-    diffuse_colour = diffuse_colour * remaining_weight;
-    if diffuse_colour.length() <= 0.01 {
+      diffuse_colour = diffuse_colour * remaining_weight;
+      if diffuse_colour.length() <= 0.01 {
+        return (colour, collision.distance + max_secondary_distance);
+      }
+      if true {
+        let sample_lighting = configuration.lighting_integrator().lighting(self, &fragment, &surface);
+        colour = colour
+          + Vector::from(
+            Colour::from(diffuse_colour) * sample_lighting.diffuse
+              + Colour::from(surface.ambient_colour) * sample_lighting.ambient
+              + Colour::from(surface.specular_colour) * sample_lighting.specular,
+          );
+      } else {
+        colour = diffuse_colour;
+      }
       return (colour, collision.distance + max_secondary_distance);
-    }
-    if true {
-      let sample_lighting = configuration.lighting_integrator().lighting(self, &fragment, &surface);
-      colour = colour
-        + Vector::from(
-          Colour::from(diffuse_colour) * sample_lighting.diffuse
-            + Colour::from(surface.ambient_colour) * sample_lighting.ambient
-            + Colour::from(surface.specular_colour) * sample_lighting.specular,
-        );
-    } else {
-      colour = diffuse_colour;
-    }
-    return (colour, collision.distance + max_secondary_distance);
+    };
+    return (surface_colour, surface_distance);
   }
 
   pub fn get_light_samples(&self, max_samples: usize) -> Vec<LightSample> {

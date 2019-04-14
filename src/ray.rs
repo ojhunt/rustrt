@@ -4,7 +4,7 @@ use crate::vectors::*;
 
 #[derive(Debug, Clone)]
 pub struct RayContext {
-  media: Option<MediaIdx>,
+  pub media: Option<MediaIdx>,
 }
 
 impl RayContext {

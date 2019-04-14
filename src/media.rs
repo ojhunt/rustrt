@@ -11,13 +11,13 @@ use crate::ray::Ray;
 use crate::collision::Collision;
 use crate::shader::Shadable;
 
-pub struct MediaFragment {
+pub struct MediaIntersection {
   diffuse_colour: Colour,
   density: f32,
 }
 
-pub trait Media: Debug + Send + Sync {
-  fn compute_fragment(&self, s: &Scene, r: &Ray, collision: &Collision) -> MediaFragment;
+pub trait Media: Debug + Send + Sync + Shadable {
+  fn compute_media_fragment(&self, s: &Scene, r: &Ray) -> Option<(f32, MediaIntersection)>;
 }
 
 #[derive(Debug)]

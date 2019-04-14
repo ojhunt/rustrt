@@ -10,6 +10,7 @@ mod colour;
 mod compound_object;
 mod direct_lighting;
 mod dispatch_queue;
+mod either;
 mod fragment;
 mod heap;
 mod intersectable;
