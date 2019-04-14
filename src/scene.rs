@@ -22,16 +22,16 @@ use crate::vectors::*;
 use crate::photon_map::Timing;
 
 #[derive(Debug, Copy, Clone)]
-pub struct MaterialIdx(pub usize);
+pub struct MaterialIdx(pub u32);
 
 #[derive(Debug, Copy, Clone)]
-pub struct TextureIdx(pub usize);
+pub struct TextureIdx(pub u32);
 
 #[derive(Debug, Copy, Clone)]
-pub struct NormalIdx(pub usize);
+pub struct NormalIdx(pub u32);
 
 #[derive(Debug, Copy, Clone)]
-pub struct MediaIdx(pub usize);
+pub struct MediaIdx(pub u32);
 
 impl MediaIdx {
   pub fn get<'a>(&self, s: &'a Scene) -> &'a Media {
@@ -134,7 +134,7 @@ impl Scene {
     if let Some(result) = self.texture_map.get(&resolved_path) {
       if need_bumpmap {
         let TextureIdx(idx) = result;
-        self.textures[*idx].generate_derivate_maps();
+        self.textures[*idx as usize].generate_derivate_maps();
       }
       return Some(*result);
     }
@@ -165,11 +165,11 @@ impl Scene {
 
     let texture = Texture::new(resolved_path.to_str().unwrap(), &image);
 
-    let texture_idx = TextureIdx(self.textures.len());
+    let texture_idx = TextureIdx(self.textures.len() as u32);
     self.textures.push(texture);
     if need_bumpmap {
       let TextureIdx(idx) = texture_idx;
-      self.textures[idx].generate_derivate_maps();
+      self.textures[idx as usize].generate_derivate_maps();
     }
     self.texture_map.insert(resolved_path, texture_idx);
     return Some(texture_idx);
@@ -184,7 +184,7 @@ impl Scene {
       return *value;
     }
     if let Some(material) = loader(self) {
-      let index = MaterialIdx(self.materials.len());
+      let index = MaterialIdx(self.materials.len() as u32);
       let is_light = material.is_light();
       self.materials.push(material);
       self.material_map.insert(name.to_string(), (index, is_light));
@@ -223,13 +223,13 @@ impl Scene {
     });
   }
 
-  pub fn get_normal(&self, idx: usize) -> Vector {
-    let n = self.normals[idx];
+  pub fn get_normal(&self, idx: u32) -> Vector {
+    let n = self.normals[idx as usize];
     assert!(n.w() == 0.0);
     return n;
   }
-  pub fn get_media<'a>(&'a self, idx: usize) -> &'a Media {
-    return &*self.medias[idx];
+  pub fn get_media<'a>(&'a self, idx: u32) -> &'a Media {
+    return &*self.medias[idx as usize];
   }
 
   pub fn get_texture_coordinate(&self, idx: usize) -> Vec2d {
@@ -238,11 +238,11 @@ impl Scene {
   }
 
   pub fn get_material(&self, MaterialIdx(idx): MaterialIdx) -> &material::Material {
-    return &*self.materials[idx];
+    return &*self.materials[idx as usize];
   }
 
   pub fn get_texture(&self, TextureIdx(idx): TextureIdx) -> &Texture {
-    return &self.textures[idx];
+    return &self.textures[idx as usize];
   }
 
   pub fn colour_and_depth_for_ray(&self, configuration: &RenderConfiguration, ray: &Ray) -> (Vector, f32) {

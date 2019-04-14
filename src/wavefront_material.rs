@@ -388,9 +388,9 @@ pub fn load_scene(settings: &SceneSettings) -> Scene {
         .vertex(|IndexTuple(p, t, n)| {
           let n_idx: Option<NormalIdx> = match n {
             Some(idx) => {
-              let normal = scn.get_normal(idx);
+              let normal = scn.get_normal(idx as u32);
               if normal.dot(normal) != 0.0 {
-                Some(NormalIdx(idx))
+                Some(NormalIdx(idx as u32))
               } else {
                 None
               }
