@@ -413,7 +413,7 @@ impl<Selector: PhotonSelector + 'static> PhotonMap<Selector> {
     }
     let mut max_radius = 0.0f32;
     let _skipped = 0;
-    for (photon, distance) in &photons {
+    for (distance, photon) in &photons {
       if let Some(contribution) = self.selector.weight_for_sample(surface, &photon, photons.len(), radius) {
         let photon_data = if let Some(ref data) = photon.data {
           data

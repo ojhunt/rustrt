@@ -17,6 +17,10 @@ impl<'a, T: Clone> PriorityHeap<'a, T> {
     }
   }
 
+  pub fn take_data(self) -> Vec<T> {
+    return self.data;
+  }
+
   pub fn append_buffer(&mut self, buffer: &mut Vec<T>) {
     buffer.sort_by(|a, b| (self.comparator)(a, b).reverse());
     self.data.append(buffer);

@@ -25,7 +25,7 @@ enum KDTreeNode<T> {
   Leaf(Vec<T>, BoundingBox),
 }
 
-struct ElementAccumulator<'a, T: Clone> {
+struct ElementAccumulator<'a, T: Copy> {
   heap: PriorityHeap<'a, T>,
   data: Vec<T>,
   max_count: usize,
@@ -33,7 +33,7 @@ struct ElementAccumulator<'a, T: Clone> {
   top: Option<usize>,
   comparator: &'a Comparator<T>,
 }
-impl<'a, T: Clone> ElementAccumulator<'a, T> {
+impl<'a, T: Copy> ElementAccumulator<'a, T> {
   pub fn new(c: &'a Comparator<T>, max_count: usize) -> Self {
     Self {
       heap: PriorityHeap::new(c, max_count),
@@ -43,6 +43,13 @@ impl<'a, T: Clone> ElementAccumulator<'a, T> {
       comparator: c,
       top: None,
     }
+  }
+  pub fn take_data(self) -> Vec<T> {
+    return if self.data.is_empty() {
+      self.heap.take_data()
+    } else {
+      self.data
+    };
   }
   pub fn is_empty(&self) -> bool {
     return self.count == 0;
@@ -88,11 +95,11 @@ impl<'a, T: Clone> ElementAccumulator<'a, T> {
   }
 }
 
-impl<T: Clone + HasPosition> KDTreeNode<T> {
+impl<T: Copy + HasPosition> KDTreeNode<T> {
   // Far from optimal -- the furthest node should start its calculation on top of the existing list
-  fn nearest<F: FnMut(&T) -> Option<f64>>(
-    &self,
-    nearest_elements: &mut ElementAccumulator<(f64, T)>,
+  fn nearest<'a, F: FnMut(&T) -> Option<f64>>(
+    &'a self,
+    nearest_elements: &mut ElementAccumulator<(f64, &'a T)>,
     position: Point,
     filter: &mut F,
   ) {
@@ -111,7 +118,7 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
 
           for element in elements {
             if let Some(distance) = filter(element) {
-              nearest_elements.insert((distance, element.clone()));
+              nearest_elements.insert((distance, &element));
             }
           }
           continue 'stack_loop;
@@ -158,11 +165,11 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
 }
 
 #[derive(Debug)]
-pub struct KDTree<T: Clone + HasPosition> {
+pub struct KDTree<T: Copy + HasPosition> {
   root: KDTreeNode<T>,
 }
 
-fn build_tree<T: Clone + HasBoundingBox + HasPosition>(
+fn build_tree<T: Copy + HasBoundingBox + HasPosition>(
   elements: &mut [T],
   bounds: BoundingBox,
   max_children: usize,
@@ -214,7 +221,7 @@ fn build_tree<T: Clone + HasBoundingBox + HasPosition>(
   });
 }
 
-impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
+impl<T: Copy + HasBoundingBox + HasPosition> KDTree<T> {
   pub fn new(elements: &mut [T], max_children: usize) -> Self {
     let mut bounds = BoundingBox::new();
     for elem in elements.iter() {
@@ -230,14 +237,17 @@ impl<T: Clone + HasBoundingBox + HasPosition> KDTree<T> {
     position: Point,
     count: usize,
     filter: &mut F,
-  ) -> (Vec<(T, f64)>, f64) {
-    let comparator = |a: &(f64, T), b: &(f64, T)| return a.0.partial_cmp(&b.0).unwrap();
-    let mut queue: ElementAccumulator<(f64, T)> = ElementAccumulator::new(&comparator, count);
+  ) -> (Vec<(f64, &T)>, f64) {
+    let comparator = |a: &(f64, &T), b: &(f64, &T)| return a.0.partial_cmp(&b.0).unwrap();
+    let mut queue: ElementAccumulator<(f64, &T)> = ElementAccumulator::new(&comparator, count);
     self.root.nearest(&mut queue, position, filter);
     if queue.is_empty() {
       return (vec![], std::f64::INFINITY);
     }
-    let result = queue.slice().iter().map(|(dist, elem)| (elem.clone(), *dist)).collect();
-    return (result, queue.top().unwrap().0);
+    let result = queue.take_data();
+    assert!(!result.is_empty());
+    let distance = result.first().unwrap().0;
+
+    return (result, distance);
   }
 }
