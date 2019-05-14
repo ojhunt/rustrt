@@ -96,49 +96,63 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
     position: Point,
     filter: &mut F,
   ) {
-    let node = match self {
-      KDTreeNode::Leaf(elements, bounds) => {
-        if nearest_elements.is_full() {
-          let distance = Vector::splat(nearest_elements.top().unwrap().0 as f32);
-          let min = bounds.min - distance;
-          let max = bounds.max + distance;
-          if position.lt(min).any() || position.gt(max).any() {
-            return;
+    let mut stack = vec![(self)];
+    'stack_loop: while let Some(node) = stack.pop() {
+      let node = match node {
+        KDTreeNode::Leaf(elements, bounds) => {
+          if nearest_elements.is_full() {
+            let distance = Vector::splat(nearest_elements.top().unwrap().0 as f32);
+            let min = bounds.min - distance;
+            let max = bounds.max + distance;
+            if position.lt(min).any() || position.gt(max).any() {
+              continue 'stack_loop;
+            }
           }
-        }
 
-        for element in elements {
-          if let Some(distance) = filter(element) {
-            nearest_elements.insert((distance, element.clone()));
+          for element in elements {
+            if let Some(distance) = filter(element) {
+              nearest_elements.insert((distance, element.clone()));
+            }
           }
+          continue 'stack_loop;
         }
-        return;
-      }
-      KDTreeNode::Node(node) => node,
-    };
+        KDTreeNode::Node(node) => node,
+      };
 
-    let (nearest_child, farthest_child, left_of_split) = {
-      if position.data.extract(node.axis) < node.value {
-        (&node.children[0], &node.children[1], true)
-      } else {
-        (&node.children[1], &node.children[0], false)
+      let (nearest_child, farthest_child, left_of_split) = {
+        if position.data.extract(node.axis) < node.value {
+          (&node.children[0], &node.children[1], true)
+        } else {
+          (&node.children[1], &node.children[0], false)
+        }
+      };
+
+      if !nearest_elements.is_full() {
+        stack.push(farthest_child);
+        stack.push(nearest_child);
+        continue 'stack_loop;
       }
-    };
-    nearest_child.nearest(nearest_elements, position, filter);
-    if nearest_elements.is_full() {
+      let distance = Vector::splat(nearest_elements.top().unwrap().0 as f32);
+      let bounds = node.bounds;
+      let min = bounds.min - distance;
+      let max = bounds.max + distance;
+      if position.lt(min).any() || position.gt(max).any() {
+        continue 'stack_loop;
+      }
+
       if let Some((distance, _)) = nearest_elements.top() {
         if left_of_split {
-          if position.data.extract(node.axis) + (*distance as f32) < node.value {
-            return;
+          if position.data.extract(node.axis) + (*distance as f32) > node.value {
+            stack.push(farthest_child);
           }
         } else {
-          if position.data.extract(node.axis) - (*distance as f32) > node.value {
-            return;
+          if position.data.extract(node.axis) - (*distance as f32) < node.value {
+            stack.push(farthest_child);
           }
         }
       }
+      stack.push(nearest_child);
     }
-    farthest_child.nearest(nearest_elements, position, filter);
   }
 }
 
