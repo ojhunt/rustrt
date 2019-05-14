@@ -132,6 +132,7 @@ impl<T: Clone + HasPosition> KDTreeNode<T> {
         stack.push(nearest_child);
         continue 'stack_loop;
       }
+
       let distance = Vector::splat(nearest_elements.top().unwrap().0 as f32);
       let bounds = node.bounds;
       let min = bounds.min - distance;
