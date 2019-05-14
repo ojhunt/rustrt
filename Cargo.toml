@@ -7,6 +7,7 @@ edition = "2018"
 [lib]
 name = "raytrace_rs"
 path = "src/lib.rs"
+lto = true
 
 [dependencies]
 image = "*"
@@ -25,10 +26,12 @@ branch = "master"
 
 [profile.release]
 debug = true
+lto = true
 
 [[example]]
 name = "myrt"
 path = "examples/myrt.rs"
+lto = true
 
 [dev-dependencies]
 sdl2 = "*"
